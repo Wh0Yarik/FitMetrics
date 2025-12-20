@@ -1,0 +1,300 @@
+// Prisma schema для FitMetrics
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "darwin-arm64"]
+}
+datasource db {
+  provider          = "postgresql"
+  url = env("DATABASE_URL")
+}
+// ============================================
+// USERS & AUTH (Пользователи)
+// ============================================
+model User {
+id String @id @default(cuid())
+email String @unique
+phone String?
+passwordHash String @map("password_hash")
+role UserRole @default(CLIENT)
+status UserStatus @default(ACTIVE)
+// Relations
+client Client?
+trainer Trainer?
+auditLogs AuditLog[]
+createdAt DateTime @default(now()) @map("created_at")
+updatedAt DateTime @updatedAt @map("updated_at")
+@@index([email])
+@@index([role])
+@@map("users")
+}
+enum UserRole {
+CLIENT
+TRAINER
+ADMIN
+}
+enum UserStatus {
+ACTIVE
+BLOCKED
+PENDING
+}
+// ============================================
+// TRAINERS (Тренеры)
+// ============================================
+model Trainer {
+id String @id @default(cuid())
+userId String @unique
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+name String
+bio String?
+specialization String?
+moderationStatus TrainerStatus @default(PENDING_APPROVAL) @map("moderation_status")
+telegramChatId String? @map("telegram_chat_id")
+// Relations
+clients Client[]
+nutritionGoals NutritionGoal[]
+notifications Notification[]
+inviteCodes InviteCode[]
+trainerHistory TrainerHistory[]
+createdAt DateTime @default(now()) @map("created_at")
+updatedAt DateTime @updatedAt @map("updated_at")
+@@index([moderationStatus])
+@@map("trainers")
+}
+enum TrainerStatus {
+PENDING_APPROVAL
+APPROVED
+REJECTED
+BLOCKED
+}
+// ============================================
+// CLIENTS (Клиенты)
+// ============================================
+model Client {
+id String @id @default(cuid())
+userId String @unique
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+name String
+gender String? // M, F, other
+age Int?
+height Float? // cm
+currentTrainerId String? @map("current_trainer_id")
+currentTrainer Trainer? @relation(fields: [currentTrainerId], references: [id], onDelete: SetNull)
+// Relations
+diaryEntries DiaryEntry[]
+dailySurveys DailySurvey[]
+measurements Measurement[]
+nutritionGoals NutritionGoal[]
+trainerHistory TrainerHistory[]
+inviteCodes       InviteCode[]
+createdAt DateTime @default(now()) @map("created_at")
+updatedAt DateTime @updatedAt @map("updated_at")
+@@index([currentTrainerId])
+@@index([userId])
+@@map("clients")
+}
+// ============================================
+// INVITE CODES (Инвайт-коды)
+// ============================================
+model InviteCode {
+id String @id @default(cuid())
+code String @unique
+trainerId String @map("trainer_id")
+trainer Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+clientId String? @map("client_id")
+client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+status InviteStatus @default(NEW) // new, used, expired
+createdAt DateTime @default(now()) @map("created_at")
+expiresAt DateTime @map("expires_at")
+usedAt DateTime? @map("used_at")
+@@index([trainerId])
+@@index([status])
+@@map("invite_codes")
+}
+enum InviteStatus {
+NEW
+USED
+EXPIRED
+}
+// ============================================
+// TRAINER HISTORY (История тренеров)
+// ============================================
+model TrainerHistory {
+id String @id @default(cuid())
+clientId String @map("client_id")
+client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+trainerId String? @map("trainer_id")
+trainer Trainer? @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+startedAt DateTime @default(now()) @map("started_at")
+endedAt DateTime? @map("ended_at")
+@@index([clientId])
+@@map("trainer_history")
+}
+// ============================================
+// DIARY & MEALS (Дневник питания)
+// ============================================
+model DiaryEntry {
+id String @id @default(cuid())
+clientId String @map("client_id")
+client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+date DateTime @db.Date
+totalProtein Float @default(0) @map("total_protein")
+totalFat Float @default(0) @map("total_fat")
+totalCarbs Float @default(0) @map("total_carbs")
+totalFiber Float @default(0) @map("total_fiber")
+synced Boolean @default(false)
+// Relations
+mealEntries MealEntry[]
+createdAt DateTime @default(now()) @map("created_at")
+updatedAt DateTime @updatedAt @map("updated_at")
+@@unique([clientId, date])
+@@index([clientId, date])
+@@map("diary_entries")
+}
+model MealEntry {
+id String @id @default(cuid())
+diaryEntryId String @map("diary_entry_id")
+diaryEntry DiaryEntry @relation(fields: [diaryEntryId], references: [id], onDelete: Cascade)
+time String? // HH:MM format
+protein Float
+fat Float
+carbs Float
+fiber Float
+comment String?
+synced Boolean @default(false)
+createdAt DateTime @default(now()) @map("created_at")
+updatedAt DateTime @updatedAt @map("updated_at")
+@@index([diaryEntryId])
+@@map("meal_entries")
+}
+// ============================================
+// DAILY SURVEYS (Ежедневные анкеты)
+// ============================================
+model DailySurvey {
+id String @id @default(cuid())
+clientId String @map("client_id")
+client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+date DateTime @unique(map: "unique_client_survey_date") @map("date") @db.Date
+// Survey fields (1-10 шкалы)
+motivation Int?
+sleepHours Float? @map("sleep_hours")
+sleepQuality Int? @map("sleep_quality") // 1-5
+stress Int?
+digestion String? // excellent, good, bad
+water Float? // литры
+hunger Int?
+libido Int?
+weight Float? // кг (обязательное)
+comment String?
+viewedByTrainer Boolean @default(false) @map("viewed_by_trainer")
+viewedAt DateTime? @map("viewed_at")
+synced Boolean @default(false)
+createdAt DateTime @default(now()) @map("created_at")
+updatedAt DateTime @updatedAt @map("updated_at")
+@@unique([clientId, date], name: "unique_survey_per_day")
+@@index([clientId, date])
+@@index([viewedByTrainer])
+@@map("daily_surveys")
+}
+// ============================================
+// MEASUREMENTS (Еженедельные замеры)
+// ============================================
+model Measurement {
+id String @id @default(cuid())
+clientId String @map("client_id")
+client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+weekStartDate DateTime @map("week_start_date") @db.Date // понедельник недели
+armCircumference Float? @map("arms") // обхват рук, см
+legCircumference Float? @map("legs") // обхват ног, см
+waistCircumference Float? @map("waist") // обхват талии, см
+chestCircumference Float? @map("chest") // обхват груди, см
+hipCircumference Float? @map("hips") // обхват бёдер, см
+synced Boolean @default(false)
+// Relations
+photos MeasurementPhoto[]
+createdAt DateTime @default(now()) @map("created_at")
+updatedAt DateTime @updatedAt @map("updated_at")
+@@unique([clientId, weekStartDate])
+@@index([clientId, weekStartDate])
+@@map("measurements")
+}
+model MeasurementPhoto {
+id String @id @default(cuid())
+measurementId String @map("measurement_id")
+measurement Measurement @relation(fields: [measurementId], references: [id], onDelete: Cascade)
+type PhotoType // front, side, back
+url String // S3/Cloudinary URL
+synced Boolean @default(false)
+createdAt DateTime @default(now()) @map("created_at")
+@@index([measurementId])
+@@map("measurement_photos")
+}
+enum PhotoType {
+FRONT
+SIDE
+BACK
+}
+// ============================================
+// NUTRITION GOALS (Цели по питанию)
+// ============================================
+model NutritionGoal {
+id String @id @default(cuid())
+clientId String @map("client_id")
+client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+trainerId String @map("trainer_id")
+trainer Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+dailyProtein Float @map("daily_protein") // порции/день
+dailyFat Float @map("daily_fat") // порции/день
+dailyCarbs Float @map("daily_carbs") // порции/день
+dailyFiber Float? @map("daily_fiber") // порции/день (опционально)
+startDate DateTime @map("start_date") @db.Date
+endDate DateTime? @map("end_date") @db.Date
+createdAt DateTime @default(now()) @map("created_at")
+updatedAt DateTime @updatedAt @map("updated_at")
+@@unique([clientId, startDate])
+@@index([clientId])
+@@index([trainerId])
+@@map("nutrition_goals")
+}
+// ============================================
+// NOTIFICATIONS (Уведомления)
+// ============================================
+model Notification {
+id String @id @default(cuid())
+type NotificationType
+trainerId String @map("trainer_id")
+trainer Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+clientId String? @map("client_id")
+message String
+data Json?
+sentToTelegram Boolean @default(false) @map("sent_to_telegram")
+telegramMessageId String? @map("telegram_message_id")
+createdAt DateTime @default(now()) @map("created_at")
+viewedAt DateTime? @map("viewed_at")
+@@index([trainerId])
+@@index([sentToTelegram])
+@@map("notifications")
+}
+enum NotificationType {
+CLIENT_JOINED
+WEEKLY_REPORT
+MISSED_DIARY
+UNVIEWED_SURVEY
+}
+// ============================================
+// AUDIT LOGS (Логирование действий)
+// ============================================
+model AuditLog {
+id String @id @default(cuid())
+userId String? @map("user_id")
+user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+action String
+entity String // DiaryEntry, Measurement, Survey, etc
+entityId String? @map("entity_id")
+changes Json?
+ipAddress String? @map("ip_address")
+userAgent String? @map("user_agent")
+createdAt DateTime @default(now()) @map("created_at")
+@@index([userId, createdAt])
+@@map("audit_logs")
+}
