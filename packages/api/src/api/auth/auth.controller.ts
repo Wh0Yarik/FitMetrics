@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { registerTrainerService } from './auth.service';
+import { registerTrainerService } from '../../services/auth.service';
 
 export const registerTrainer = async (req: Request, res: Response) => {
   try {

@@ -23,3 +23,5 @@ console.log('🔌 Disconnecting Prisma...')
 await prisma.$disconnect()
 process.exit(0)
 })
+
+export default prisma;

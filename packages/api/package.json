@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node-dev src/index.ts",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
@@ -24,20 +24,22 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.1",
     "@prisma/extension-accelerate": "^3.0.1",
+    "cors": "^2.8.5",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "dotenv": "^16.4.5",
-    "express": "^5.2.1",
+    "express": "^4.19.2",
     "jsonwebtoken": "^9.0.3",
-    "node-cron": "^4.2.1",
+    "node-cron": "^3.0.3",
     "node-telegram-bot-api": "^0.63.0",
-    "winston": "^3.19.0",
-    "zod": "^4.2.1"
+    "winston": "^3.13.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@prisma/client": "^6.19.1",
     "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.17",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.0.0",
