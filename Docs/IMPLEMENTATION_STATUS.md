@@ -36,9 +36,9 @@
 
 ### 2. Экраны Аутентификации
 - [x] Экран "Welcome" (Выбор роли: Тренер/Клиент)
-- [ ] Экран "Login"
-- [ ] Экран "Register Trainer"
-- [ ] Экран "Register Client" (Ввод инвайта)
+- [x] Экран "Login"
+- [x] Экран "Register Trainer"
+- [x] Экран "Register Client" (Ввод инвайта)
 
 ### 3. Локальная БД (Offline-first)
 - [x] Настройка SQLite (Expo SQLite)
