@@ -30,12 +30,12 @@
 
 ### 1. Инициализация
 - [x] Создание проекта Expo (React Native)
-- [ ] Настройка структуры папок (src/app, src/features)
-- [ ] Настройка навигации (Expo Router)
+- [x] Настройка структуры папок (src/app, src/features)
+- [x] Настройка навигации (Expo Router)
 - [ ] Настройка UI Kit (Tamagui или NativeWind/Gluestack)
 
 ### 2. Экраны Аутентификации
-- [ ] Экран "Welcome" (Выбор роли: Тренер/Клиент)
+- [x] Экран "Welcome" (Выбор роли: Тренер/Клиент)
 - [ ] Экран "Login"
 - [ ] Экран "Register Trainer"
 - [ ] Экран "Register Client" (Ввод инвайта)

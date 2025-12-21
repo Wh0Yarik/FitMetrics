@@ -6,7 +6,11 @@
   ],
   "scripts": {
     "api": "npm run -w packages/api",
-    "mobile": "npm -w packages/mobile"
+    "mobile": "npm run -w packages/mobile",
+    "dev:api": "npm run dev -w packages/api",
+    "start:mobile": "npm run start -w packages/mobile",
+    "android": "npm run android -w packages/mobile",
+    "ios": "npm run ios -w packages/mobile"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.2.0",
