@@ -41,8 +41,8 @@
 - [ ] Экран "Register Client" (Ввод инвайта)
 
 ### 3. Локальная БД (Offline-first)
-- [ ] Настройка SQLite (Expo SQLite / WatermelonDB)
-- [ ] Синхронизация данных (Sync Engine)
+- [x] Настройка SQLite (Expo SQLite)
+- [x] Синхронизация данных (Sync Engine)
 
 ---
 
