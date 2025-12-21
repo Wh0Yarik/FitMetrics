@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 
 export default function WelcomeScreen() {
   return (
@@ -12,23 +12,19 @@ export default function WelcomeScreen() {
       <View style={styles.content}>
         <Text style={styles.label}>Кто вы?</Text>
 
-        <Link href="/auth/register-trainer" asChild>
-          <TouchableOpacity style={styles.button}>
-            <Text style={styles.buttonText}>Я Тренер</Text>
-          </TouchableOpacity>
-        </Link>
+        <TouchableOpacity style={styles.button} onPress={() => router.push('/auth/register-trainer')}>
+          <Text style={styles.buttonText}>Я Тренер</Text>
+        </TouchableOpacity>
 
-        <Link href="/auth/register-client" asChild>
-          <TouchableOpacity style={styles.button}>
-            <Text style={styles.buttonText}>Я Клиент</Text>
-          </TouchableOpacity>
-        </Link>
+        <TouchableOpacity style={styles.button} onPress={() => router.push('/auth/register-client')}>
+          <Text style={styles.buttonText}>Я Клиент</Text>
+        </TouchableOpacity>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Уже есть аккаунт? </Text>
-          <Link href="/auth/login">
+          <TouchableOpacity onPress={() => router.push('/auth/login')}>
             <Text style={styles.linkText}>Войти</Text>
-          </Link>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
