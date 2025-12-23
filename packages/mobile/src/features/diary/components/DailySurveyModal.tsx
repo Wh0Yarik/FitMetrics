@@ -82,10 +82,11 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onC
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1 bg-gray-50">
+    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1 justify-end bg-black/50">
+        <View className="bg-white rounded-t-3xl h-[90%] w-full overflow-hidden">
         {/* Header */}
-        <View className="flex-row justify-between items-center p-4 bg-white border-b border-gray-100">
+        <View className="flex-row justify-between items-center p-6 border-b border-gray-100">
           <Text className="text-lg font-bold text-gray-900">Ежедневный отчет</Text>
           <TouchableOpacity onPress={onClose} className="p-2 bg-gray-100 rounded-full">
             <X size={20} color="#6B7280" />
@@ -200,13 +201,14 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onC
           {/* Save Button */}
           <TouchableOpacity 
             onPress={handleSubmit}
-            className="bg-black py-4 rounded-xl flex-row items-center justify-center gap-2 shadow-lg"
+            className="bg-green-600 py-4 rounded-xl flex-row items-center justify-center gap-2 shadow-sm shadow-green-200 mb-6"
           >
             <Check size={20} color="white" />
             <Text className="text-white font-bold text-lg">Сохранить отчет</Text>
           </TouchableOpacity>
 
         </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -244,10 +246,3 @@ const ScaleSelector = ({ label, value, onChange, max = 10, icon, colors }: any) 
     </View>
   );
 };
-```
-
-### 2. Интеграция в DiaryScreen
-
-Теперь подключаем этот компонент к главному экрану. Мы заменим моковые данные на реальные вызовы репозитория.
-
-```diff

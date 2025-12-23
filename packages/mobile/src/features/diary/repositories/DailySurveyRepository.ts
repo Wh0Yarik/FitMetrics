@@ -21,6 +21,38 @@ export class DailySurveyRepository {
 
   constructor(dbName: string = 'fitmetrics.db') {
     this.db = SQLite.openDatabaseSync(dbName);
+    this.initTable();
+  }
+
+  private initTable() {
+    // FIX: Проверяем схему. Если нет колонки synced, пересоздаем таблицу
+    const columns = this.db.getAllSync<any>('PRAGMA table_info(daily_surveys)');
+    const columnNames = columns.map(c => c.name);
+    const hasSynced = columnNames.includes('synced');
+
+    if (columns.length > 0 && !hasSynced) {
+      this.db.execSync('DROP TABLE IF EXISTS daily_surveys');
+    }
+
+    this.db.execSync(`
+      CREATE TABLE IF NOT EXISTS daily_surveys (
+        id TEXT PRIMARY KEY NOT NULL,
+        date TEXT NOT NULL,
+        motivation INTEGER,
+        sleep_hours REAL,
+        sleep_quality INTEGER,
+        stress INTEGER,
+        digestion TEXT,
+        water REAL,
+        hunger INTEGER,
+        libido INTEGER,
+        weight REAL,
+        comment TEXT,
+        synced INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT
+      );
+    `);
   }
 
   // Получить анкету за дату

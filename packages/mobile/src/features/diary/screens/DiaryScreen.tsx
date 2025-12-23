@@ -1,13 +1,13 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Image, RefreshControl, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Image, RefreshControl, Alert, BackHandler } from 'react-native';
 import { Plus, CheckCircle, AlertCircle, Utensils, Trash2, Cloud, CloudOff, RefreshCw } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
+import Svg, { Circle, G } from 'react-native-svg';
 
 import { AddMealModal, PortionCount } from '../components/AddMealModal';
 import { DailySurveyModal } from '../components/DailySurveyModal';
 import { diaryRepository, MealEntry } from '../repositories/DiaryRepository';
 import { dailySurveyRepository, DailySurveyData } from '../repositories/DailySurveyRepository';
-import { initDatabase } from '../../../shared/db/init';
 
 // Mock User & Goals (пока нет реального контекста пользователя)
 const MOCK_USER = {
@@ -21,7 +21,14 @@ export default function DiaryScreen() {
   const [meals, setMeals] = useState<MealEntry[]>([]);
   const [isMealModalOpen, setMealModalOpen] = useState(false);
   const [isSurveyModalOpen, setSurveyModalOpen] = useState(false);
-  const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
+  // FIX: Используем локальное время вместо UTC, чтобы избежать смещения даты
+  const [currentDate, setCurrentDate] = useState(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
   const [refreshing, setRefreshing] = useState(false);
   
   // Real states
@@ -29,14 +36,22 @@ export default function DiaryScreen() {
   const [currentWeight, setCurrentWeight] = useState(MOCK_USER.currentWeight);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
   
-  useEffect(() => {
-    initDatabase();
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
       loadMeals();
       loadSurveyStatus();
+
+      // На главном экране кнопка "Назад" должна закрывать приложение, а не возвращать к логину
+      const onBackPress = () => {
+        Alert.alert('Выход', 'Вы хотите выйти из приложения?', [
+          { text: 'Отмена', style: 'cancel', onPress: () => {} },
+          { text: 'Выйти', style: 'destructive', onPress: () => BackHandler.exitApp() },
+        ]);
+        return true;
+      };
+
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
     }, [currentDate])
   );
 
@@ -109,6 +124,62 @@ export default function DiaryScreen() {
     ? Math.min(100, Math.round((totalPortionsConsumed / totalPortionsGoal) * 100))
     : 0;
 
+  // Данные для диаграммы
+  const isEmpty = totalPortionsConsumed === 0;
+  const macroData = isEmpty 
+    ? [{ name: 'Empty', value: 1, color: '#E5E7EB' }]
+    : [
+        { name: 'Белки', value: todayStats.protein, color: '#EF4444' },
+        { name: 'Жиры', value: todayStats.fat, color: '#F97316' },
+        { name: 'Углеводы', value: todayStats.carbs, color: '#3B82F6' },
+        { name: 'Клетчатка', value: todayStats.fiber, color: '#22C55E' },
+      ];
+
+  // Компонент круговой диаграммы
+  const SimplePieChart = () => {
+    const size = 80;
+    const strokeWidth = 8;
+    const radius = (size - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * radius;
+    let startAngle = 0;
+
+    const total = macroData.reduce((acc, item) => acc + item.value, 0);
+
+    return (
+      <View className="items-center justify-center" style={{ width: size, height: size }}>
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <G rotation="-90" origin={`${size / 2}, ${size / 2}`}>
+            {macroData.map((item, index) => {
+              const percentage = item.value / total;
+              const strokeDasharray = `${circumference * percentage} ${circumference}`;
+              const rotate = (startAngle * 360);
+              startAngle += percentage;
+              
+              return (
+                <Circle
+                  key={index}
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  stroke={item.color}
+                  strokeWidth={strokeWidth}
+                  fill="transparent"
+                  strokeDasharray={strokeDasharray}
+                  strokeDashoffset={0}
+                  rotation={rotate}
+                  origin={`${size / 2}, ${size / 2}`}
+                />
+              );
+            })}
+          </G>
+        </Svg>
+        <View className="absolute inset-0 items-center justify-center">
+           <Text className="text-[10px] text-gray-400 font-bold">План</Text>
+        </View>
+      </View>
+    );
+  };
+
   // Helper Components
   const SyncIndicator = () => {
     if (syncStatus === 'syncing') return <RefreshCw size={16} color="#4CAF50" />; // animate-spin requires Reanimated
@@ -174,11 +245,8 @@ export default function DiaryScreen() {
                  <View className="bg-green-500 h-full rounded-full" style={{ width: `${progressPercentage}%` }} />
                </View>
             </View>
-            {/* Pie Chart Placeholder */}
-            <View className="w-20 h-20 ml-4 items-center justify-center">
-               <View className="w-16 h-16 rounded-full border-4 border-gray-200 items-center justify-center">
-                  <Text className="text-[10px] text-gray-400 font-bold">План</Text>
-               </View>
+            <View className="ml-4">
+               <SimplePieChart />
             </View>
           </View>
           
@@ -314,8 +382,3 @@ export default function DiaryScreen() {
     </SafeAreaView>
   );
 }
-```
-
-### 3. Обновление статуса
-
-```diff

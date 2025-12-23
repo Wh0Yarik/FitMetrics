@@ -118,7 +118,7 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
             {/* Save Button */}
             <TouchableOpacity 
               onPress={handleSubmit}
-              className={`w-full py-4 rounded-xl flex-row items-center justify-center gap-2 shadow-sm ${name.trim() ? 'bg-green-600' : 'bg-gray-300'}`}
+              className={`w-full py-4 rounded-xl flex-row items-center justify-center gap-2 shadow-sm ${name.trim() ? 'bg-green-600 shadow-green-200' : 'bg-gray-300'}`}
               disabled={!name.trim()}
             >
               <Check size={20} color="white" />
