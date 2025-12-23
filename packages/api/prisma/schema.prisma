@@ -138,10 +138,10 @@ id String @id @default(cuid())
 clientId String @map("client_id")
 client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 date DateTime @db.Date
-totalProtein Float @default(0) @map("total_protein")
-totalFat Float @default(0) @map("total_fat")
-totalCarbs Float @default(0) @map("total_carbs")
-totalFiber Float @default(0) @map("total_fiber")
+totalProtein Int @default(0) @map("total_protein")
+totalFat Int @default(0) @map("total_fat")
+totalCarbs Int @default(0) @map("total_carbs")
+totalFiber Int @default(0) @map("total_fiber")
 synced Boolean @default(false)
 // Relations
 mealEntries MealEntry[]
@@ -155,12 +155,12 @@ model MealEntry {
 id String @id @default(cuid())
 diaryEntryId String @map("diary_entry_id")
 diaryEntry DiaryEntry @relation(fields: [diaryEntryId], references: [id], onDelete: Cascade)
-time String? // HH:MM format
-protein Float
-fat Float
-carbs Float
-fiber Float
-comment String?
+time DateTime?
+name String
+protein Int
+fat Int
+carbs Int
+fiber Int
 synced Boolean @default(false)
 createdAt DateTime @default(now()) @map("created_at")
 updatedAt DateTime @updatedAt @map("updated_at")
