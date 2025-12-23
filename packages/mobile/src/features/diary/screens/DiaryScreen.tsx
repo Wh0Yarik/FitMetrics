@@ -4,7 +4,9 @@ import { Plus, CheckCircle, AlertCircle, Utensils, Trash2, Cloud, CloudOff, Refr
 import { useFocusEffect } from 'expo-router';
 
 import { AddMealModal, PortionCount } from '../components/AddMealModal';
+import { DailySurveyModal } from '../components/DailySurveyModal';
 import { diaryRepository, MealEntry } from '../repositories/DiaryRepository';
+import { dailySurveyRepository, DailySurveyData } from '../repositories/DailySurveyRepository';
 import { initDatabase } from '../../../shared/db/init';
 
 // Mock User & Goals (пока нет реального контекста пользователя)
@@ -18,12 +20,13 @@ const MOCK_USER = {
 export default function DiaryScreen() {
   const [meals, setMeals] = useState<MealEntry[]>([]);
   const [isMealModalOpen, setMealModalOpen] = useState(false);
+  const [isSurveyModalOpen, setSurveyModalOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [refreshing, setRefreshing] = useState(false);
   
-  // Mock states for features not yet implemented
+  // Real states
   const [dailySurveyCompleted, setDailySurveyCompleted] = useState(false);
-  const [weightLoggedToday, setWeightLoggedToday] = useState(false);
+  const [currentWeight, setCurrentWeight] = useState(MOCK_USER.currentWeight);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
   
   useEffect(() => {
@@ -33,12 +36,19 @@ export default function DiaryScreen() {
   useFocusEffect(
     useCallback(() => {
       loadMeals();
+      loadSurveyStatus();
     }, [currentDate])
   );
 
   const loadMeals = () => {
     const data = diaryRepository.getMealsByDate(currentDate);
     setMeals(data);
+  };
+
+  const loadSurveyStatus = () => {
+    const isCompleted = dailySurveyRepository.isSurveyCompleted(currentDate);
+    setDailySurveyCompleted(isCompleted);
+    // TODO: Load actual weight from survey if exists
   };
 
   const onRefresh = useCallback(() => {
@@ -54,6 +64,11 @@ export default function DiaryScreen() {
   const handleSaveMeal = (name: string, portions: PortionCount) => {
     diaryRepository.addMeal(currentDate, name, portions);
     loadMeals();
+  };
+
+  const handleSaveSurvey = (data: DailySurveyData) => {
+    dailySurveyRepository.saveSurvey(data);
+    loadSurveyStatus();
   };
 
   const handleDeleteMeal = (id: string) => {
@@ -196,7 +211,7 @@ export default function DiaryScreen() {
                </View>
                {!dailySurveyCompleted && (
                  <TouchableOpacity 
-                  onPress={() => Alert.alert('Скоро', 'Функционал анкет в разработке')}
+                  onPress={() => setSurveyModalOpen(true)}
                   className="bg-green-600 px-4 py-2 rounded-lg shadow-sm"
                  >
                    <Text className="text-white text-sm font-medium">Заполнить</Text>
@@ -205,24 +220,24 @@ export default function DiaryScreen() {
             </View>
 
             {/* Weight Task */}
-            <View className={`bg-white p-4 rounded-xl border shadow-sm flex-row items-center justify-between ${weightLoggedToday ? 'border-green-100 bg-green-50' : 'border-gray-100'}`}>
+            <View className={`bg-white p-4 rounded-xl border shadow-sm flex-row items-center justify-between ${dailySurveyCompleted ? 'border-green-100 bg-green-50' : 'border-gray-100'}`}>
                <View className="flex-row items-center gap-3">
-                 <View className={`w-10 h-10 rounded-full items-center justify-center ${weightLoggedToday ? 'bg-green-100' : 'bg-blue-50'}`}>
-                   <CheckCircle size={20} color={weightLoggedToday ? "#16A34A" : "#3B82F6"} />
+                 <View className={`w-10 h-10 rounded-full items-center justify-center ${dailySurveyCompleted ? 'bg-green-100' : 'bg-blue-50'}`}>
+                   <CheckCircle size={20} color={dailySurveyCompleted ? "#16A34A" : "#3B82F6"} />
                  </View>
                  <View>
-                   <Text className={`font-medium ${weightLoggedToday ? 'text-green-900' : 'text-gray-900'}`}>Замеры веса</Text>
+                   <Text className={`font-medium ${dailySurveyCompleted ? 'text-green-900' : 'text-gray-900'}`}>Замеры веса</Text>
                    <Text className="text-xs text-gray-500">
-                     {weightLoggedToday 
-                       ? `${MOCK_USER.currentWeight} кг • Сегодня` 
-                       : `${MOCK_USER.currentWeight} кг (предыдущий)`}
+                     {dailySurveyCompleted 
+                       ? `Записано в анкете` 
+                       : `${currentWeight} кг (текущий)`}
                    </Text>
                  </View>
                </View>
-               {!weightLoggedToday && (
+               {!dailySurveyCompleted && (
                  <TouchableOpacity 
-                   onPress={() => Alert.alert('Скоро', 'Функционал замеров в разработке')}
-                   className="bg-white border border-gray-200 px-4 py-2 rounded-lg"
+                   onPress={() => setSurveyModalOpen(true)}
+                   className="bg-white border border-gray-200 px-4 py-2 rounded-lg active:bg-gray-50"
                  >
                    <Text className="text-gray-900 text-sm font-medium">Внести</Text>
                  </TouchableOpacity>
@@ -288,6 +303,13 @@ export default function DiaryScreen() {
         visible={isMealModalOpen}
         onClose={() => setMealModalOpen(false)}
         onSave={handleSaveMeal}
+      />
+
+      <DailySurveyModal
+        visible={isSurveyModalOpen}
+        onClose={() => setSurveyModalOpen(false)}
+        onSave={handleSaveSurvey}
+        date={currentDate}
       />
     </SafeAreaView>
   );

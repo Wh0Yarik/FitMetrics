@@ -23,4 +23,24 @@ export const DIARY_SCHEMA = `
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (diary_entry_id) REFERENCES diary_entries (id) ON DELETE CASCADE
   );
+
+  -- Таблица ежедневных анкет
+  CREATE TABLE IF NOT EXISTS daily_surveys (
+    id TEXT PRIMARY KEY NOT NULL,
+    date TEXT NOT NULL, -- YYYY-MM-DD
+    motivation INTEGER, -- 1-10
+    sleep_hours REAL,
+    sleep_quality INTEGER, -- 1-5
+    stress INTEGER, -- 1-10
+    digestion TEXT, -- excellent, good, bad
+    water REAL, -- liters
+    hunger INTEGER, -- 1-10
+    libido INTEGER, -- 1-10
+    weight REAL, -- kg
+    comment TEXT,
+    synced INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(date)
+  );
 `;
