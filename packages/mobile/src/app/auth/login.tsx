@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { api } from '../../shared/api/client';
 import { router } from 'expo-router';
+import { setToken } from '../../shared/lib/storage';
 
 const loginSchema = z.object({
   email: z.string().email('Некорректный email'),
@@ -24,15 +25,13 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       const response = await api.post('/auth/login', data);
-      // TODO: Сохранить токен (позже добавим SecureStore)
-      console.log('Login success:', response.data);
       
-      Alert.alert('Успех', 'Вы вошли в систему!', [
-        { text: 'OK', onPress: () => {
-           // Временно просто выводим алерт
-           console.log('Redirecting...');
-        }}
-      ]);
+      if (response.data.accessToken) {
+        await setToken(response.data.accessToken);
+        router.replace('/(tabs)');
+      } else {
+        Alert.alert('Ошибка', 'Не удалось получить токен доступа');
+      }
     } catch (error: any) {
       console.error(error);
       const message = error.response?.data?.message || 'Ошибка при входе';
@@ -95,7 +94,7 @@ export default function LoginScreen() {
             {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Войти</Text>}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.registerLink} onPress={() => router.push('/')}>
+          <TouchableOpacity style={styles.registerLink} onPress={() => router.push('/auth/welcome')}>
             <Text style={styles.registerLinkText}>Нет аккаунта? Зарегистрироваться</Text>
           </TouchableOpacity>
         </View>

@@ -1,20 +1,40 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
+import { getToken } from '../lib/storage';
 
-// Для Android эмулятора localhost это 10.0.2.2
-// Для iOS симулятора localhost это 127.0.0.1 (localhost)
-// Для реального устройства нужно будет подставить IP компьютера в локальной сети
-const DEV_API_URL = Platform.select({
-  android: 'http://10.0.2.2:3000/api',
-  ios: 'http://localhost:3000/api',
-  default: 'http://localhost:3000/api',
-});
+// Определяем URL API в зависимости от платформы
+// Android Emulator использует 10.0.2.2 для доступа к localhost хоста
+// iOS Simulator использует localhost
+// Для реального устройства нужно использовать IP вашего компьютера в локальной сети (например, 192.168.1.X)
+const getBaseUrl = () => {
+  // ВРЕМЕННО: Хардкод IP вашего Mac для диагностики (порт 3001)
+  return 'http://192.168.0.8:3001/api';
+
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:3001/api';
+  }
+  
+  return 'http://localhost:3001/api';
+};
+
+console.log('🚀 API Client initialized with URL:', getBaseUrl());
 
 export const api = axios.create({
-  baseURL: DEV_API_URL,
+  baseURL: getBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-export default api;
+// Добавляем токен к каждому запросу
+api.interceptors.request.use(async (config) => {
+  const token = await getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});

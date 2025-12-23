@@ -96,6 +96,17 @@ async function main() {
   })
   console.log(`Invite code created: ${inviteCode.code}`)
 
+  // 5.1 Create a NEW invite code for testing registration
+  const newInviteCode = await prisma.inviteCode.create({
+    data: {
+      code: 'START2025',
+      trainerId: trainerUser.trainer!.id,
+      status: InviteStatus.NEW,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    },
+  })
+  console.log(`New invite code created: ${newInviteCode.code}`)
+
   // 6. Create diary entry
   const diaryEntry = await prisma.diaryEntry.create({
     data: {
@@ -109,28 +120,28 @@ async function main() {
       mealEntries: {
         create: [
           {
-            time: '08:00',
+            time: new Date(new Date(today).setHours(8, 0)),
             protein: 40,
             fat: 15,
             carbs: 50,
             fiber: 8,
-            comment: 'Breakfast',
+            name: 'Breakfast',
           },
           {
-            time: '13:00',
+            time: new Date(new Date(today).setHours(13, 0)),
             protein: 50,
             fat: 20,
             carbs: 70,
             fiber: 10,
-            comment: 'Lunch',
+            name: 'Lunch',
           },
           {
-            time: '18:00',
+            time: new Date(new Date(today).setHours(18, 0)),
             protein: 55,
             fat: 23,
             carbs: 75,
             fiber: 10,
-            comment: 'Dinner',
+            name: 'Dinner',
           },
         ],
       },
@@ -166,6 +177,7 @@ async function main() {
   console.log('Admin:  admin@fitmetrics.com / admin123')
   console.log('Trainer: trainer@fitmetrics.com / trainer123')
   console.log('Client: client@fitmetrics.com / client123')
+  console.log('New Invite Code: START2025')
 }
 
 main()
