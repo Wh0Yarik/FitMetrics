@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, SafeAreaView, Animated, Dimensions, StyleSheet } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, Animated, Dimensions, StyleSheet } from 'react-native';
 import { X, Check } from 'lucide-react-native';
 import { DailySurveyData } from '../repositories/DailySurveyRepository';
 

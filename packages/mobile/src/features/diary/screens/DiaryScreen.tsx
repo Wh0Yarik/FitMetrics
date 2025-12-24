@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Image, RefreshControl, Alert, BackHandler, Touchable } from 'react-native';
-import { Plus, CheckCircle, AlertCircle, Utensils, Trash2, Cloud, CloudOff, RefreshCw, ClipboardList } from 'lucide-react-native';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, Image, RefreshControl, Alert, BackHandler, Platform, Modal } from 'react-native';
+import { Plus, CheckCircle, AlertCircle, Utensils, Trash2, Cloud, CloudOff, RefreshCw, ClipboardList, ChevronDown } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from 'expo-router';
 import Svg, { Circle, G } from 'react-native-svg';
 
@@ -30,6 +32,7 @@ export default function DiaryScreen() {
     return `${year}-${month}-${day}`;
   });
   const [refreshing, setRefreshing] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   
   // Real states
   const [surveyStatus, setSurveyStatus] = useState<'empty' | 'partial' | 'complete'>('empty');
@@ -51,8 +54,8 @@ export default function DiaryScreen() {
         return true;
       };
 
-      BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
     }, [currentDate])
   );
 
@@ -124,6 +127,47 @@ export default function DiaryScreen() {
         }
       ]
     );
+  };
+
+  // Date Helpers
+  const getDateObj = (dateStr: string) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    
+    if (event.type === 'dismissed') {
+      return;
+    }
+    
+    if (selectedDate) {
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      setCurrentDate(`${year}-${month}-${day}`);
+    }
+  };
+
+  const getHeaderTitle = () => {
+    const current = getDateObj(currentDate);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    if (current.getTime() === now.getTime()) return 'Сегодня';
+
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (current.getTime() === yesterday.getTime()) return 'Вчера';
+
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (current.getTime() === tomorrow.getTime()) return 'Завтра';
+
+    return current.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
   };
 
   // Calculate stats
@@ -234,12 +278,13 @@ export default function DiaryScreen() {
       <View className="bg-white p-6 pb-4 pt-10 rounded-b-3xl shadow-sm border-b border-gray-100 z-10">
           <View className="flex-row justify-between items-center mb-4">
             <View>
-              <View className="flex-row items-center gap-2">
-                <Text className="text-2xl font-bold text-gray-900">Сегодня</Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(true)} className="flex-row items-center gap-2">
+                <Text className="text-2xl font-bold text-gray-900">{getHeaderTitle()}</Text>
+                <ChevronDown size={24} color="#111827" />
                 <View className="mt-1"><SyncIndicator /></View>
-              </View>
+              </TouchableOpacity>
               <Text className="text-gray-500 text-sm">
-                {new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })}
+                {getDateObj(currentDate).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })}
               </Text>
             </View>
             <View className="w-10 h-10 bg-green-50 rounded-full items-center justify-center border border-green-100 overflow-hidden">
@@ -379,6 +424,37 @@ export default function DiaryScreen() {
         date={currentDate}
         initialData={dailySurvey}
       />
+
+      {/* Date Picker Modal */}
+      {showDatePicker && (
+        Platform.OS === 'ios' ? (
+          <Modal transparent animationType="fade">
+            <View className="flex-1 justify-end bg-black/50">
+              <View className="bg-white pb-6 rounded-t-3xl">
+                <View className="flex-row justify-end p-4 border-b border-gray-100">
+                  <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                    <Text className="text-blue-600 font-bold text-lg">Готово</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={getDateObj(currentDate)}
+                  mode="date"
+                  display="inline"
+                  onChange={onDateChange}
+                  locale="ru-RU"
+                />
+              </View>
+            </View>
+          </Modal>
+        ) : (
+          <DateTimePicker
+            value={getDateObj(currentDate)}
+            mode="date"
+            display="default"
+            onChange={onDateChange}
+          />
+        )
+      )}
     </SafeAreaView>
   );
 }

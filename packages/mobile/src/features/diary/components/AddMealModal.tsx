@@ -96,7 +96,7 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
         className="flex-1 justify-end"
         pointerEvents="box-none"
       >
-        <Animated.View style={{ height: '85%', transform: [{ translateY: slideAnim }] }}>
+        <Animated.View style={{ height: '75%', transform: [{ translateY: slideAnim }] }}>
           <View className="bg-gray-50 h-full rounded-t-3xl overflow-hidden">
             
             {/* Header */}
