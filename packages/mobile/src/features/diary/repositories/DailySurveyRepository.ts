@@ -4,14 +4,14 @@ import * as Crypto from 'expo-crypto';
 export interface DailySurveyData {
   id?: string;
   date: string;
-  weight: number;
-  motivation: 'low' | 'moderate' | 'high';
-  sleep: '0-4' | '4-6' | '6-8' | '8+';
-  stress: 'low' | 'moderate' | 'high';
-  digestion: '0' | '1' | '2+';
-  water: '0-1' | '1-2' | '2-3' | '2+';
-  hunger: 'no_appetite' | 'moderate' | 'constant';
-  libido: 'low' | 'moderate' | 'high';
+  weight?: number | null;
+  motivation?: 'low' | 'moderate' | 'high' | null;
+  sleep?: '0-4' | '4-6' | '6-8' | '8+' | null;
+  stress?: 'low' | 'moderate' | 'high' | null;
+  digestion?: '0' | '1' | '2+' | null;
+  water?: '0-1' | '1-2' | '2-3' | '2+' | null;
+  hunger?: 'no_appetite' | 'moderate' | 'constant' | null;
+  libido?: 'low' | 'moderate' | 'high' | null;
   comment?: string;
   synced?: boolean;
 }

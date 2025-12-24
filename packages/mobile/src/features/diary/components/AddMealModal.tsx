@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Animated, Dimensions, StyleSheet } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Animated, Dimensions, StyleSheet, Alert } from 'react-native';
 import { X, Check, Minus, Plus } from 'lucide-react-native';
 
 // Типы порций (можно вынести в shared/types)
@@ -14,16 +14,17 @@ interface AddMealModalProps {
   visible: boolean;
   onClose: () => void;
   onSave: (name: string, portions: PortionCount) => void;
+  nextMealNumber?: number;
 }
 
 const PORTION_TYPES = [
   { key: 'protein', label: 'Белки', color: 'bg-red-100', textColor: 'text-red-700', borderColor: 'border-red-200' },
-  { key: 'fat', label: 'Жиры', color: 'bg-orange-100', textColor: 'text-orange-700', borderColor: 'border-orange-200' },
+  { key: 'fat', label: 'Жиры', color: 'bg-yellow-100', textColor: 'text-yellow-700', borderColor: 'border-yellow-200' },
   { key: 'carbs', label: 'Углеводы', color: 'bg-blue-100', textColor: 'text-blue-700', borderColor: 'border-blue-200' },
   { key: 'fiber', label: 'Клетчатка', color: 'bg-green-100', textColor: 'text-green-700', borderColor: 'border-green-200' },
 ];
 
-export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, onSave }) => {
+export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, onSave, nextMealNumber = 1 }) => {
   const [name, setName] = useState('');
   const [portions, setPortions] = useState<PortionCount>({ protein: 0, fat: 0, carbs: 0, fiber: 0 });
 
@@ -63,8 +64,18 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
   };
 
   const handleSubmit = () => {
-    if (!name.trim()) return; // Валидация: имя обязательно
-    onSave(name, portions);
+    let finalName = name.trim();
+    if (!finalName) {
+      finalName = `Прием пищи №${nextMealNumber}`;
+    }
+
+    const totalPortions = portions.protein + portions.fat + portions.carbs + portions.fiber;
+    if (totalPortions === 0) {
+      Alert.alert('Ошибка', 'Укажите хотя бы одну порцию');
+      return;
+    }
+
+    onSave(finalName, portions);
     handleClose();
   };
 
@@ -99,12 +110,11 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
             <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: 100 }}>
               {/* Name Input */}
               <View className="mb-6">
-                <Text className="text-base font-semibold text-gray-900 mb-2">Что съели?</Text>
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  className="bg-white p-4 rounded-xl border border-gray-200 text-lg text-gray-900 shadow-sm"
-                  placeholder="Например: Завтрак, Орехи, Ужин..."
+                  className="w-full bg-white p-4 rounded-xl border border-gray-200 text-lg text-gray-900 shadow-sm"
+                  placeholder="Например: Завтрак, яблоко, перекус"
                   placeholderTextColor="#9CA3AF"
                 />
               </View>
@@ -112,28 +122,28 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
               {/* Portions Steppers */}
               <View className="mb-6">
                 <Text className="text-base font-semibold text-gray-900 mb-3">Порции</Text>
-                <View className="gap-3">
+                <View className="gap-4 w-full">
                   {PORTION_TYPES.map((type) => {
                     const count = portions[type.key as keyof PortionCount];
                     return (
-                      <View key={type.key} className={`w-full p-3 rounded-xl border ${type.borderColor} bg-white flex-row items-center justify-between shadow-sm`}>
-                        <View className={`px-2 py-1 rounded ${type.color}`}>
-                          <Text className={`text-xs font-bold ${type.textColor}`}>{type.label}</Text>
+                      <View key={type.key} className={`w-full p-0 rounded-xl border ${type.borderColor} bg-white flex-row items-center justify-between shadow-sm`}>
+                        <View className={`px-4 py-4 rounded ${type.color}`}>
+                          <Text className={`text-base font-bold ${type.textColor}`}>{type.label}</Text>
                         </View>
                         
-                        <View className="flex-row items-center gap-2">
+                        <View className="flex-row items-center gap-2 px-4">
                           <TouchableOpacity 
                             onPress={() => handleDecrement(type.key as keyof PortionCount)}
-                            className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center active:bg-gray-200"
+                            className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center active:bg-gray-200"
                           >
                             <Minus size={16} color="#6B7280" />
                           </TouchableOpacity>
                           
-                          <Text className="font-bold text-lg w-4 text-center">{count}</Text>
+                          <Text className="font-bold text-lg text-xl w-6 text-center">{count}</Text>
                           
                           <TouchableOpacity 
                             onPress={() => handleIncrement(type.key as keyof PortionCount)}
-                            className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center active:bg-gray-200"
+                            className="w-10 h-10 rounded-full bg-green-300 items-center justify-center active:bg-green-200"
                           >
                             <Plus size={16} color="#1F2937" />
                           </TouchableOpacity>
@@ -147,8 +157,7 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
               {/* Save Button */}
               <TouchableOpacity 
                 onPress={handleSubmit}
-                className={`w-full py-3 rounded-xl flex-row items-center justify-center gap-2 shadow-sm mb-6 ${name.trim() ? 'bg-green-600 active:bg-green-700' : 'bg-gray-300'}`}
-                disabled={!name.trim()}
+                className="w-full py-3 rounded-xl border border-transparent flex-row items-center justify-center shadow-sm mb-6 bg-green-600 active:bg-green-700"
               >
                 <Check size={20} color="white" />
                 <Text className="text-white font-bold text-lg">Сохранить</Text>

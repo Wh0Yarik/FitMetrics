@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import * as Crypto from 'expo-crypto';
 
 export interface PortionCount {
   protein: number;
@@ -74,7 +75,7 @@ export class DiaryRepository {
   }
 
   addMeal(date: string, name: string, portions: PortionCount): void {
-    const id = crypto.randomUUID();
+    const id = Crypto.randomUUID();
     const now = new Date().toISOString();
     
     this.db.runSync(

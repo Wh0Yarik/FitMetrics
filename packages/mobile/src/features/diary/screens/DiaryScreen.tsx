@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Image, RefreshControl, Alert, BackHandler } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Image, RefreshControl, Alert, BackHandler, Touchable } from 'react-native';
 import { Plus, CheckCircle, AlertCircle, Utensils, Trash2, Cloud, CloudOff, RefreshCw, ClipboardList } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
 import Svg, { Circle, G } from 'react-native-svg';
@@ -32,9 +32,10 @@ export default function DiaryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   
   // Real states
-  const [dailySurveyCompleted, setDailySurveyCompleted] = useState(false);
+  const [surveyStatus, setSurveyStatus] = useState<'empty' | 'partial' | 'complete'>('empty');
   const [currentWeight, setCurrentWeight] = useState(MOCK_USER.currentWeight);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
+  const [dailySurvey, setDailySurvey] = useState<DailySurveyData | null>(null);
   
   useFocusEffect(
     useCallback(() => {
@@ -61,9 +62,30 @@ export default function DiaryScreen() {
   };
 
   const loadSurveyStatus = () => {
-    const isCompleted = dailySurveyRepository.isSurveyCompleted(currentDate);
-    setDailySurveyCompleted(isCompleted);
-    // TODO: Load actual weight from survey if exists
+    const survey = dailySurveyRepository.getSurveyByDate(currentDate);
+    setDailySurvey(survey);
+    
+    if (!survey) {
+      setSurveyStatus('empty');
+      return;
+    }
+
+    // Проверяем заполненность всех полей
+    const isComplete = 
+      survey.weight != null &&
+      survey.motivation != null &&
+      survey.sleep != null &&
+      survey.stress != null &&
+      survey.digestion != null &&
+      survey.water != null &&
+      survey.hunger != null &&
+      survey.libido != null;
+
+    setSurveyStatus(isComplete ? 'complete' : 'partial');
+    
+    if (survey.weight) {
+      setCurrentWeight(survey.weight);
+    }
   };
 
   const onRefresh = useCallback(() => {
@@ -188,10 +210,9 @@ export default function DiaryScreen() {
   };
 
   const PortionBadge = ({ label, value, colorBg, colorText }: { label: string, value: number, colorBg: string, colorText: string }) => {
-    if (value === 0) return null;
     return (
-      <View className={`flex-row items-center px-2 py-1 rounded-md mr-2 ${colorBg}`}>
-        <Text className={`text-xs font-bold ${colorText}`}>{label}: {value}</Text>
+      <View className={`flex-row items-center px-3 py-1.5 rounded-md mr-2 mb-2 ${colorBg}`}>
+        <Text className={`text-xs font-bold ${colorText}`}>{label}: {value > 0 ? value : '–'}</Text>
       </View>
     );
   };
@@ -209,12 +230,8 @@ export default function DiaryScreen() {
     <SafeAreaView className="flex-1 bg-gray-50 pt-2">
       <StatusBar barStyle="dark-content" />
       
-      <ScrollView 
-        contentContainerStyle={{ paddingBottom: 100 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        {/* Header */}
-        <View className="bg-white p-6 pb-4 rounded-b-3xl shadow-sm border-b border-gray-100">
+      {/* Header (Fixed) */}
+      <View className="bg-white p-6 pb-4 pt-10 rounded-b-3xl shadow-sm border-b border-gray-100 z-10">
           <View className="flex-row justify-between items-center mb-4">
             <View>
               <View className="flex-row items-center gap-2">
@@ -233,8 +250,15 @@ export default function DiaryScreen() {
               )}
             </View>
           </View>
+        </View>
+          
 
-          {/* Macro Summary Card */}
+      <ScrollView 
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        {/* Macro Summary Card */}
           <View className="bg-gray-50 rounded-2xl p-4 flex-row items-center justify-between">
             <View className="flex-1">
                <Text className="text-sm text-gray-500 mb-1">Дневная норма</Text>
@@ -257,65 +281,39 @@ export default function DiaryScreen() {
             <SummaryItem label="Угли" current={todayStats.carbs} target={goals.dailyCarbs} colorText="text-blue-500" />
             <SummaryItem label="Клетчатка" current={todayStats.fiber} target={goals.dailyFiber} colorText="text-green-600" />
           </View>
-        </View>
-
-        {/* Daily Tasks */}
-        <View className="p-6">
-          <Text className="text-lg font-bold text-gray-900 mb-4">Задачи на день</Text>
           
-          <View className="gap-3">
-            {/* Weight Task */}
-            <View className={`bg-white p-4 rounded-xl border shadow-sm flex-row items-center justify-between ${dailySurveyCompleted ? 'border-green-100 bg-green-50' : 'border-gray-100'}`}>
-               <View className="flex-row items-center gap-3">
-                 <View className={`w-10 h-10 rounded-full items-center justify-center ${dailySurveyCompleted ? 'bg-green-100' : 'bg-blue-50'}`}>
-                   <CheckCircle size={20} color={dailySurveyCompleted ? "#16A34A" : "#3B82F6"} />
-                 </View>
-                 <View>
-                   <Text className={`font-medium ${dailySurveyCompleted ? 'text-green-900' : 'text-gray-900'}`}>Замеры веса</Text>
-                   <Text className="text-xs text-gray-500">
-                     {dailySurveyCompleted 
-                       ? `Записано в анкете` 
-                       : `${currentWeight} кг (текущий)`}
-                   </Text>
-                 </View>
-               </View>
-               {!dailySurveyCompleted && (
-                 <TouchableOpacity 
-                   onPress={() => setSurveyModalOpen(true)}
-                   className="bg-white border border-gray-200 px-4 py-2 rounded-lg active:bg-gray-50"
-                 >
-                   <Text className="text-gray-900 text-sm font-medium">Внести</Text>
-                 </TouchableOpacity>
-               )}
-            </View>
-          </View>
-        </View>
+          <View className="border-b border-gray-200 mt-6 mx-6" />
 
         {/* Meals */}
-        <View className="px-6">
+        <View className="px-6 py-6">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-lg font-bold text-gray-900">Приемы пищи</Text>
             <TouchableOpacity 
               onPress={() => setMealModalOpen(true)}
-              className="flex-row items-center gap-1"
-            >
-              <Plus size={16} color="#16A34A" />
-              <Text className="text-green-600 text-sm font-medium">Добавить</Text>
-            </TouchableOpacity>
+          >
+            <Text className="text-md text-green-500">Добавить +</Text>
+      </TouchableOpacity>
           </View>
 
-          <View className="gap-4">
+          <View className="gap-2">
             {meals.length === 0 ? (
-               <View className="items-center justify-center py-8 bg-white rounded-xl border border-dashed border-gray-200">
-                 <Text className="text-gray-400 text-sm">Пока нет записей. Добавьте первый прием пищи!</Text>
+               <TouchableOpacity 
+                 onPress={() => setMealModalOpen(true)}>
+               <View className="items-center justify-center py-4 bg-white rounded-xl border border-dashed border-gray-200">
+                 <Text className="text-gray-400 text-sm mb-3">Пока нет записей</Text>
+                 <Text className="text-gray-400 text-sm mb-3">Добавьте первый прием пищи!</Text>
+                 <View className="w-12 h-12 bg-green-100 rounded-full items-center justify-center">
+                   <Plus size={24} color="#16A34A" />
+                 </View>
                </View>
+               </TouchableOpacity>
             ) : (
               meals.map((meal) => (
-                <View key={meal.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                <View key={meal.id} className="bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
                   <View className="flex-row justify-between items-start mb-3">
-                    <View className="flex-row items-center gap-2">
+                    <View className="flex-row items-center gap-2 flex-1 mr-2">
                       <Utensils size={16} color="#9CA3AF" />
-                      <Text className="font-bold text-gray-900 text-lg">{meal.name}</Text>
+                      <Text className="font-bold text-gray-900 text-lg flex-1" numberOfLines={1} ellipsizeMode="tail">{meal.name}</Text>
                       <View className="bg-gray-50 px-2 py-0.5 rounded">
                         <Text className="text-xs text-gray-400">
                           {new Date(meal.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -331,11 +329,11 @@ export default function DiaryScreen() {
                   </View>
 
                   {/* Порции */}
-                  <View className="flex-row flex-wrap">
-                    <PortionBadge label="Белки" value={meal.portions.protein} colorBg="bg-red-100" colorText="text-red-700" />
-                    <PortionBadge label="Жиры" value={meal.portions.fat} colorBg="bg-orange-100" colorText="text-orange-700" />
-                    <PortionBadge label="Угли" value={meal.portions.carbs} colorBg="bg-blue-100" colorText="text-blue-700" />
-                    <PortionBadge label="Клетч" value={meal.portions.fiber} colorBg="bg-green-100" colorText="text-green-700" />
+                  <View className="flex-row flex-wrap flex-row justify-between mt-1">
+                    <PortionBadge label="Б" value={meal.portions.protein} colorBg="bg-red-100" colorText="text-red-700" />
+                    <PortionBadge label="Ж" value={meal.portions.fat} colorBg="bg-orange-100" colorText="text-orange-700" />
+                    <PortionBadge label="У" value={meal.portions.carbs} colorBg="bg-blue-100" colorText="text-blue-700" />
+                    <PortionBadge label="К" value={meal.portions.fiber} colorBg="bg-green-100" colorText="text-green-700" />
                   </View>
                 </View>
               ))
@@ -346,15 +344,32 @@ export default function DiaryScreen() {
 
       <TouchableOpacity 
         onPress={() => setSurveyModalOpen(true)}
-        className="absolute bottom-6 right-6 w-14 h-14 bg-green-600 rounded-full items-center justify-center shadow-lg z-50"
+        className="absolute bottom-[80px] right-0 w-12 h-12 bg-green-600 rounded-full items-center justify-center shadow-lg z-50"
       >
         <ClipboardList size={24} color="white" />
+        <View 
+          className={`absolute top-0 right-0 w-4 h-4 rounded-full border-2 border-white ${
+            surveyStatus === 'complete' 
+              ? 'bg-green-300' 
+              : surveyStatus === 'partial' 
+                ? 'bg-orange-400' 
+                : 'bg-red-500'
+          }`} 
+        />
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        onPress={() => setMealModalOpen(true)}
+        className="absolute bottom-0 right-0 w-20 h-20 bg-green-600 rounded-full items-center justify-center shadow-lg z-50"
+      >
+        <Utensils size={32} color="white" />
       </TouchableOpacity>
 
       <AddMealModal
         visible={isMealModalOpen}
         onClose={() => setMealModalOpen(false)}
         onSave={handleSaveMeal}
+        nextMealNumber={meals.length + 1}
       />
 
       <DailySurveyModal
@@ -362,6 +377,7 @@ export default function DiaryScreen() {
         onClose={() => setSurveyModalOpen(false)}
         onSave={handleSaveSurvey}
         date={currentDate}
+        initialData={dailySurvey}
       />
     </SafeAreaView>
   );

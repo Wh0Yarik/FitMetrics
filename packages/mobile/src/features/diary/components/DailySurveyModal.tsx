@@ -132,20 +132,11 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onC
   const handleSubmit = () => {
     // Валидация веса
     const weightNum = parseFloat(weight.replace(',', '.'));
-    if (!weight || isNaN(weightNum) || weightNum <= 0) {
-      Alert.alert('Ошибка', 'Пожалуйста, введите корректный вес (положительное число)');
-      return;
-    }
-
-    // Валидация обязательных полей
-    if (!motivation || !sleep || !stress || !digestion || !water || !hunger || !libido) {
-      Alert.alert('Ошибка', 'Пожалуйста, ответьте на все вопросы анкеты');
-      return;
-    }
+    const validWeight = (!weight || isNaN(weightNum) || weightNum <= 0) ? null : parseFloat(weightNum.toFixed(1));
 
     const surveyData: DailySurveyData = {
       date,
-      weight: parseFloat(weightNum.toFixed(1)),
+      weight: validWeight,
       motivation,
       sleep,
       stress,
