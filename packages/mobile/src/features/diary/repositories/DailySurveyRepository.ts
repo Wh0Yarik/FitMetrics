@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import * as Crypto from 'expo-crypto';
 
 export interface DailySurveyData {
   id?: string;
@@ -81,7 +82,7 @@ export class DailySurveyRepository {
   // Сохранить анкету (Создать или Обновить)
   saveSurvey(data: DailySurveyData): void {
     const existing = this.getSurveyByDate(data.date);
-    const id = existing?.id || crypto.randomUUID();
+    const id = existing?.id || Crypto.randomUUID();
     const timestamp = new Date().toISOString();
 
     if (existing) {
