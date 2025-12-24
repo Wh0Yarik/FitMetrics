@@ -120,6 +120,35 @@ export class DailySurveyRepository {
     );
     return (result?.count ?? 0) > 0;
   }
+
+  // Получить список дат с заполненными анкетами за месяц
+  getDatesWithSurveys(year: string, month: string): string[] {
+    const pattern = `${year}-${month}-%`;
+    const rows = this.db.getAllSync<{ date: string }>(
+      'SELECT DISTINCT date FROM daily_surveys WHERE date LIKE ?',
+      [pattern]
+    );
+    return rows.map(r => r.date);
+  }
+
+  // Получить список дат с ПОЛНОСТЬЮ заполненными анкетами за месяц
+  getCompletedSurveyDates(year: string, month: string): string[] {
+    const pattern = `${year}-${month}-%`;
+    const rows = this.db.getAllSync<{ date: string }>(
+      `SELECT DISTINCT date FROM daily_surveys 
+       WHERE date LIKE ? 
+       AND weight IS NOT NULL 
+       AND motivation IS NOT NULL 
+       AND sleep IS NOT NULL 
+       AND stress IS NOT NULL 
+       AND digestion IS NOT NULL 
+       AND water IS NOT NULL 
+       AND hunger IS NOT NULL 
+       AND libido IS NOT NULL`,
+      [pattern]
+    );
+    return rows.map(r => r.date);
+  }
 }
 
 export const dailySurveyRepository = new DailySurveyRepository();

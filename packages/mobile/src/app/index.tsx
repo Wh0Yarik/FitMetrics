@@ -3,7 +3,6 @@ import { Redirect } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getToken } from '../shared/lib/storage';
-import DiaryScreen from '../features/diary/screens/DiaryScreen';
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(true);
@@ -31,11 +30,6 @@ export default function Index() {
 
   if (!hasToken) {
     return <Redirect href="/auth/login" />;
-  }
-
-  // Если клиент - показываем Дневник как главную страницу
-  if (role?.toLowerCase() === 'client') {
-    return <DiaryScreen />;
   }
 
   return <Redirect href="/(tabs)" />;

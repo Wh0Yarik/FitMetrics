@@ -99,6 +99,16 @@ export class DiaryRepository {
   deleteMeal(id: string): void {
     this.db.runSync('DELETE FROM meal_entries WHERE id = ?', [id]);
   }
+
+  // Получить список дат с записями о еде за месяц
+  getDatesWithMeals(year: string, month: string): string[] {
+    const pattern = `${year}-${month}-%`;
+    const rows = this.db.getAllSync<{ date: string }>(
+      'SELECT DISTINCT date FROM meal_entries WHERE date LIKE ?',
+      [pattern]
+    );
+    return rows.map(r => r.date);
+  }
 }
 
 export const diaryRepository = new DiaryRepository();
