@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Image, RefreshControl, Alert, BackHandler } from 'react-native';
-import { Plus, CheckCircle, AlertCircle, Utensils, Trash2, Cloud, CloudOff, RefreshCw } from 'lucide-react-native';
+import { Plus, CheckCircle, AlertCircle, Utensils, Trash2, Cloud, CloudOff, RefreshCw, ClipboardList } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
 import Svg, { Circle, G } from 'react-native-svg';
 
@@ -206,7 +206,7 @@ export default function DiaryScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-gray-50 pt-2">
       <StatusBar barStyle="dark-content" />
       
       <ScrollView 
@@ -264,29 +264,6 @@ export default function DiaryScreen() {
           <Text className="text-lg font-bold text-gray-900 mb-4">Задачи на день</Text>
           
           <View className="gap-3">
-            {/* Survey Task */}
-            <View className={`bg-white p-4 rounded-xl border shadow-sm flex-row items-center justify-between ${dailySurveyCompleted ? 'border-green-100 bg-green-50' : 'border-gray-100'}`}>
-               <View className="flex-row items-center gap-3">
-                 <View className={`w-10 h-10 rounded-full items-center justify-center ${dailySurveyCompleted ? 'bg-green-100' : 'bg-red-50'}`}>
-                   {dailySurveyCompleted ? <CheckCircle size={20} color="#16A34A" /> : <AlertCircle size={20} color="#EF4444" />}
-                 </View>
-                 <View>
-                   <Text className={`font-medium ${dailySurveyCompleted ? 'text-green-900' : 'text-gray-900'}`}>Утренняя анкета</Text>
-                   <Text className="text-xs text-gray-500">
-                     {dailySurveyCompleted ? 'Выполнено' : 'Не заполнено'}
-                   </Text>
-                 </View>
-               </View>
-               {!dailySurveyCompleted && (
-                 <TouchableOpacity 
-                  onPress={() => setSurveyModalOpen(true)}
-                  className="bg-green-600 px-4 py-2 rounded-lg shadow-sm"
-                 >
-                   <Text className="text-white text-sm font-medium">Заполнить</Text>
-                 </TouchableOpacity>
-               )}
-            </View>
-
             {/* Weight Task */}
             <View className={`bg-white p-4 rounded-xl border shadow-sm flex-row items-center justify-between ${dailySurveyCompleted ? 'border-green-100 bg-green-50' : 'border-gray-100'}`}>
                <View className="flex-row items-center gap-3">
@@ -366,6 +343,13 @@ export default function DiaryScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <TouchableOpacity 
+        onPress={() => setSurveyModalOpen(true)}
+        className="absolute bottom-6 right-6 w-14 h-14 bg-green-600 rounded-full items-center justify-center shadow-lg z-50"
+      >
+        <ClipboardList size={24} color="white" />
+      </TouchableOpacity>
 
       <AddMealModal
         visible={isMealModalOpen}

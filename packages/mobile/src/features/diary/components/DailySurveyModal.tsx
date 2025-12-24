@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { X, Check, Moon, Activity, Droplets, Scale, Heart, Smile, Utensils } from 'lucide-react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, SafeAreaView, Animated, Dimensions, StyleSheet } from 'react-native';
+import { X, Check } from 'lucide-react-native';
 import { DailySurveyData } from '../repositories/DailySurveyRepository';
 
 interface DailySurveyModalProps {
@@ -11,238 +11,276 @@ interface DailySurveyModalProps {
   initialData?: DailySurveyData | null;
 }
 
-type DigestionType = 'excellent' | 'good' | 'bad';
+// Вспомогательный компонент для группы кнопок выбора
+const SelectionGroup = <T extends string>({ 
+  label, 
+  options, 
+  value, 
+  onChange,
+  labels 
+}: { 
+  label: string; 
+  options: T[]; 
+  value: T | null; 
+  onChange: (val: T) => void;
+  labels?: Record<T, string>;
+}) => (
+  <View className="mb-6">
+    <Text className="text-base font-semibold text-gray-900 mb-3">{label}</Text>
+    <View className="flex-row flex-wrap gap-2">
+      {options.map((opt) => {
+        const isSelected = value === opt;
+        return (
+          <TouchableOpacity
+            key={opt}
+            onPress={() => onChange(opt)}
+            className={`px-4 py-3 rounded-xl border shadow-sm ${
+              isSelected 
+                ? 'bg-green-600 border-green-600' 
+                : 'bg-white border-gray-200'
+            }`}
+          >
+            <Text className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-gray-700'}`}>
+              {labels ? labels[opt] : opt}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  </View>
+);
 
 export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onClose, onSave, date, initialData }) => {
   // State
   const [weight, setWeight] = useState('');
-  const [sleepHours, setSleepHours] = useState('');
-  const [sleepQuality, setSleepQuality] = useState(3);
-  const [stress, setStress] = useState(5);
-  const [motivation, setMotivation] = useState(5);
-  const [hunger, setHunger] = useState(5);
-  const [libido, setLibido] = useState(5);
-  const [digestion, setDigestion] = useState<DigestionType>('good');
-  const [water, setWater] = useState('');
+  const [motivation, setMotivation] = useState<DailySurveyData['motivation'] | null>(null);
+  const [sleep, setSleep] = useState<DailySurveyData['sleep'] | null>(null);
+  const [stress, setStress] = useState<DailySurveyData['stress'] | null>(null);
+  const [digestion, setDigestion] = useState<DailySurveyData['digestion'] | null>(null);
+  const [water, setWater] = useState<DailySurveyData['water'] | null>(null);
+  const [hunger, setHunger] = useState<DailySurveyData['hunger'] | null>(null);
+  const [libido, setLibido] = useState<DailySurveyData['libido'] | null>(null);
   const [comment, setComment] = useState('');
+
+  // Animation
+  const screenHeight = Dimensions.get('window').height;
+  const slideAnim = useRef(new Animated.Value(screenHeight)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      slideAnim.setValue(screenHeight);
+      fadeAnim.setValue(0);
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 600, // Медленнее (стандарт ~300ms)
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible, screenHeight]);
+
+  const handleCloseAnimation = () => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: screenHeight,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start(() => onClose());
+  };
 
   // Load initial data if editing
   useEffect(() => {
     if (visible) {
       if (initialData) {
         setWeight(initialData.weight?.toString() || '');
-        setSleepHours(initialData.sleepHours?.toString() || '');
-        setSleepQuality(initialData.sleepQuality || 3);
-        setStress(initialData.stress || 5);
-        setMotivation(initialData.motivation || 5);
-        setHunger(initialData.hunger || 5);
-        setLibido(initialData.libido || 5);
-        setDigestion(initialData.digestion || 'good');
-        setWater(initialData.water?.toString() || '');
+        setMotivation(initialData.motivation);
+        setSleep(initialData.sleep);
+        setStress(initialData.stress);
+        setDigestion(initialData.digestion);
+        setWater(initialData.water);
+        setHunger(initialData.hunger);
+        setLibido(initialData.libido);
         setComment(initialData.comment || '');
       } else {
         // Reset defaults
         setWeight('');
-        setSleepHours('');
-        setSleepQuality(3);
-        setStress(5);
-        setMotivation(5);
-        setHunger(5);
-        setLibido(5);
-        setDigestion('good');
-        setWater('');
+        setMotivation(null);
+        setSleep(null);
+        setStress(null);
+        setDigestion(null);
+        setWater(null);
+        setHunger(null);
+        setLibido(null);
         setComment('');
       }
     }
   }, [visible, initialData]);
 
   const handleSubmit = () => {
-    // Basic validation
-    if (!weight) {
-      alert('Пожалуйста, укажите вес');
+    // Валидация веса
+    const weightNum = parseFloat(weight.replace(',', '.'));
+    if (!weight || isNaN(weightNum) || weightNum <= 0) {
+      Alert.alert('Ошибка', 'Пожалуйста, введите корректный вес (положительное число)');
+      return;
+    }
+
+    // Валидация обязательных полей
+    if (!motivation || !sleep || !stress || !digestion || !water || !hunger || !libido) {
+      Alert.alert('Ошибка', 'Пожалуйста, ответьте на все вопросы анкеты');
       return;
     }
 
     const surveyData: DailySurveyData = {
       date,
-      weight: parseFloat(weight.replace(',', '.')) || 0,
-      sleepHours: parseFloat(sleepHours.replace(',', '.')) || 0,
-      sleepQuality,
-      stress,
+      weight: parseFloat(weightNum.toFixed(1)),
       motivation,
+      sleep,
+      stress,
+      digestion,
+      water,
       hunger,
       libido,
-      digestion,
-      water: parseFloat(water.replace(',', '.')) || 0,
-      comment
+      comment: comment.trim() || undefined,
     };
 
     onSave(surveyData);
-    onClose();
+    handleCloseAnimation();
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1 justify-end bg-black/50">
-        <View className="bg-white rounded-t-3xl h-[90%] w-full overflow-hidden">
-        {/* Header */}
-        <View className="flex-row justify-between items-center p-6 border-b border-gray-100">
-          <Text className="text-lg font-bold text-gray-900">Ежедневный отчет</Text>
-          <TouchableOpacity onPress={onClose} className="p-2 bg-gray-100 rounded-full">
-            <X size={20} color="#6B7280" />
-          </TouchableOpacity>
-        </View>
+    <Modal visible={visible} animationType="none" transparent={true} onRequestClose={handleCloseAnimation}>
+      {/* Backdrop with fade animation */}
+      <Animated.View 
+        style={[
+          StyleSheet.absoluteFill, 
+          { backgroundColor: 'black', opacity: fadeAnim.interpolate({inputRange: [0, 1], outputRange: [0, 0.5]}) }
+        ]} 
+      >
+        <TouchableOpacity style={{flex:1}} onPress={handleCloseAnimation} activeOpacity={1} />
+      </Animated.View>
 
-        <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: 40 }}>
-          
-          {/* 1. Вес и Вода */}
-          <View className="flex-row gap-4 mb-6">
-            <View className="flex-1 bg-white p-4 rounded-xl border border-gray-100">
-              <View className="flex-row items-center gap-2 mb-2">
-                <Scale size={18} color="#3B82F6" />
-                <Text className="font-medium text-gray-700">Вес (кг)</Text>
-              </View>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        className="flex-1 justify-end"
+        pointerEvents="box-none"
+      >
+        <Animated.View style={{ height: '75%', transform: [{ translateY: slideAnim }] }}>
+        <View className="bg-gray-50 h-full rounded-t-3xl overflow-hidden">
+          <View className="flex-row justify-between items-center p-4 bg-white border-b border-gray-100">
+            <Text className="text-xl font-bold text-gray-900">Анкета</Text>
+            <TouchableOpacity onPress={handleCloseAnimation} className="p-2 bg-gray-100 rounded-full">
+              <X size={20} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: 100 }}>
+            
+            {/* Вес */}
+            <Text className="text-base font-semibold text-gray-900 mb-2">Вес (кг)</Text>
+            <View className="bg-white p-4 rounded-2xl mb-6 shadow-sm border border-gray-100">
               <TextInput
                 value={weight}
                 onChangeText={setWeight}
-                keyboardType="numeric"
                 placeholder="0.0"
-                className="text-2xl font-bold text-gray-900 border-b border-gray-200 py-1"
-              />
-            </View>
-            <View className="flex-1 bg-white p-4 rounded-xl border border-gray-100">
-              <View className="flex-row items-center gap-2 mb-2">
-                <Droplets size={18} color="#0EA5E9" />
-                <Text className="font-medium text-gray-700">Вода (л)</Text>
-              </View>
-              <TextInput
-                value={water}
-                onChangeText={setWater}
-                keyboardType="numeric"
-                placeholder="0.0"
-                className="text-2xl font-bold text-gray-900 border-b border-gray-200 py-1"
-              />
-            </View>
-          </View>
-
-          {/* 2. Сон */}
-          <View className="bg-white p-4 rounded-xl border border-gray-100 mb-6">
-            <View className="flex-row items-center gap-2 mb-4">
-              <Moon size={18} color="#8B5CF6" />
-              <Text className="font-bold text-gray-900">Сон</Text>
-            </View>
-            
-            <View className="mb-4">
-              <Text className="text-sm text-gray-500 mb-2">Количество часов</Text>
-              <TextInput
-                value={sleepHours}
-                onChangeText={setSleepHours}
-                keyboardType="numeric"
-                placeholder="8"
-                className="bg-gray-50 p-3 rounded-lg text-lg font-medium"
+                keyboardType="decimal-pad"
+                className="text-3xl font-bold text-green-600 border-b border-gray-200 py-2"
               />
             </View>
 
-            <ScaleSelector 
-              label="Качество сна (1-5)" 
-              value={sleepQuality} 
-              onChange={setSleepQuality} 
-              max={5} 
-              colors={['bg-red-100', 'bg-orange-100', 'bg-yellow-100', 'bg-blue-100', 'bg-green-100']}
+            {/* Вопросы */}
+            <SelectionGroup
+              label="Мотивация"
+              options={['low', 'moderate', 'high']}
+              labels={{ low: 'Низкая', moderate: 'Умеренная', high: 'Высокая' }}
+              value={motivation}
+              onChange={setMotivation}
             />
-          </View>
 
-          {/* 3. Состояние (1-10) */}
-          <View className="bg-white p-4 rounded-xl border border-gray-100 mb-6 gap-6">
-            <ScaleSelector label="Уровень стресса (1-10)" value={stress} onChange={setStress} icon={<Activity size={16} color="#EF4444"/>} />
-            <ScaleSelector label="Мотивация (1-10)" value={motivation} onChange={setMotivation} icon={<Smile size={16} color="#F59E0B"/>} />
-            <ScaleSelector label="Чувство голода (1-10)" value={hunger} onChange={setHunger} icon={<Utensils size={16} color="#10B981"/>} />
-            <ScaleSelector label="Либидо (1-10)" value={libido} onChange={setLibido} icon={<Heart size={16} color="#EC4899"/>} />
-          </View>
-
-          {/* 4. Пищеварение */}
-          <View className="bg-white p-4 rounded-xl border border-gray-100 mb-6">
-            <Text className="font-medium text-gray-700 mb-3">Пищеварение</Text>
-            <View className="flex-row gap-2">
-              {[
-                { key: 'excellent', label: 'Отличное', color: 'bg-green-100 text-green-800 border-green-200' },
-                { key: 'good', label: 'Нормальное', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-                { key: 'bad', label: 'Плохое', color: 'bg-red-100 text-red-800 border-red-200' },
-              ].map((item) => (
-                <TouchableOpacity
-                  key={item.key}
-                  onPress={() => setDigestion(item.key as DigestionType)}
-                  className={`flex-1 py-3 rounded-lg border items-center ${
-                    digestion === item.key ? item.color.replace('text-', 'border-2 border-') : 'bg-gray-50 border-gray-200'
-                  }`}
-                >
-                  <Text className={`font-medium ${digestion === item.key ? 'text-black' : 'text-gray-500'}`}>
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* 5. Комментарий */}
-          <View className="bg-white p-4 rounded-xl border border-gray-100 mb-8">
-            <Text className="font-medium text-gray-700 mb-2">Комментарий тренеру</Text>
-            <TextInput
-              value={comment}
-              onChangeText={setComment}
-              multiline
-              numberOfLines={3}
-              placeholder="Как прошел день? Жалобы, вопросы..."
-              className="bg-gray-50 p-3 rounded-lg text-base h-24"
-              textAlignVertical="top"
+            <SelectionGroup
+              label="Сон (часов)"
+              options={['0-4', '4-6', '6-8', '8+']}
+              value={sleep}
+              onChange={setSleep}
             />
-          </View>
 
-          {/* Save Button */}
-          <TouchableOpacity 
-            onPress={handleSubmit}
-            className="bg-green-600 py-4 rounded-xl flex-row items-center justify-center gap-2 shadow-sm shadow-green-200 mb-6"
-          >
-            <Check size={20} color="white" />
-            <Text className="text-white font-bold text-lg">Сохранить отчет</Text>
-          </TouchableOpacity>
+            <SelectionGroup
+              label="Уровень стресса"
+              options={['low', 'moderate', 'high']}
+              labels={{ low: 'Низкий', moderate: 'Умеренный', high: 'Высокий' }}
+              value={stress}
+              onChange={setStress}
+            />
 
-        </ScrollView>
+            <SelectionGroup
+              label="Пищеварение (стул)"
+              options={['0', '1', '2+']}
+              labels={{ '0': '0 раз', '1': '1 раз', '2+': '2+ раз' }}
+              value={digestion}
+              onChange={setDigestion}
+            />
+
+            <SelectionGroup
+              label="Вода (литров)"
+              options={['0-1', '1-2', '2-3', '2+']}
+              value={water}
+              onChange={setWater}
+            />
+
+            <SelectionGroup
+              label="Чувство голода"
+              options={['no_appetite', 'moderate', 'constant']}
+              labels={{ no_appetite: 'Нет аппетита', moderate: 'Умеренно', constant: 'Постоянно' }}
+              value={hunger}
+              onChange={setHunger}
+            />
+
+            <SelectionGroup
+              label="Либидо"
+              options={['low', 'moderate', 'high']}
+              labels={{ low: 'Низкое', moderate: 'Умеренное', high: 'Высокое' }}
+              value={libido}
+              onChange={setLibido}
+            />
+
+            {/* Комментарий */}
+            <View className="mb-6">
+              <Text className="text-base font-semibold text-gray-900 mb-3">Комментарий тренеру (опционально)</Text>
+              <TextInput
+                value={comment}
+                onChangeText={setComment}
+                placeholder="Напишите, если что-то беспокоит..."
+                multiline
+                numberOfLines={3}
+                className="bg-white p-4 rounded-xl border border-gray-200 text-gray-900 h-24"
+                textAlignVertical="top"
+              />
+            </View>
+
+            {/* Кнопка сохранения */}
+            <TouchableOpacity 
+              onPress={handleSubmit}
+              className="bg-green-600 py-3 rounded-xl flex-row justify-center items-center shadow-sm active:bg-green-700 mb-6"
+            >
+              <Check size={20} color="white" />
+              <Text className="text-white font-bold text-lg">Сохранить</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
-  );
-};
-
-// Helper Component for Scales
-const ScaleSelector = ({ label, value, onChange, max = 10, icon, colors }: any) => {
-  return (
-    <View>
-      <View className="flex-row items-center gap-2 mb-3">
-        {icon}
-        <Text className="font-medium text-gray-700">{label}: <Text className="font-bold text-black">{value}</Text></Text>
-      </View>
-      <View className="flex-row justify-between gap-1">
-        {Array.from({ length: max }, (_, i) => i + 1).map((num) => {
-          const isSelected = num === value;
-          const bgColor = isSelected 
-            ? (colors ? colors[num-1] : 'bg-black') 
-            : 'bg-gray-100';
-          const textColor = isSelected 
-            ? (colors ? 'text-gray-900' : 'text-white') 
-            : 'text-gray-500';
-            
-          return (
-            <TouchableOpacity
-              key={num}
-              onPress={() => onChange(num)}
-              className={`flex-1 h-10 items-center justify-center rounded-md ${bgColor}`}
-            >
-              <Text className={`font-bold text-xs ${textColor}`}>{num}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </View>
   );
 };

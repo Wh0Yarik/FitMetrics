@@ -3,16 +3,15 @@ import * as SQLite from 'expo-sqlite';
 export interface DailySurveyData {
   id?: string;
   date: string;
-  motivation: number;
-  sleepHours: number;
-  sleepQuality: number;
-  stress: number;
-  digestion: 'excellent' | 'good' | 'bad';
-  water: number;
-  hunger: number;
-  libido: number;
   weight: number;
-  comment: string;
+  motivation: 'low' | 'moderate' | 'high';
+  sleep: '0-4' | '4-6' | '6-8' | '8+';
+  stress: 'low' | 'moderate' | 'high';
+  digestion: '0' | '1' | '2+';
+  water: '0-1' | '1-2' | '2-3' | '2+';
+  hunger: 'no_appetite' | 'moderate' | 'constant';
+  libido: 'low' | 'moderate' | 'high';
+  comment?: string;
   synced?: boolean;
 }
 
@@ -25,12 +24,12 @@ export class DailySurveyRepository {
   }
 
   private initTable() {
-    // FIX: Проверяем схему. Если нет колонки synced, пересоздаем таблицу
+    // FIX: Проверяем схему. Если нет колонки sleep (новая схема), пересоздаем таблицу
     const columns = this.db.getAllSync<any>('PRAGMA table_info(daily_surveys)');
     const columnNames = columns.map(c => c.name);
-    const hasSynced = columnNames.includes('synced');
+    const hasSleep = columnNames.includes('sleep');
 
-    if (columns.length > 0 && !hasSynced) {
+    if (columns.length > 0 && !hasSleep) {
       this.db.execSync('DROP TABLE IF EXISTS daily_surveys');
     }
 
@@ -38,15 +37,14 @@ export class DailySurveyRepository {
       CREATE TABLE IF NOT EXISTS daily_surveys (
         id TEXT PRIMARY KEY NOT NULL,
         date TEXT NOT NULL,
-        motivation INTEGER,
-        sleep_hours REAL,
-        sleep_quality INTEGER,
-        stress INTEGER,
-        digestion TEXT,
-        water REAL,
-        hunger INTEGER,
-        libido INTEGER,
         weight REAL,
+        motivation TEXT,
+        sleep TEXT,
+        stress TEXT,
+        digestion TEXT,
+        water TEXT,
+        hunger TEXT,
+        libido TEXT,
         comment TEXT,
         synced INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
@@ -67,15 +65,14 @@ export class DailySurveyRepository {
     return {
       id: row.id,
       date: row.date,
+      weight: row.weight,
       motivation: row.motivation,
-      sleepHours: row.sleep_hours,
-      sleepQuality: row.sleep_quality,
+      sleep: row.sleep,
       stress: row.stress,
       digestion: row.digestion,
       water: row.water,
       hunger: row.hunger,
       libido: row.libido,
-      weight: row.weight,
       comment: row.comment,
       synced: !!row.synced
     };
@@ -90,25 +87,25 @@ export class DailySurveyRepository {
     if (existing) {
       this.db.runSync(
         `UPDATE daily_surveys SET 
-          motivation = ?, sleep_hours = ?, sleep_quality = ?, stress = ?, 
-          digestion = ?, water = ?, hunger = ?, libido = ?, weight = ?, 
+          weight = ?, motivation = ?, sleep = ?, stress = ?, 
+          digestion = ?, water = ?, hunger = ?, libido = ?, 
           comment = ?, synced = 0, updated_at = ?
          WHERE id = ?`,
         [
-          data.motivation, data.sleepHours, data.sleepQuality, data.stress,
-          data.digestion, data.water, data.hunger, data.libido, data.weight,
+          data.weight, data.motivation, data.sleep, data.stress,
+          data.digestion, data.water, data.hunger, data.libido,
           data.comment, timestamp, id
         ]
       );
     } else {
       this.db.runSync(
         `INSERT INTO daily_surveys (
-          id, date, motivation, sleep_hours, sleep_quality, stress, 
-          digestion, water, hunger, libido, weight, comment, synced, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+          id, date, weight, motivation, sleep, stress, 
+          digestion, water, hunger, libido, comment, synced, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
         [
-          id, data.date, data.motivation, data.sleepHours, data.sleepQuality, data.stress,
-          data.digestion, data.water, data.hunger, data.libido, data.weight, data.comment, timestamp
+          id, data.date, data.weight, data.motivation, data.sleep, data.stress,
+          data.digestion, data.water, data.hunger, data.libido, data.comment, timestamp
         ]
       );
     }
