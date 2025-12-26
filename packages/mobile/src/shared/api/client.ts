@@ -7,9 +7,6 @@ import { getToken } from '../lib/storage';
 // iOS Simulator использует localhost
 // Для реального устройства нужно использовать IP вашего компьютера в локальной сети (например, 192.168.1.X)
 const getBaseUrl = () => {
-  // ВРЕМЕННО: Хардкод IP вашего Mac для диагностики (порт 3001)
-  return 'http://192.168.0.8:3001/api';
-
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }

@@ -5,29 +5,29 @@
     "packages/*"
   ],
   "scripts": {
+    "clean": "rm -rf node_modules packages/*/node_modules package-lock.json",
     "api": "npm run -w packages/api",
     "mobile": "npm run -w packages/mobile",
+    "dev": "npm run dev:api",
+    "postinstall": "npm run prisma:generate -w packages/api",
     "dev:api": "npm run dev -w packages/api",
     "start:mobile": "npm run start -w packages/mobile",
     "android": "npm run android -w packages/mobile",
-    "ios": "npm run ios -w packages/mobile"
+    "ios": "npm run ios -w packages/mobile",
+    "fix:mobile": "cd packages/mobile && npx expo install --fix"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.2.0",
     "cors": "^2.8.5",
-    "expo-crypto": "~15.0.8",
-    "expo-image-picker": "~17.0.10",
-    "expo-secure-store": "~15.0.8",
-    "pg": "^8.16.3",
-    "react-native-safe-area-context": "~5.6.0"
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/pg": "^8.16.0"
   },
   "overrides": {
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "react-test-renderer": "19.1.0"
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-test-renderer": "18.3.1"
   }
 }
