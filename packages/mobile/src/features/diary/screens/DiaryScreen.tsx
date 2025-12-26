@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StatusBar, Image, Alert, BackHandler, Platform, LayoutAnimation, UIManager, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Plus, CheckCircle, AlertCircle, Utensils, Trash2, Cloud, CloudOff, RefreshCw, ClipboardList, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, Stack } from 'expo-router';
 import Svg, { Circle, G } from 'react-native-svg';
 
 import { AddMealModal, PortionCount } from '../components/AddMealModal';
@@ -324,104 +324,105 @@ export default function DiaryScreen() {
       ], [isEmpty, todayStats]);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50 pt-2" edges={['top', 'left', 'right']}>
+    <View className="flex-1 bg-gray-50">
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          header: () => (
+            <SafeAreaView edges={['top']} className="bg-white rounded-b-3xl shadow-sm border-b border-gray-100 z-10">
+              <View className="px-6 pb-4 pt-2">
+                <View className="flex-row justify-between items-center mb-4">
+                  <View>
+                    <TouchableOpacity onPress={toggleCalendar} className="flex-row items-center gap-2">
+                      <Text className="text-2xl font-bold text-gray-900">{getHeaderTitle()}</Text>
+                      {showDatePicker ? <ChevronUp size={24} color="#111827" /> : <ChevronDown size={24} color="#111827" />}
+                      <View className="mt-1"><SyncIndicator status={syncStatus} /></View>
+                    </TouchableOpacity>
+                    <Text className="text-gray-500 text-sm">
+                      {getDateObj(currentDate).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    </Text>
+                  </View>
+                  <View className="w-10 h-10 bg-green-50 rounded-full items-center justify-center border border-green-100 overflow-hidden">
+                    {MOCK_USER.avatarUrl ? (
+                      <Image source={{ uri: MOCK_USER.avatarUrl }} className="w-full h-full" />
+                    ) : (
+                      <Text className="text-green-600 font-bold text-lg">{MOCK_USER.name.charAt(0)}</Text>
+                    )}
+                  </View>
+                </View>
+
+                {/* Custom Inline Calendar */}
+                {showDatePicker && (
+                  <View className="mt-2 border-t border-gray-100 pt-4 overflow-hidden">
+                    {/* Calendar Header */}
+                    <View className="flex-row justify-between items-center mb-4 px-2">
+                      <TouchableOpacity onPress={() => changeMonth(-1)} className="p-2 bg-gray-50 rounded-full">
+                        <ChevronLeft size={20} color="#374151" />
+                      </TouchableOpacity>
+                      <Text className="text-lg font-semibold text-gray-900 capitalize">
+                        {calendarViewDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}
+                      </Text>
+                      <TouchableOpacity onPress={() => changeMonth(1)} className="p-2 bg-gray-50 rounded-full">
+                        <ChevronRight size={20} color="#374151" />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Week Days */}
+                    <View className="flex-row justify-between mb-2">
+                      {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(d => (
+                        <Text key={d} className="w-[14%] text-center text-gray-400 text-xs font-medium">{d}</Text>
+                      ))}
+                    </View>
+
+                    {/* Days Grid */}
+                    <View className="flex-row flex-wrap">
+                      {(() => {
+                        const year = calendarViewDate.getFullYear();
+                        const month = calendarViewDate.getMonth();
+                        const daysInMonth = new Date(year, month + 1, 0).getDate();
+                        let firstDay = new Date(year, month, 1).getDay();
+                        firstDay = firstDay === 0 ? 6 : firstDay - 1; // Mon=0
+
+                        const days = [];
+                        for (let i = 0; i < firstDay; i++) {
+                          days.push(<View key={`empty-${i}`} style={{ width: '14.28%' }} className="h-10" />);
+                        }
+                        for (let i = 1; i <= daysInMonth; i++) {
+                          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                          const isSelected = dateStr === currentDate;
+                          const isToday = dateStr === new Date().toISOString().split('T')[0];
+                          const markStatus = markedDates[dateStr];
+                          
+                          days.push(
+                            <TouchableOpacity key={i} onPress={() => selectDate(i)} style={{ width: '14.28%' }} className="h-10 items-center justify-center">
+                              <View className={`w-8 h-8 items-center justify-center rounded-full ${isSelected ? 'bg-green-600' : ''}`}>
+                                <Text className={`${isSelected ? 'text-white font-bold' : isToday ? 'text-green-600 font-bold' : 'text-gray-900'}`}>{i}</Text>
+                                {markStatus && (
+                                  <View className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${
+                                    isSelected 
+                                      ? 'bg-white' 
+                                      : markStatus === 'green' ? 'bg-green-500' : 'bg-orange-400'
+                                  }`} />
+                                )}
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        }
+                        return days;
+                      })()}
+                    </View>
+                  </View>
+                )}
+              </View>
+            </SafeAreaView>
+          ),
+        }}
+      />
       <StatusBar barStyle="dark-content" />
       
-      {/* Header (Fixed) */}
-      <View 
-        className="bg-white p-6 pb-4 pt-10 rounded-b-3xl shadow-sm border-b border-gray-100 z-10"
-      >
-          <View className="flex-row justify-between items-center mb-4">
-            <View>
-              <TouchableOpacity onPress={toggleCalendar} className="flex-row items-center gap-2">
-                <Text className="text-2xl font-bold text-gray-900">{getHeaderTitle()}</Text>
-                {showDatePicker ? <ChevronUp size={24} color="#111827" /> : <ChevronDown size={24} color="#111827" />}
-                <View className="mt-1"><SyncIndicator status={syncStatus} /></View>
-              </TouchableOpacity>
-              <Text className="text-gray-500 text-sm">
-                {getDateObj(currentDate).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })}
-              </Text>
-            </View>
-            <View className="w-10 h-10 bg-green-50 rounded-full items-center justify-center border border-green-100 overflow-hidden">
-              {MOCK_USER.avatarUrl ? (
-                <Image source={{ uri: MOCK_USER.avatarUrl }} className="w-full h-full" />
-              ) : (
-                <Text className="text-green-600 font-bold text-lg">{MOCK_USER.name.charAt(0)}</Text>
-              )}
-            </View>
-          </View>
-
-          {/* Custom Inline Calendar */}
-          {showDatePicker && (
-            <View className="mt-2 border-t border-gray-100 pt-4 overflow-hidden">
-              {/* Calendar Header */}
-              <View className="flex-row justify-between items-center mb-4 px-2">
-                <TouchableOpacity onPress={() => changeMonth(-1)} className="p-2 bg-gray-50 rounded-full">
-                  <ChevronLeft size={20} color="#374151" />
-                </TouchableOpacity>
-                <Text className="text-lg font-semibold text-gray-900 capitalize">
-                  {calendarViewDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}
-                </Text>
-                <TouchableOpacity onPress={() => changeMonth(1)} className="p-2 bg-gray-50 rounded-full">
-                  <ChevronRight size={20} color="#374151" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Week Days */}
-              <View className="flex-row justify-between mb-2">
-                {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(d => (
-                  <Text key={d} className="w-[14%] text-center text-gray-400 text-xs font-medium">{d}</Text>
-                ))}
-              </View>
-
-              {/* Days Grid */}
-              <View className="flex-row flex-wrap">
-                {(() => {
-                  const year = calendarViewDate.getFullYear();
-                  const month = calendarViewDate.getMonth();
-                  const daysInMonth = new Date(year, month + 1, 0).getDate();
-                  let firstDay = new Date(year, month, 1).getDay();
-                  firstDay = firstDay === 0 ? 6 : firstDay - 1; // Mon=0
-
-                  const days = [];
-                  for (let i = 0; i < firstDay; i++) {
-                    days.push(<View key={`empty-${i}`} style={{ width: '14.28%' }} className="h-10" />);
-                  }
-                  for (let i = 1; i <= daysInMonth; i++) {
-                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-                    const isSelected = dateStr === currentDate;
-                    const isToday = dateStr === new Date().toISOString().split('T')[0];
-                    const markStatus = markedDates[dateStr];
-                    
-                    days.push(
-                      <TouchableOpacity key={i} onPress={() => selectDate(i)} style={{ width: '14.28%' }} className="h-10 items-center justify-center">
-                        <View className={`w-8 h-8 items-center justify-center rounded-full ${isSelected ? 'bg-green-600' : ''}`}>
-                          <Text className={`${isSelected ? 'text-white font-bold' : isToday ? 'text-green-600 font-bold' : 'text-gray-900'}`}>{i}</Text>
-                          {markStatus && (
-                            <View className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${
-                              isSelected 
-                                ? 'bg-white' 
-                                : markStatus === 'green' ? 'bg-green-500' : 'bg-orange-400'
-                            }`} />
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  }
-                  return days;
-                })()}
-              </View>
-            </View>
-          )}
-        </View>
-          
-
       <ScrollView 
         className="flex-1"
         contentContainerStyle={{ paddingBottom:0 }}
-        onScrollBeginDrag={() => {
-          if (showDatePicker) toggleCalendar();
-        }}
         scrollEventThrottle={16}
       >
         {/* Macro Summary Card */}
@@ -544,6 +545,6 @@ export default function DiaryScreen() {
         date={currentDate}
         initialData={dailySurvey}
       />
-    </SafeAreaView>
+    </View>
   );
 }
