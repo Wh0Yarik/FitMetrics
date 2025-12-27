@@ -1,9 +1,12 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StatusBar, Image, Alert, BackHandler, Platform, LayoutAnimation, UIManager, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, Image, Alert, BackHandler, Platform, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Plus, CheckCircle, AlertCircle, Utensils, Trash2, Cloud, CloudOff, RefreshCw, ClipboardList, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, Stack } from 'expo-router';
 import Svg, { Circle, G } from 'react-native-svg';
+import { Calendar, LocaleConfig, DateData } from 'react-native-calendars';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS } from 'react-native-reanimated';
+import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AddMealModal, PortionCount } from '../components/AddMealModal';
 import { DailySurveyModal } from '../components/DailySurveyModal';
@@ -18,10 +21,15 @@ const MOCK_USER = {
   nutritionGoals: { dailyProtein: 5, dailyFat: 3, dailyCarbs: 5, dailyFiber: 3 }
 };
 
-// Включаем LayoutAnimation для Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+// Настройка локализации календаря
+LocaleConfig.locales['ru'] = {
+  monthNames: ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'],
+  monthNamesShort: ['Янв.','Фев.','Март','Апр.','Май','Июнь','Июль','Авг.','Сент.','Окт.','Нояб.','Дек.'],
+  dayNames: ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],
+  dayNamesShort: ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'],
+  today: 'Сегодня'
+};
+LocaleConfig.defaultLocale = 'ru';
 
 // --- Helpers & Sub-components ---
 
@@ -111,8 +119,12 @@ export default function DiaryScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [calendarViewDate, setCalendarViewDate] = useState(new Date()); // Для навигации по месяцам
   
+  const MAX_CALENDAR_HEIGHT = 360;
+  const calendarHeight = useSharedValue(0);
+  const contextHeight = useSharedValue(0);
+
   // Data State
-  const [markedDates, setMarkedDates] = useState<Record<string, 'green' | 'orange'>>({});
+  const [markedDates, setMarkedDates] = useState<any>({});
   const [surveyStatus, setSurveyStatus] = useState<'empty' | 'partial' | 'complete'>('empty');
   const [currentWeight, setCurrentWeight] = useState(MOCK_USER.currentWeight);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
@@ -206,7 +218,7 @@ export default function DiaryScreen() {
     const completedSurveyDates = dailySurveyRepository.getCompletedSurveyDates(year, month);
     
     const allDates = new Set([...mealDates, ...surveyDates]);
-    const newMarkedDates: Record<string, 'green' | 'orange'> = {};
+    const newMarkedDates: any = {};
 
     allDates.forEach(date => {
       const hasMeals = mealDates.includes(date);
@@ -215,14 +227,26 @@ export default function DiaryScreen() {
       // Зеленая метка: Есть еда И анкета полностью заполнена
       // Оранжевая метка: Есть данные, но условия зеленой не выполнены
       if (hasMeals && isSurveyComplete) {
-        newMarkedDates[date] = 'green';
+        newMarkedDates[date] = { marked: true, dotColor: '#22C55E' }; // green-500
       } else {
-        newMarkedDates[date] = 'orange';
+        newMarkedDates[date] = { marked: true, dotColor: '#FB923C' }; // orange-400
       }
     });
 
+    // Добавляем выделение текущей выбранной даты
+    // react-native-calendars требует объединения стилей для выбранной даты
+    if (newMarkedDates[currentDate]) {
+      newMarkedDates[currentDate] = {
+        ...newMarkedDates[currentDate],
+        selected: true,
+        selectedColor: '#16A34A', // green-600
+      };
+    } else {
+      newMarkedDates[currentDate] = { selected: true, selectedColor: '#16A34A' };
+    }
+
     setMarkedDates(newMarkedDates);
-  }, [calendarViewDate]);
+  }, [calendarViewDate, currentDate]);
 
   useEffect(() => {
     if (showDatePicker) {
@@ -232,45 +256,27 @@ export default function DiaryScreen() {
     }
   }, [showDatePicker, calendarViewDate, meals, surveyStatus, loadMarkedDates]);
 
-  const configureAnimation = () => {
-    LayoutAnimation.configureNext({
-      duration: 300,
-      create: {
-        type: LayoutAnimation.Types.easeInEaseOut,
-        property: LayoutAnimation.Properties.opacity,
-      },
-      update: {
-        type: LayoutAnimation.Types.easeInEaseOut,
-      },
-      delete: {
-        type: LayoutAnimation.Types.easeInEaseOut,
-        property: LayoutAnimation.Properties.opacity,
-      },
-    });
-  };
 
   const toggleCalendar = () => {
-    configureAnimation();
-    if (!showDatePicker) {
+    if (calendarHeight.value === 0) {
       setCalendarViewDate(getDateObj(currentDate));
+      calendarHeight.value = withSpring(MAX_CALENDAR_HEIGHT, { damping: 15 });
+      setShowDatePicker(true);
+    } else {
+      calendarHeight.value = withTiming(0, { duration: 250 });
+      setShowDatePicker(false);
     }
-    setShowDatePicker(!showDatePicker);
   };
 
-  const changeMonth = (increment: number) => {
-    const newDate = new Date(calendarViewDate);
-    newDate.setMonth(newDate.getMonth() + increment);
-    setCalendarViewDate(newDate);
-  };
-
-  const selectDate = (day: number) => {
-    const year = calendarViewDate.getFullYear();
-    const month = String(calendarViewDate.getMonth() + 1).padStart(2, '0');
-    const dayStr = String(day).padStart(2, '0');
-    setCurrentDate(`${year}-${month}-${dayStr}`);
+  const onDayPress = (day: DateData) => {
+    setCurrentDate(day.dateString);
+    
+    // Обновляем view date, если выбрали день из другого месяца
+    const newViewDate = new Date(day.timestamp);
+    setCalendarViewDate(newViewDate);
     
     // Close calendar
-    configureAnimation();
+    calendarHeight.value = withTiming(0, { duration: 250 });
     setShowDatePicker(false);
   };
 
@@ -323,13 +329,48 @@ export default function DiaryScreen() {
         { name: 'Клетчатка', value: todayStats.fiber, color: '#22C55E' },
       ], [isEmpty, todayStats]);
 
+  const animatedContainerStyle = useAnimatedStyle(() => ({
+    height: calendarHeight.value,
+    overflow: 'hidden',
+  }));
+
+  const animatedContentStyle = useAnimatedStyle(() => ({
+    // Эффект "вытягивания": календарь сдвигается вниз вместе с контейнером
+    // Когда height = 0, translateY = -360 (спрятан сверху)
+    // Когда height = 360, translateY = 0 (полностью виден)
+    transform: [{ translateY: calendarHeight.value - MAX_CALENDAR_HEIGHT }],
+    opacity: calendarHeight.value / MAX_CALENDAR_HEIGHT,
+  }));
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetY([-5, 5]) // Активируем при небольшом вертикальном движении
+    .failOffsetX([-20, 20])   // Игнорируем, если пользователь свайпает месяцы (горизонтально)
+    .onStart(() => {
+      contextHeight.value = calendarHeight.value;
+    })
+    .onUpdate((e) => {
+      const newHeight = contextHeight.value + e.translationY;
+      calendarHeight.value = Math.max(0, Math.min(MAX_CALENDAR_HEIGHT, newHeight));
+    })
+    .onEnd(() => {
+      // Если вытянули больше чем на 30% или быстро смахнули вниз
+      if (calendarHeight.value > MAX_CALENDAR_HEIGHT * 0.3) {
+        calendarHeight.value = withSpring(MAX_CALENDAR_HEIGHT, { damping: 15 });
+        runOnJS(setShowDatePicker)(true);
+      } else {
+        calendarHeight.value = withTiming(0, { duration: 250 });
+        runOnJS(setShowDatePicker)(false);
+      }
+    });
+
   return (
     <View className="flex-1 bg-gray-50">
       <Stack.Screen
-        options={{
-          headerShown: true,
-          header: () => (
+        options={{ headerShown: false }}
+      />
+      <GestureHandlerRootView style={{ zIndex: 10 }}>
             <SafeAreaView edges={['top']} className="bg-white rounded-b-3xl shadow-sm border-b border-gray-100 z-10">
+              <GestureDetector gesture={panGesture}>
               <View className="px-6 pb-4 pt-2">
                 <View className="flex-row justify-between items-center mb-4">
                   <View>
@@ -352,72 +393,41 @@ export default function DiaryScreen() {
                 </View>
 
                 {/* Custom Inline Calendar */}
-                {showDatePicker && (
-                  <View className="mt-2 border-t border-gray-100 pt-4 overflow-hidden">
-                    {/* Calendar Header */}
-                    <View className="flex-row justify-between items-center mb-4 px-2">
-                      <TouchableOpacity onPress={() => changeMonth(-1)} className="p-2 bg-gray-50 rounded-full">
-                        <ChevronLeft size={20} color="#374151" />
-                      </TouchableOpacity>
-                      <Text className="text-lg font-semibold text-gray-900 capitalize">
-                        {calendarViewDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}
-                      </Text>
-                      <TouchableOpacity onPress={() => changeMonth(1)} className="p-2 bg-gray-50 rounded-full">
-                        <ChevronRight size={20} color="#374151" />
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* Week Days */}
-                    <View className="flex-row justify-between mb-2">
-                      {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(d => (
-                        <Text key={d} className="w-[14%] text-center text-gray-400 text-xs font-medium">{d}</Text>
-                      ))}
-                    </View>
-
-                    {/* Days Grid */}
-                    <View className="flex-row flex-wrap">
-                      {(() => {
-                        const year = calendarViewDate.getFullYear();
-                        const month = calendarViewDate.getMonth();
-                        const daysInMonth = new Date(year, month + 1, 0).getDate();
-                        let firstDay = new Date(year, month, 1).getDay();
-                        firstDay = firstDay === 0 ? 6 : firstDay - 1; // Mon=0
-
-                        const days = [];
-                        for (let i = 0; i < firstDay; i++) {
-                          days.push(<View key={`empty-${i}`} style={{ width: '14.28%' }} className="h-10" />);
-                        }
-                        for (let i = 1; i <= daysInMonth; i++) {
-                          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-                          const isSelected = dateStr === currentDate;
-                          const isToday = dateStr === new Date().toISOString().split('T')[0];
-                          const markStatus = markedDates[dateStr];
-                          
-                          days.push(
-                            <TouchableOpacity key={i} onPress={() => selectDate(i)} style={{ width: '14.28%' }} className="h-10 items-center justify-center">
-                              <View className={`w-8 h-8 items-center justify-center rounded-full ${isSelected ? 'bg-green-600' : ''}`}>
-                                <Text className={`${isSelected ? 'text-white font-bold' : isToday ? 'text-green-600 font-bold' : 'text-gray-900'}`}>{i}</Text>
-                                {markStatus && (
-                                  <View className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${
-                                    isSelected 
-                                      ? 'bg-white' 
-                                      : markStatus === 'green' ? 'bg-green-500' : 'bg-orange-400'
-                                  }`} />
-                                )}
-                              </View>
-                            </TouchableOpacity>
-                          );
-                        }
-                        return days;
-                      })()}
-                    </View>
-                  </View>
-                )}
+                <Animated.View style={[{ borderTopColor: '#F3F4F6' }, animatedContainerStyle]}>
+                  <Animated.View style={animatedContentStyle}>
+                    <Calendar
+                      current={currentDate}
+                      onDayPress={onDayPress}
+                      markedDates={markedDates}
+                      firstDay={1} // Понедельник
+                      enableSwipeMonths={true}
+                      onMonthChange={(month: DateData) => {
+                        setCalendarViewDate(new Date(month.timestamp));
+                      }}
+                      theme={{
+                        backgroundColor: '#ffffff',
+                        calendarBackground: '#ffffff',
+                        textSectionTitleColor: '#9CA3AF',
+                        selectedDayBackgroundColor: '#16A34A',
+                        selectedDayTextColor: '#ffffff',
+                        todayTextColor: '#16A34A',
+                        dayTextColor: '#111827',
+                        textDisabledColor: '#D1D5DB',
+                        dotColor: '#16A34A',
+                        selectedDotColor: '#ffffff',
+                        arrowColor: '#374151',
+                        monthTextColor: '#111827',
+                        textDayFontWeight: '400',
+                        textMonthFontWeight: '600',
+                        textDayHeaderFontWeight: '500',
+                      }}
+                    />
+                  </Animated.View>
+                </Animated.View>
               </View>
+              </GestureDetector>
             </SafeAreaView>
-          ),
-        }}
-      />
+      </GestureHandlerRootView>
       <StatusBar barStyle="dark-content" />
       
       <ScrollView 
