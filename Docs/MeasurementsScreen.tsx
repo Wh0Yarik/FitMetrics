@@ -6,6 +6,7 @@ import { useFocusEffect } from 'expo-router';
 
 import { measurementsRepository, MeasurementEntry } from '../repositories/MeasurementsRepository';
 import { AddMeasurementModal } from '../components/AddMeasurementModal';
+import { COLORS } from '../packages/mobile/src/constants/Colors';
 
 export default function MeasurementsScreen() {
   const [measurements, setMeasurements] = useState<MeasurementEntry[]>([]);
@@ -107,7 +108,8 @@ export default function MeasurementsScreen() {
 
       <TouchableOpacity 
         onPress={() => setModalOpen(true)}
-        className="absolute bottom-6 right-6 w-16 h-16 bg-blue-600 rounded-full items-center justify-center shadow-lg z-50"
+        className="absolute bottom-6 right-6 w-16 h-16 rounded-full items-center justify-center shadow-lg z-50"
+        style={{ backgroundColor: COLORS.primary }}
       >
         <Plus size={32} color="white" />
       </TouchableOpacity>
