@@ -3,6 +3,7 @@ import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvo
 import { X, Check, Camera, Trash2 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MeasurementEntry } from '../repositories/MeasurementsRepository';
+import { COLORS } from '../packages/mobile/src/constants/Colors';
 
 interface AddMeasurementModalProps {
   visible: boolean;
@@ -124,7 +125,8 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
       <Text className="text-sm font-medium text-gray-700 mb-2">{label}</Text>
       <TouchableOpacity 
         onPress={onPick}
-        className={`w-24 h-32 rounded-xl border-2 border-dashed ${uri ? 'border-green-500 bg-white' : 'border-gray-300 bg-gray-50'} items-center justify-center overflow-hidden relative`}
+        className={`w-24 h-32 rounded-xl border-2 border-dashed ${uri ? 'bg-white' : 'border-gray-300 bg-gray-50'} items-center justify-center overflow-hidden relative`}
+        style={uri ? { borderColor: COLORS.primary } : {}}
       >
         {uri ? (
           <>
@@ -225,7 +227,8 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
               {/* Кнопка */}
               <TouchableOpacity 
                 onPress={handleSubmit}
-                className="bg-green-600 py-3 rounded-xl flex-row justify-center items-center shadow-sm active:bg-green-700 mt-8 mb-6"
+                className="py-3 rounded-xl flex-row justify-center items-center shadow-sm mt-8 mb-6"
+                style={{ backgroundColor: COLORS.primary }}
               >
                 <Check size={20} color="white" />
                 <Text className="text-white font-bold text-lg ml-2">Сохранить</Text>
