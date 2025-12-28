@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Animated, Dimensions, StyleSheet, Alert } from 'react-native';
 import { X, Check, Minus, Plus } from 'lucide-react-native';
+import { COLORS } from '../../../constants/Colors';
 
 // Типы порций (можно вынести в shared/types)
 export interface PortionCount {
@@ -15,6 +16,9 @@ interface AddMealModalProps {
   onClose: () => void;
   onSave: (name: string, portions: PortionCount) => void;
   nextMealNumber?: number;
+  mode?: 'create' | 'edit';
+  initialName?: string;
+  initialPortions?: PortionCount;
 }
 
 const PORTION_TYPES = [
@@ -24,7 +28,15 @@ const PORTION_TYPES = [
   { key: 'fiber', label: 'Клетчатка', color: 'bg-green-100', textColor: 'text-green-700', borderColor: 'border-green-200' },
 ];
 
-export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, onSave, nextMealNumber = 1 }) => {
+export const AddMealModal: React.FC<AddMealModalProps> = ({
+  visible,
+  onClose,
+  onSave,
+  nextMealNumber = 1,
+  mode = 'create',
+  initialName,
+  initialPortions,
+}) => {
   const [name, setName] = useState('');
   const [portions, setPortions] = useState<PortionCount>({ protein: 0, fat: 0, carbs: 0, fiber: 0 });
 
@@ -35,9 +47,9 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
 
   useEffect(() => {
     if (visible) {
-      // Reset state
-      setName('');
-      setPortions({ protein: 0, fat: 0, carbs: 0, fiber: 0 });
+      // Reset or prefill state
+      setName(initialName ?? '');
+      setPortions(initialPortions ?? { protein: 0, fat: 0, carbs: 0, fiber: 0 });
 
       slideAnim.setValue(screenHeight);
       fadeAnim.setValue(0);
@@ -46,7 +58,7 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
         Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
       ]).start();
     }
-  }, [visible, screenHeight]);
+  }, [visible, screenHeight, initialName, initialPortions]);
 
   const handleClose = () => {
     Animated.parallel([
@@ -66,7 +78,7 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
   const handleSubmit = () => {
     let finalName = name.trim();
     if (!finalName) {
-      finalName = `Прием пищи №${nextMealNumber}`;
+      finalName = mode === 'create' ? `Прием пищи №${nextMealNumber}` : 'Прием пищи';
     }
 
     const totalPortions = portions.protein + portions.fat + portions.carbs + portions.fiber;
@@ -97,12 +109,14 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
         pointerEvents="box-none"
       >
         <Animated.View style={{ height: '75%', transform: [{ translateY: slideAnim }] }}>
-          <View className="bg-gray-50 h-full rounded-t-3xl overflow-hidden">
+          <View style={styles.sheet}>
             
             {/* Header */}
-            <View className="flex-row justify-between items-center p-4 bg-white border-b border-gray-100">
-              <Text className="text-xl font-bold text-gray-900">Добавить прием пищи</Text>
-              <TouchableOpacity onPress={handleClose} className="p-2 bg-gray-100 rounded-full">
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>
+                {mode === 'edit' ? 'Редактировать прием пищи' : 'Добавить прием пищи'}
+              </Text>
+              <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
                 <X size={20} color="#6B7280" />
               </TouchableOpacity>
             </View>
@@ -113,7 +127,7 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  className="w-full bg-white p-4 rounded-xl border border-gray-200 text-lg text-gray-900 shadow-sm"
+                  style={styles.inputCard}
                   placeholder="Например: Завтрак, яблоко, перекус"
                   placeholderTextColor="#9CA3AF"
                 />
@@ -126,7 +140,7 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
                   {PORTION_TYPES.map((type) => {
                     const count = portions[type.key as keyof PortionCount];
                     return (
-                      <View key={type.key} className={`w-full p-0 rounded-xl border ${type.borderColor} bg-white flex-row items-center justify-between shadow-sm`}>
+                      <View key={type.key} style={styles.stepperCard}>
                         <View className={`px-4 py-4 rounded ${type.color}`}>
                           <Text className={`text-base font-bold ${type.textColor}`}>{type.label}</Text>
                         </View>
@@ -134,7 +148,7 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
                         <View className="flex-row items-center gap-2 px-4">
                           <TouchableOpacity 
                             onPress={() => handleDecrement(type.key as keyof PortionCount)}
-                            className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center active:bg-gray-200"
+                            style={styles.stepperButton}
                           >
                             <Minus size={16} color="#6B7280" />
                           </TouchableOpacity>
@@ -143,9 +157,9 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
                           
                           <TouchableOpacity 
                             onPress={() => handleIncrement(type.key as keyof PortionCount)}
-                            className="w-10 h-10 rounded-full bg-green-300 items-center justify-center active:bg-green-200"
+                            style={styles.stepperButtonPrimary}
                           >
-                            <Plus size={16} color="#1F2937" />
+                            <Plus size={16} color="white" />
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -157,10 +171,12 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
               {/* Save Button */}
               <TouchableOpacity 
                 onPress={handleSubmit}
-                className="w-full py-3 rounded-xl border border-transparent flex-row items-center justify-center shadow-sm mb-6 bg-green-600 active:bg-green-700"
+                style={styles.primaryButton}
               >
                 <Check size={20} color="white" />
-                <Text className="text-white font-bold text-lg">Сохранить</Text>
+                <Text style={styles.primaryButtonText}>
+                  {mode === 'edit' ? 'Сохранить' : 'Добавить'}
+                </Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -169,3 +185,95 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({ visible, onClose, on
     </Modal>
   );
 };
+
+const styles = StyleSheet.create({
+  sheet: {
+    backgroundColor: '#F7FAF8',
+    height: '100%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  closeButton: {
+    padding: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 999,
+  },
+  inputCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 14,
+    fontSize: 16,
+    color: '#111827',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  stepperCard: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  stepperButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperButtonPrimary: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryButton: {
+    width: '100%',
+    paddingVertical: 12,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 6 },
+  },
+  primaryButtonText: {
+    marginLeft: 8,
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});

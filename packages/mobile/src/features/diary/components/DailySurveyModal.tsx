@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, Animated, Dimensions, StyleSheet } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Animated, Dimensions, StyleSheet } from 'react-native';
 import { X, Check } from 'lucide-react-native';
 import { DailySurveyData } from '../repositories/DailySurveyRepository';
+import { COLORS } from '../../../constants/Colors';
 
 interface DailySurveyModalProps {
   visible: boolean;
@@ -26,21 +27,20 @@ const SelectionGroup = <T extends string>({
   labels?: Record<T, string>;
 }) => (
   <View className="mb-6">
-    <Text className="text-base font-semibold text-gray-900 mb-3">{label}</Text>
-    <View className="flex-row flex-wrap gap-2">
+    <Text style={styles.sectionLabel}>{label}</Text>
+    <View style={styles.selectionRow}>
       {options.map((opt) => {
         const isSelected = value === opt;
         return (
           <TouchableOpacity
             key={opt}
             onPress={() => onChange(opt)}
-            className={`px-4 py-3 rounded-xl border shadow-sm ${
-              isSelected 
-                ? 'bg-green-600 border-green-600' 
-                : 'bg-white border-gray-200'
-            }`}
+            style={[
+              styles.selectionButton,
+              isSelected ? styles.selectionButtonActive : null,
+            ]}
           >
-            <Text className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-gray-700'}`}>
+            <Text style={[styles.selectionText, isSelected ? styles.selectionTextActive : null]}>
               {labels ? labels[opt] : opt}
             </Text>
           </TouchableOpacity>
@@ -169,10 +169,10 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onC
         pointerEvents="box-none"
       >
         <Animated.View style={{ height: '75%', transform: [{ translateY: slideAnim }] }}>
-        <View className="bg-gray-50 h-full rounded-t-3xl overflow-hidden">
-          <View className="flex-row justify-between items-center p-4 bg-white border-b border-gray-100">
-            <Text className="text-xl font-bold text-gray-900">Анкета</Text>
-            <TouchableOpacity onPress={handleCloseAnimation} className="p-2 bg-gray-100 rounded-full">
+        <View style={styles.sheet}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Анкета</Text>
+            <TouchableOpacity onPress={handleCloseAnimation} style={styles.closeButton}>
               <X size={20} color="#6B7280" />
             </TouchableOpacity>
           </View>
@@ -180,14 +180,14 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onC
           <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: 100 }}>
             
             {/* Вес */}
-            <Text className="text-base font-semibold text-gray-900 mb-2">Вес (кг)</Text>
-            <View className="bg-white p-4 rounded-2xl mb-6 shadow-sm border border-gray-100">
+            <Text style={styles.sectionLabel}>Вес (кг)</Text>
+            <View style={styles.inputCard}>
               <TextInput
                 value={weight}
                 onChangeText={setWeight}
                 placeholder="0.0"
                 keyboardType="decimal-pad"
-                className="text-3xl font-bold text-green-600 border-b border-gray-200 py-2"
+                style={styles.weightInput}
               />
             </View>
 
@@ -255,7 +255,7 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onC
                 placeholder="Напишите, если что-то беспокоит..."
                 multiline
                 numberOfLines={3}
-                className="bg-white p-4 rounded-xl border border-gray-200 text-gray-900 h-24"
+                style={styles.commentInput}
                 textAlignVertical="top"
               />
             </View>
@@ -263,10 +263,10 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onC
             {/* Кнопка сохранения */}
             <TouchableOpacity 
               onPress={handleSubmit}
-              className="bg-green-600 py-3 rounded-xl flex-row justify-center items-center shadow-sm active:bg-green-700 mb-6"
+              style={styles.primaryButton}
             >
               <Check size={20} color="white" />
-              <Text className="text-white font-bold text-lg">Сохранить</Text>
+              <Text style={styles.primaryButtonText}>Сохранить</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -275,3 +275,118 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onC
     </Modal>
   );
 };
+
+const styles = StyleSheet.create({
+  sheet: {
+    backgroundColor: '#F7FAF8',
+    height: '100%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  closeButton: {
+    padding: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 999,
+  },
+  sectionLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 10,
+  },
+  inputCard: {
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 24,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  weightInput: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: COLORS.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    paddingVertical: 6,
+  },
+  selectionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 4,
+  },
+  selectionButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    marginRight: 8,
+    marginBottom: 8,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  selectionButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  selectionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  selectionTextActive: {
+    color: '#FFFFFF',
+  },
+  commentInput: {
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    color: '#111827',
+    height: 96,
+    textAlignVertical: 'top',
+  },
+  primaryButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 6 },
+  },
+  primaryButtonText: {
+    marginLeft: 8,
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});

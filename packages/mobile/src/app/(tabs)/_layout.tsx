@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
-import { BookOpen, Ruler } from 'lucide-react-native';
+import { BookOpen, Ruler, LineChart, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
@@ -11,17 +11,29 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarActiveTintColor: '#16A34A', // green-600
-        tabBarInactiveTintColor: '#9CA3AF', // gray-400
+        tabBarActiveTintColor: '#86EFAC', // green-300
+        tabBarInactiveTintColor: '#6B7280', // gray-500
         tabBarStyle: {
-          borderTopWidth: 1,
-          borderTopColor: '#F3F4F6', // gray-100
-          height: 60 + insets.bottom,
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: Math.max(insets.bottom, 12),
+          marginHorizontal: 24,
+          height: 64,
           paddingTop: 10,
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
-          backgroundColor: '#FFFFFF',
-          elevation: 0,
-          shadowOpacity: 0,
+          paddingBottom: 10,
+          paddingHorizontal: 8,
+          backgroundColor: '#111827',
+          borderRadius: 24,
+          borderTopWidth: 0,
+          shadowColor: '#0F172A',
+          shadowOpacity: 0.12,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 8 },
+          elevation: 6,
+        },
+        tabBarItemStyle: {
+          marginVertical: 6,
         },
       }}
     >
@@ -29,7 +41,7 @@ export default function TabLayout() {
         name="index"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <View className={`items-center justify-center w-12 h-12 rounded-2xl ${focused ? 'bg-green-50' : ''}`}>
+            <View className={`items-center justify-center w-12 h-12 rounded-2xl ${focused ? 'bg-gray-800' : ''}`}>
               <BookOpen size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
             </View>
           ),
@@ -39,8 +51,28 @@ export default function TabLayout() {
         name="measurements"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <View className={`items-center justify-center w-12 h-12 rounded-2xl ${focused ? 'bg-green-50' : ''}`}>
+            <View className={`items-center justify-center w-12 h-12 rounded-2xl ${focused ? 'bg-gray-800' : ''}`}>
               <Ruler size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="analytics"
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <View className={`items-center justify-center w-12 h-12 rounded-2xl ${focused ? 'bg-gray-800' : ''}`}>
+              <LineChart size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <View className={`items-center justify-center w-12 h-12 rounded-2xl ${focused ? 'bg-gray-800' : ''}`}>
+              <User size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
             </View>
           ),
         }}
