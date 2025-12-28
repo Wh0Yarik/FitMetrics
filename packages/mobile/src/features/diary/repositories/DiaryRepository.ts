@@ -100,6 +100,24 @@ export class DiaryRepository {
     this.db.runSync('DELETE FROM meal_entries WHERE id = ?', [id]);
   }
 
+  updateMeal(id: string, name: string, portions: PortionCount): void {
+    const now = new Date().toISOString();
+    this.db.runSync(
+      `UPDATE meal_entries 
+       SET name = ?, protein = ?, fat = ?, carbs = ?, fiber = ?, updated_at = ?
+       WHERE id = ?`,
+      [
+        name,
+        portions.protein,
+        portions.fat,
+        portions.carbs,
+        portions.fiber,
+        now,
+        id,
+      ]
+    );
+  }
+
   // Получить список дат с записями о еде за месяц
   getDatesWithMeals(year: string, month: string): string[] {
     const pattern = `${year}-${month}-%`;
