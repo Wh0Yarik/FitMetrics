@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StatusBar, Image, Alert, BackHandler, StyleSheet } from 'react-native';
-import { Plus, Pencil, Trash2, Cloud, CloudOff, RefreshCw, ClipboardList, ChevronLeft } from 'lucide-react-native';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, Alert, BackHandler, StyleSheet } from 'react-native';
+import { Plus, Pencil, Trash2, ClipboardList, ChevronLeft } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, Stack } from 'expo-router';
 import { Calendar, LocaleConfig, DateData } from 'react-native-calendars';
@@ -66,19 +66,6 @@ const getHeaderTitle = (currentDate: string) => {
 
 // --- Подкомпоненты (UI элементы) ---
 
-// Индикатор статуса синхронизации (облако)
-const SyncIndicator = ({ status }: { status: 'synced' | 'syncing' | 'offline' }) => {
-  if (status === 'syncing') return <RefreshCw size={16} color={COLORS.primary} />;
-  if (status === 'offline') return <CloudOff size={16} color="#9CA3AF" />;
-  return <Cloud size={16} color={COLORS.primary} />;
-};
-
-const getSyncLabel = (status: 'synced' | 'syncing' | 'offline') => {
-  if (status === 'syncing') return 'Синхронизация';
-  if (status === 'offline') return 'Офлайн';
-  return 'Синхронизировано';
-};
-
 // Чип порций для карточки приема пищи
 const MealPortionChip = React.memo(({ label, value, color }: { label: string, value: number, color: string }) => (
   <View style={[styles.mealChip, { backgroundColor: `${color}1A`, borderColor: `${color}33` }]}>
@@ -111,14 +98,19 @@ const MealItem = React.memo(({
   onEdit,
   showSwipeHint,
   onFirstSwipe,
+  onSwipeableOpen,
+  onSwipeableClose,
 }: {
   meal: MealEntry;
   onDelete: (id: string) => void;
   onEdit: (meal: MealEntry) => void;
   showSwipeHint: boolean;
   onFirstSwipe: () => void;
+  onSwipeableOpen: (ref: Swipeable | null) => void;
+  onSwipeableClose: (ref: Swipeable | null) => void;
 }) => {
   const swipeRef = useRef<Swipeable>(null);
+  const isOpenRef = useRef(false);
 
   const handleEdit = () => {
     swipeRef.current?.close();
@@ -134,9 +126,19 @@ const MealItem = React.memo(({
     <Swipeable
       ref={swipeRef}
       overshootRight={false}
+      friction={2}
+      overshootFriction={8}
       rightThreshold={60}
       dragOffsetFromRightEdge={20}
-      onSwipeableOpen={onFirstSwipe}
+      onSwipeableOpen={() => {
+        isOpenRef.current = true;
+        onFirstSwipe();
+        onSwipeableOpen(swipeRef.current);
+      }}
+      onSwipeableClose={() => {
+        isOpenRef.current = false;
+        onSwipeableClose(swipeRef.current);
+      }}
       renderRightActions={() => (
         <View style={styles.swipeActions}>
           <TouchableOpacity onPress={handleEdit} style={[styles.swipeButton, styles.swipeEdit]}>
@@ -150,7 +152,14 @@ const MealItem = React.memo(({
         </View>
       )}
     >
-      <View style={styles.mealCard}>
+      <View
+        style={styles.mealCard}
+        onTouchStart={() => {
+          if (isOpenRef.current) {
+            swipeRef.current?.close();
+          }
+        }}
+      >
         <View style={styles.mealHeader}>
           <View style={styles.mealTimePill}>
             <Text style={styles.mealTimeText}>
@@ -166,7 +175,7 @@ const MealItem = React.memo(({
           <MealPortionChip label="Б" value={meal.portions.protein} color="#EF4444" />
           <MealPortionChip label="Ж" value={meal.portions.fat} color="#F59E0B" />
           <MealPortionChip label="У" value={meal.portions.carbs} color="#3B82F6" />
-          <MealPortionChip label="К" value={meal.portions.fiber} color={COLORS.primary} />
+          <MealPortionChip label="К" value={meal.portions.fiber} color="#50CA64" />
         </View>
 
         {showSwipeHint && (
@@ -370,9 +379,10 @@ export default function DiaryScreen() {
   const [isSurveyModalOpen, setSurveyModalOpen] = useState(false);
   const [editingMeal, setEditingMeal] = useState<MealEntry | null>(null);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
+  const openSwipeRefs = useRef<Set<Swipeable>>(new Set());
 
   // Подключение хуков логики
-  const { meals, surveyStatus, dailySurvey, syncStatus, refreshData } = useDiaryData(currentDate);
+  const { meals, surveyStatus, dailySurvey, refreshData } = useDiaryData(currentDate);
   const calendar = useCalendarLogic(currentDate, setCurrentDate);
 
   // Обработка системной кнопки "Назад" (выход из приложения на главном экране)
@@ -424,6 +434,28 @@ export default function DiaryScreen() {
     setMealModalOpen(true);
   }, []);
 
+  const closeAllSwipeables = useCallback(() => {
+    openSwipeRefs.current.forEach((ref) => {
+      ref.close();
+    });
+    openSwipeRefs.current.clear();
+  }, []);
+
+  const handleSwipeableOpen = useCallback((ref: Swipeable | null) => {
+    if (openSwipeRefs.current.size > 0) {
+      closeAllSwipeables();
+    }
+    if (ref) {
+      openSwipeRefs.current.add(ref);
+    }
+  }, [closeAllSwipeables]);
+
+  const handleSwipeableClose = useCallback((ref: Swipeable | null) => {
+    if (ref) {
+      openSwipeRefs.current.delete(ref);
+    }
+  }, []);
+
   const handleCloseMealModal = useCallback(() => {
     setMealModalOpen(false);
     setEditingMeal(null);
@@ -470,7 +502,6 @@ export default function DiaryScreen() {
     { protein: 0, fat: 0, carbs: 0, fiber: 0 }
   ), [meals]);
 
-
   return (
     <GestureHandlerRootView style={styles.screen}>
       <View pointerEvents="none" style={styles.bgAccentPrimary} />
@@ -483,27 +514,13 @@ export default function DiaryScreen() {
               <GestureDetector gesture={calendar.panGesture}>
               <View className="px-6 pb-3 pt-2">
                 <View style={styles.headerCard}>
-                  <View className="flex-row justify-between items-center">
+                  <View style={styles.headerTopRow}>
                     {/* Заголовок даты и переключатель календаря */}
                     <View>
                       <Text style={styles.headerKicker}>Дневник питания</Text>
-                      <TouchableOpacity onPress={calendar.toggleCalendar} className="flex-row items-center gap-2">
-                        <View style={[styles.datePill, { backgroundColor: COLORS.primary }]}>
-                          <Text style={styles.dateText}>{getHeaderTitle(currentDate)}</Text>
-                        </View>
-                        <View style={styles.syncPill}>
-                          <SyncIndicator status={syncStatus} />
-                          <Text style={styles.syncText}>{getSyncLabel(syncStatus)}</Text>
-                        </View>
+                      <TouchableOpacity onPress={calendar.toggleCalendar} style={styles.datePill}>
+                        <Text style={styles.dateText}>{getHeaderTitle(currentDate)}</Text>
                       </TouchableOpacity>
-                    </View>
-                    {/* Аватар пользователя */}
-                    <View style={styles.avatar}>
-                      {MOCK_USER.avatarUrl ? (
-                        <Image source={{ uri: MOCK_USER.avatarUrl }} style={styles.avatarImage} />
-                      ) : (
-                        <Text style={styles.avatarLetter}>{MOCK_USER.name.charAt(0)}</Text>
-                      )}
                     </View>
                   </View>
 
@@ -585,6 +602,10 @@ export default function DiaryScreen() {
         // Основной скроллируемый контент
         className="flex-1"
         contentContainerStyle={{ paddingBottom:0 }}
+        onTouchStart={closeAllSwipeables}
+        onScrollBeginDrag={() => {
+          closeAllSwipeables();
+        }}
         scrollEventThrottle={16}
       >
           {/* Сетка целей (План/Факт по нутриентам) */}
@@ -598,7 +619,7 @@ export default function DiaryScreen() {
             <MacroCard label="Белки" current={todayStats.protein} target={MOCK_USER.nutritionGoals.dailyProtein} accent="#EF4444" />
             <MacroCard label="Жиры" current={todayStats.fat} target={MOCK_USER.nutritionGoals.dailyFat} accent="#F59E0B" />
             <MacroCard label="Углеводы" current={todayStats.carbs} target={MOCK_USER.nutritionGoals.dailyCarbs} accent="#3B82F6" />
-            <MacroCard label="Клетчатка" current={todayStats.fiber} target={MOCK_USER.nutritionGoals.dailyFiber} accent="#50ca64ff" />
+            <MacroCard label="Клетчатка" current={todayStats.fiber} target={MOCK_USER.nutritionGoals.dailyFiber} accent="#50CA64" />
           </View>
           <TouchableOpacity onPress={() => setSurveyModalOpen(true)} style={styles.surveyStrip}>
             <View style={styles.surveyStripLeft}>
@@ -644,6 +665,8 @@ export default function DiaryScreen() {
                 onEdit={handleEditMeal}
                 showSwipeHint={showSwipeHint && index === 0}
                 onFirstSwipe={handleFirstSwipe}
+                onSwipeableOpen={handleSwipeableOpen}
+                onSwipeableClose={handleSwipeableClose}
               />
               ))}
 
@@ -732,49 +755,19 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 6,
   },
+  headerTopRow: {
+    alignItems: 'center',
+  },
   datePill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 10,
+    backgroundColor: COLORS.primary,
   },
   dateText: {
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '700',
-  },
-  syncPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: '#F3F4F6',
-  },
-  syncText: {
-    color: '#6B7280',
-    fontSize: 11,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#ECFDF3',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#D1FAE5',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarLetter: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.primary,
   },
   headerMetaRow: {
     marginTop: 12,

@@ -229,10 +229,7 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
               </View>
 
               {/* Кнопка */}
-              <TouchableOpacity 
-                onPress={handleSubmit}
-                style={styles.primaryButton}
-              >
+              <TouchableOpacity onPress={handleSubmit} style={styles.primaryButton}>
                 <Check size={20} color="white" />
                 <Text style={styles.primaryButtonText}>
                   {initialData ? 'Сохранить' : 'Добавить'}
@@ -274,14 +271,14 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#111827',
     marginBottom: 10,
     marginTop: 6,
   },
   subsectionTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: '#6B7280',
     marginBottom: 8,
