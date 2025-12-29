@@ -101,6 +101,7 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onC
     ]).start(() => onClose());
   };
 
+
   // Load initial data if editing
   useEffect(() => {
     if (visible) {

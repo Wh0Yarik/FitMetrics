@@ -110,8 +110,6 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({
       >
         <Animated.View style={{ height: '75%', transform: [{ translateY: slideAnim }] }}>
           <View style={styles.sheet}>
-            
-            {/* Header */}
             <View style={styles.header}>
               <Text style={styles.headerTitle}>
                 {mode === 'edit' ? 'Редактировать прием пищи' : 'Добавить прием пищи'}

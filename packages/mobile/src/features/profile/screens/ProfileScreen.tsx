@@ -3,8 +3,11 @@ import { View, Text, ScrollView, TouchableOpacity, StatusBar, TextInput, Image, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera, X, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { router } from 'expo-router';
 
 import { COLORS } from '../../../constants/Colors';
+import { removeToken } from '../../../shared/lib/storage';
+import { seedLocalData } from '../../../shared/db/seedLocalData';
 
 const GENDERS = [
   { key: 'male', label: 'Мужской' },
@@ -62,7 +65,10 @@ export default function ProfileScreen() {
   const handleLogout = useCallback(() => {
     Alert.alert('Выход', 'Вы уверены, что хотите выйти?', [
       { text: 'Отмена', style: 'cancel' },
-      { text: 'Выйти', style: 'destructive', onPress: () => {} },
+      { text: 'Выйти', style: 'destructive', onPress: async () => {
+        await removeToken();
+        router.replace('/auth/login');
+      }},
     ]);
   }, []);
 
@@ -76,6 +82,16 @@ export default function ProfileScreen() {
     setNewPassword('');
     Alert.alert('Готово', 'Пароль обновлен');
   }, [currentPassword, newPassword]);
+
+  const handleSeedLocalData = useCallback(() => {
+    Alert.alert('Демо-данные', 'Заполнить неделю локальными данными?', [
+      { text: 'Отмена', style: 'cancel' },
+      { text: 'Заполнить', style: 'default', onPress: () => {
+        const result = seedLocalData();
+        Alert.alert('Готово', `Добавлено приемов пищи: ${result.mealsAdded}\nАнкет: ${result.surveysSaved}`);
+      }},
+    ]);
+  }, []);
 
   return (
     <View style={styles.screen}>
@@ -189,6 +205,12 @@ export default function ProfileScreen() {
           <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
             <Text style={styles.logoutButtonText}>Выход</Text>
           </TouchableOpacity>
+
+          {__DEV__ && (
+            <TouchableOpacity onPress={handleSeedLocalData} style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>Заполнить демо-данными</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
 
         <Modal visible={isInviteOpen} transparent animationType="fade" onRequestClose={() => setInviteOpen(false)}>

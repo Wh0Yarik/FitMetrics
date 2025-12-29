@@ -11,7 +11,7 @@
 npm install
 ```
 
-## 3. База данных (PostgreSQL)
+## 3. База данных (PostgreSQL) и хранилище (MinIO)
 
 Мы используем PostgreSQL 16, запущенный в Docker контейнере.
 
@@ -31,6 +31,30 @@ npm install
 
 ```dotenv
 DATABASE_URL="postgresql://fit_user:password@localhost:5432/fitmetrics?schema=public"
+```
+
+### Хранилище файлов (MinIO)
+
+MinIO запускается рядом с БД и используется для хранения фото (S3-совместимо).
+
+| Параметр | Значение |
+| --- | --- |
+| **Endpoint** | `http://localhost:9000` |
+| **Console** | `http://localhost:9001` |
+| **Access Key** | `minioadmin` |
+| **Secret Key** | `minioadmin` |
+| **Bucket** | `fitmetrics-media` |
+
+### Переменные окружения (.env)
+Файл: `packages/api/.env`
+
+```dotenv
+S3_ENDPOINT="http://localhost:9000"
+S3_REGION="us-east-1"
+S3_ACCESS_KEY="minioadmin"
+S3_SECRET_KEY="minioadmin"
+S3_BUCKET="fitmetrics-media"
+S3_PUBLIC_URL="http://localhost:9000/fitmetrics-media"
 ```
 
 ### Управление контейнером
@@ -106,6 +130,11 @@ docker-compose down -v
 | Метод | Путь | Описание | Доступ |
 | --- | --- | --- | --- |
 | `GET` | `/api/health` | Проверка статуса сервера | Public |
+
+### Storage
+| Метод | Путь | Описание | Доступ |
+| --- | --- | --- | --- |
+| `POST` | `/api/storage/presign` | Получить presigned URL для загрузки файла | Public |
 
 ## 8. Запуск мобильного приложения
 
