@@ -37,6 +37,17 @@ export class AuthService {
         },
       });
 
+      await tx.client.create({
+        data: {
+          userId: user.id,
+          name: data.name,
+          gender: null,
+          age: null,
+          height: null,
+          currentTrainerId: trainer.id,
+        },
+      });
+
       return { user, trainer };
     });
 
@@ -69,12 +80,9 @@ export class AuthService {
       throw new AppError('Invalid invite code', 400);
     }
 
-    if (invite.status !== InviteStatus.NEW) {
-      throw new AppError('Invite code already used or expired', 400);
-    }
-
-    if (invite.expiresAt < new Date()) {
-      throw new AppError('Invite code expired', 400);
+    const now = new Date();
+    if (invite.status !== InviteStatus.NEW || invite.expiresAt < now) {
+      throw new AppError('Invite code is not active', 400);
     }
 
     // 2. Проверяем существование пользователя
@@ -105,15 +113,18 @@ export class AuthService {
         },
       });
 
-      // Обновляем инвайт
-      await tx.inviteCode.update({
-        where: { id: invite.id },
+      // Обновляем инвайт (защита от повторного использования)
+      const updated = await tx.inviteCode.updateMany({
+        where: { id: invite.id, status: InviteStatus.NEW },
         data: {
           status: InviteStatus.USED,
           clientId: client.id,
-          usedAt: new Date(),
+          usedAt: now,
         },
       });
+      if (updated.count === 0) {
+        throw new AppError('Invite code is not active', 400);
+      }
 
       return { user, client };
     });

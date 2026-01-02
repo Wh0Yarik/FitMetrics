@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StatusBar, Image, Alert, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Calendar, Ruler } from 'lucide-react-native';
+import { Plus, Calendar, Ruler, Pencil, Trash2 } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 
@@ -12,13 +12,6 @@ import { COLORS } from '../../../constants/Colors';
 const formatDate = (date: string) =>
   new Date(date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 
-const MeasurementCard = React.memo(({ label, value }: { label: string; value: string }) => (
-  <View style={styles.metricCard}>
-    <Text style={styles.metricLabel}>{label}</Text>
-    <Text style={styles.metricValue}>{value}</Text>
-  </View>
-));
-
 const MeasurementItem = React.memo(({
   item,
   onEdit,
@@ -27,47 +20,79 @@ const MeasurementItem = React.memo(({
   item: MeasurementEntry;
   onEdit: (item: MeasurementEntry) => void;
   onDelete: (id: string) => void;
-}) => (
-  <Swipeable
-    overshootRight={false}
-    rightThreshold={60}
-    dragOffsetFromRightEdge={20}
-    renderRightActions={() => (
-      <View style={styles.swipeActions}>
-        <TouchableOpacity onPress={() => onEdit(item)} style={[styles.swipeButton, styles.swipeEdit]}>
-          <Text style={styles.swipeText}>Редактировать</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => onDelete(item.id)} style={[styles.swipeButton, styles.swipeDelete]}>
-          <Text style={[styles.swipeText, styles.swipeDeleteText]}>Удалить</Text>
-        </TouchableOpacity>
-      </View>
-    )}
-  >
-    <View style={styles.measureCard}>
-      <View style={styles.measureHeader}>
-        <View style={styles.datePill}>
-          <Calendar size={14} color="#6B7280" />
-          <Text style={styles.dateText}>{formatDate(item.date)}</Text>
-        </View>
-      </View>
+}) => {
+  const previewPhoto = item.photoFront || item.photoSide || item.photoBack;
+  const hasMetrics = item.weight != null || item.waist != null || item.hips != null || item.chest != null;
 
-      <View style={styles.metricGrid}>
-        {item.weight != null && <MeasurementCard label="Вес" value={`${item.weight} кг`} />}
-        {item.waist != null && <MeasurementCard label="Талия" value={`${item.waist} см`} />}
-        {item.hips != null && <MeasurementCard label="Бедра" value={`${item.hips} см`} />}
-        {item.chest != null && <MeasurementCard label="Грудь" value={`${item.chest} см`} />}
-      </View>
-
-      {(item.photoFront || item.photoSide || item.photoBack) && (
-        <View style={styles.photoRow}>
-          {item.photoFront && <Image source={{ uri: item.photoFront }} style={styles.photoThumb} />}
-          {item.photoSide && <Image source={{ uri: item.photoSide }} style={styles.photoThumb} />}
-          {item.photoBack && <Image source={{ uri: item.photoBack }} style={styles.photoThumb} />}
+  return (
+    <Swipeable
+      overshootRight={false}
+      rightThreshold={60}
+      dragOffsetFromRightEdge={20}
+      renderRightActions={() => (
+        <View style={styles.swipeActions}>
+          <TouchableOpacity onPress={() => onEdit(item)} style={[styles.swipeButton, styles.swipeEdit]}>
+            <Pencil size={16} color="#334155" />
+            <Text style={styles.swipeText}>Редактировать</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => onDelete(item.id)} style={[styles.swipeButton, styles.swipeDelete]}>
+            <Trash2 size={16} color="#DC2626" />
+            <Text style={[styles.swipeText, styles.swipeDeleteText]}>Удалить</Text>
+          </TouchableOpacity>
         </View>
       )}
-    </View>
-  </Swipeable>
-));
+    >
+      <View style={styles.measureCard}>
+        <View style={styles.measureTopRow}>
+          <View style={styles.datePill}>
+            <Calendar size={14} color="#6B7280" />
+            <Text style={styles.dateText}>{formatDate(item.date)}</Text>
+          </View>
+          <View style={styles.measureAvatar}>
+            {previewPhoto ? (
+              <Image source={{ uri: previewPhoto }} style={styles.measureAvatarImage} />
+            ) : (
+              <Ruler size={18} color="#94A3B8" />
+            )}
+          </View>
+        </View>
+
+        {hasMetrics ? (
+          <View style={styles.metricWrap}>
+            <View style={styles.metricRows}>
+              {item.weight != null && (
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricRowLabel}>Вес — </Text>
+                  <Text style={styles.metricRowValue}>{item.weight} кг</Text>
+                </View>
+              )}
+              {item.waist != null && (
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricRowLabel}>Талия — </Text>
+                  <Text style={styles.metricRowValue}>{item.waist} см</Text>
+                </View>
+              )}
+              {item.hips != null && (
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricRowLabel}>Бедра — </Text>
+                  <Text style={styles.metricRowValue}>{item.hips} см</Text>
+                </View>
+              )}
+              {item.chest != null && (
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricRowLabel}>Грудь — </Text>
+                  <Text style={styles.metricRowValue}>{item.chest} см</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        ) : (
+          <Text style={styles.metricEmpty}>Нет данных</Text>
+        )}
+      </View>
+    </Swipeable>
+  );
+});
 
 export default function MeasurementsScreen() {
   const [measurements, setMeasurements] = useState<MeasurementEntry[]>([]);
@@ -272,15 +297,17 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   sectionChip: {
-    backgroundColor: '#ECFDF3',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: '#E5E7EB',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 999,
+    marginTop: 6,
   },
   sectionChipText: {
-    color: COLORS.primary,
+    color: '#6B7280',
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   listHeader: {
     paddingHorizontal: 24,
@@ -314,12 +341,11 @@ const styles = StyleSheet.create({
   emptyCard: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 32,
+    paddingVertical: 28,
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderStyle: 'dashed',
+    borderColor: '#E6ECEA',
   },
   emptyText: {
     marginTop: 12,
@@ -328,58 +354,83 @@ const styles = StyleSheet.create({
   },
   measureCard: {
     backgroundColor: '#FFFFFF',
-    padding: 12,
-    borderRadius: 18,
+    padding: 18,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#EEF2F3',
     shadowColor: '#0F172A',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
-    marginBottom: 10,
+    shadowOpacity: 0.01,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    marginBottom: 12,
+    height: 122,
+    justifyContent: 'center',
   },
   swipeActions: {
     flexDirection: 'row',
     alignItems: 'center',
     height: '100%',
-    paddingRight: 8,
+    paddingRight: 6,
+    paddingBottom: 12,
+    paddingTop: 0,
   },
   swipeButton: {
-    width: 110,
+    width: 108,
     height: '100%',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
   },
   swipeEdit: {
-    backgroundColor: '#E5E7EB',
+    borderColor: '#CBD5E1',
   },
   swipeDelete: {
-    backgroundColor: '#FEF2F2',
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FFF1F2',
   },
   swipeText: {
+    marginTop: 6,
     fontSize: 11,
     fontWeight: '600',
-    color: '#111827',
+    color: '#334155',
   },
   swipeDeleteText: {
     color: '#EF4444',
   },
-  measureHeader: {
+  measureTopRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  measureAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  measureAvatarImage: {
+    width: '100%',
+    height: '100%',
   },
   datePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F9FAFB',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   dateText: {
     marginLeft: 6,
@@ -387,43 +438,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  metricGrid: {
+  metricWrap: {
+    backgroundColor: '#FBFDFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#EEF2F3',
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+  },
+  metricRows: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: 6,
   },
-  metricCard: {
+  metricRow: {
     width: '48%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 8,
-    marginBottom: 8,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 4 },
-  },
-  metricLabel: {
-    fontSize: 10,
-    color: '#6B7280',
-  },
-  metricValue: {
-    marginTop: 3,
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  photoRow: {
-    marginTop: 4,
     flexDirection: 'row',
+    flexWrap: 'wrap',
   },
-  photoThumb: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-    marginRight: 8,
+  metricRowLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  metricRowValue: {
+    fontSize: 12,
+    color: '#111827',
+    fontWeight: '700',
+  },
+  metricEmpty: {
+    marginTop: 2,
+    color: '#9CA3AF',
+    fontSize: 12,
   },
 });

@@ -46,12 +46,16 @@ id String @id @default(cuid())
 userId String @unique
 user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 name String
+avatarUrl String? @map("avatar_url")
+phone String?
+socialLink String? @map("social_link")
 bio String?
 specialization String?
 moderationStatus TrainerStatus @default(PENDING_APPROVAL) @map("moderation_status")
 telegramChatId String? @map("telegram_chat_id")
 // Relations
-clients Client[]
+clients Client[] @relation("TrainerCurrentClients")
+archivedClients Client[] @relation("TrainerArchivedClients")
 nutritionGoals NutritionGoal[]
 notifications Notification[]
 inviteCodes InviteCode[]
@@ -78,8 +82,13 @@ name String
 gender String? // M, F, other
 age Int?
 height Float? // cm
+avatarUrl String? @map("avatar_url")
+telegram String?
 currentTrainerId String? @map("current_trainer_id")
-currentTrainer Trainer? @relation(fields: [currentTrainerId], references: [id], onDelete: SetNull)
+currentTrainer Trainer? @relation("TrainerCurrentClients", fields: [currentTrainerId], references: [id], onDelete: SetNull)
+archivedAt DateTime? @map("archived_at")
+archivedByTrainerId String? @map("archived_by_trainer_id")
+archivedByTrainer Trainer? @relation("TrainerArchivedClients", fields: [archivedByTrainerId], references: [id], onDelete: SetNull)
 // Relations
 diaryEntries DiaryEntry[]
 dailySurveys DailySurvey[]
@@ -90,6 +99,8 @@ inviteCodes       InviteCode[]
 createdAt DateTime @default(now()) @map("created_at")
 updatedAt DateTime @updatedAt @map("updated_at")
 @@index([currentTrainerId])
+@@index([archivedAt])
+@@index([archivedByTrainerId])
 @@index([userId])
 @@map("clients")
 }
@@ -174,7 +185,7 @@ model DailySurvey {
 id String @id @default(cuid())
 clientId String @map("client_id")
 client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-date DateTime @unique(map: "unique_client_survey_date") @map("date") @db.Date
+date DateTime @map("date") @db.Date
 // Survey fields (1-10 шкалы)
 motivation Int?
 sleepHours Float? @map("sleep_hours")
@@ -280,6 +291,7 @@ CLIENT_JOINED
 WEEKLY_REPORT
 MISSED_DIARY
 UNVIEWED_SURVEY
+CLIENT_ARCHIVED
 }
 // ============================================
 // AUDIT LOGS (Логирование действий)

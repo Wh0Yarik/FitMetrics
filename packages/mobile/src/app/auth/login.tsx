@@ -8,6 +8,7 @@ import { api } from '../../shared/api/client';
 import { router } from 'expo-router';
 import { setToken } from '../../shared/lib/storage';
 import { COLORS } from '../../constants/Colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const loginSchema = z.object({
   email: z.string().email('Некорректный email'),
@@ -30,7 +31,15 @@ export default function LoginScreen() {
       
       if (response.data.accessToken) {
         await setToken(response.data.accessToken);
-        router.replace('/(tabs)');
+        const userRole = response.data.user?.role;
+        if (userRole) {
+          await AsyncStorage.setItem('userRole', userRole);
+        }
+        if (userRole?.toLowerCase() === 'trainer') {
+          router.replace('/(trainer)/clients');
+        } else {
+          router.replace('/(tabs)');
+        }
       } else {
         Alert.alert('Ошибка', 'Не удалось получить токен доступа');
       }

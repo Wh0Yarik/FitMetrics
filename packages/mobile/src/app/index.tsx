@@ -32,5 +32,9 @@ export default function Index() {
     return <Redirect href="/auth/login" />;
   }
 
+  if (role?.toLowerCase() === 'trainer') {
+    return <Redirect href="/(trainer)/clients" />;
+  }
+
   return <Redirect href="/(tabs)" />;
 }
