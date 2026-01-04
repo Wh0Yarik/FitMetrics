@@ -806,7 +806,7 @@ export default function DiaryScreen() {
       <ScrollView 
         // Основной скроллируемый контент
         className="flex-1"
-        contentContainerStyle={{ paddingBottom:0 }}
+        contentContainerStyle={{ paddingBottom: 80 }}
         onTouchStart={closeAllSwipeables}
         onScrollBeginDrag={() => {
           closeAllSwipeables();
