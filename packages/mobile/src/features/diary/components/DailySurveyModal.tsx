@@ -174,7 +174,7 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onC
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Анкета</Text>
             <TouchableOpacity onPress={handleCloseAnimation} style={styles.closeButton}>
-              <X size={20} color="#6B7280" />
+              <X size={18} color={COLORS.primary} />
             </TouchableOpacity>
           </View>
 
@@ -182,14 +182,18 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onC
             
             {/* Вес */}
             <Text style={styles.sectionLabel}>Вес (кг)</Text>
-            <View style={styles.inputCard}>
+            <View style={styles.pillInputRow}>
               <TextInput
                 value={weight}
                 onChangeText={setWeight}
                 placeholder="0.0"
                 keyboardType="decimal-pad"
-                style={styles.weightInput}
+                style={styles.pillInputText}
               />
+              <Text style={styles.pillUnit}>кг</Text>
+              <View style={styles.pillIcon}>
+                <View style={styles.pillIconDot} />
+              </View>
             </View>
 
             {/* Вопросы */}
@@ -266,8 +270,13 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onC
               onPress={handleSubmit}
               style={styles.primaryButton}
             >
-              <Check size={20} color="white" />
+              <Check size={20} color="#FFFFFF" />
               <Text style={styles.primaryButtonText}>Сохранить</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleCloseAnimation} style={styles.secondaryButton}>
+              <X size={18} color="#EF4444" />
+              <Text style={styles.secondaryButtonText}>Отмена</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -279,7 +288,7 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onC
 
 const styles = StyleSheet.create({
   sheet: {
-    backgroundColor: '#F7FAF8',
+    backgroundColor: '#FFFFFF',
     height: '100%',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -289,10 +298,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    padding: 20,
   },
   headerTitle: {
     fontSize: 18,
@@ -300,35 +306,58 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   closeButton: {
-    padding: 8,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 999,
+    width: 32,
+    height: 32,
+    borderRadius: 12,
+    backgroundColor: '#ECFDF3',
+    borderWidth: 1,
+    borderColor: '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: '#6B7280',
     marginBottom: 10,
   },
-  inputCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 14,
-    borderRadius: 16,
+  pillInputRow: {
+    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 24,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 4 },
   },
-  weightInput: {
-    fontSize: 28,
+  pillInputText: {
+    flex: 1,
+    fontSize: 20,
     fontWeight: '700',
-    color: COLORS.primary,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    paddingVertical: 6,
+    color: '#111827',
+  },
+  pillUnit: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginRight: 10,
+  },
+  pillIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    backgroundColor: '#ECFDF3',
+    borderWidth: 1,
+    borderColor: '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillIconDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: COLORS.primary,
   },
   selectionRow: {
     flexDirection: 'row',
@@ -338,20 +367,16 @@ const styles = StyleSheet.create({
   selectionButton: {
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 14,
+    borderRadius: 22,
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
     marginRight: 8,
     marginBottom: 8,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
   },
   selectionButtonActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: '#ECFDF3',
+    borderColor: '#D1FAE5',
   },
   selectionText: {
     fontSize: 13,
@@ -359,12 +384,12 @@ const styles = StyleSheet.create({
     color: '#374151',
   },
   selectionTextActive: {
-    color: '#FFFFFF',
+    color: '#166534',
   },
   commentInput: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F9FAFB',
     padding: 14,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     color: '#111827',
@@ -374,20 +399,34 @@ const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: COLORS.primary,
     paddingVertical: 12,
-    borderRadius: 16,
+    borderRadius: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 6 },
   },
   primaryButtonText: {
     marginLeft: 8,
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  secondaryButton: {
+    width: '100%',
+    paddingVertical: 12,
+    borderRadius: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    marginBottom: 16,
+  },
+  secondaryButtonText: {
+    marginLeft: 8,
+    color: '#EF4444',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

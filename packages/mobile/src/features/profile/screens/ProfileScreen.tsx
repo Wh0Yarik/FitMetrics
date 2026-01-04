@@ -1,13 +1,16 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StatusBar, TextInput, Image, Alert, Modal, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, TextInput, Image, Alert, Modal, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera, X, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { COLORS } from '../../../constants/Colors';
-import { removeToken } from '../../../shared/lib/storage';
+import { removeToken, setToken } from '../../../shared/lib/storage';
 import { seedLocalData } from '../../../shared/db/seedLocalData';
+import { api } from '../../../shared/api/client';
 
 const GENDERS = [
   { key: 'male', label: 'Мужской' },
@@ -18,11 +21,12 @@ const GENDERS = [
 type GenderKey = typeof GENDERS[number]['key'];
 
 export default function ProfileScreen() {
-  const [name, setName] = useState('Алексей');
-  const [gender, setGender] = useState<GenderKey>('male');
-  const [age, setAge] = useState('28');
-  const [height, setHeight] = useState('178');
-  const [email, setEmail] = useState('alex@example.com');
+  const [name, setName] = useState('');
+  const [gender, setGender] = useState<GenderKey | null>(null);
+  const [age, setAge] = useState('');
+  const [height, setHeight] = useState('');
+  const [telegram, setTelegram] = useState('');
+  const [email, setEmail] = useState('');
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [isInviteOpen, setInviteOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
@@ -31,35 +35,169 @@ export default function ProfileScreen() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
-  const trainerName = 'Андрей С.';
-  const trainerStatus = 'Подключен';
-  const trainerAvatar = null;
-  const trainerContacts = [
-    { label: 'Телефон', value: '+7 999 123-45-67' },
-    { label: 'Соцсеть', value: 'instagram.com/coach_andrey' },
-  ];
+  const [trainerName, setTrainerName] = useState('');
+  const [trainerStatus, setTrainerStatus] = useState('');
+  const [trainerAvatar, setTrainerAvatar] = useState<string | null>(null);
+  const [trainerContacts, setTrainerContacts] = useState<{ label: string; value: string }[]>([]);
+  const [isLoading, setLoading] = useState(false);
+  const [isAvatarUploading, setAvatarUploading] = useState(false);
 
-  const genderLabel = GENDERS.find(item => item.key === gender)?.label ?? 'Не указано';
+  const genderLabel = gender ? GENDERS.find(item => item.key === gender)?.label ?? 'Не указано' : 'Не указано';
+  const trainerDisplayName = trainerName || 'Тренер не назначен';
+  const trainerDisplayStatus = trainerStatus || 'Нет связи';
 
-  const handlePickAvatar = useCallback(async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.7,
-    });
-    if (!result.canceled) {
-      setAvatarUri(result.assets[0].uri);
+  const loadProfile = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/users/me');
+      const data = response.data;
+      setName(data.profile?.name ?? '');
+      setEmail(data.email ?? '');
+
+      const genderValue = String(data.profile?.gender ?? '').toLowerCase();
+      if (genderValue === 'm' || genderValue === 'male') {
+        setGender('male');
+      } else if (genderValue === 'f' || genderValue === 'female') {
+        setGender('female');
+      } else if (genderValue) {
+        setGender('other');
+      } else {
+        setGender(null);
+      }
+
+      setAge(data.profile?.age != null ? String(data.profile.age) : '');
+      setHeight(data.profile?.height != null ? String(data.profile.height) : '');
+      setTelegram(data.profile?.telegram ?? '');
+      setAvatarUri(data.profile?.avatarUrl ?? null);
+
+      if (data.trainer) {
+        setTrainerName(data.trainer.name ?? '');
+        setTrainerStatus(data.trainer.status || 'На связи');
+        setTrainerAvatar(data.trainer.avatarUrl ?? null);
+
+        const contacts = Array.isArray(data.trainer.contacts) ? [...data.trainer.contacts] : [];
+        if (data.trainer.email && !contacts.some((c: any) => c.value === data.trainer.email)) {
+          contacts.push({ label: 'Email', value: data.trainer.email });
+        }
+        setTrainerContacts(contacts);
+      } else {
+        setTrainerName('');
+        setTrainerStatus('');
+        setTrainerAvatar(null);
+        setTrainerContacts([]);
+      }
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Не удалось загрузить профиль';
+      Alert.alert('Ошибка', message);
+    } finally {
+      setLoading(false);
     }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [loadProfile])
+  );
+
+  const handlePickAvatar = useCallback(async () => {
+    if (isAvatarUploading) return;
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: true,
+        quality: 0.7,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      setAvatarUri(asset.uri);
+
+      setAvatarUploading(true);
+      const fileName = asset.fileName ?? asset.uri.split('/').pop() ?? 'avatar.jpg';
+      const contentType = asset.mimeType ?? 'image/jpeg';
+      const presign = await api.post('/storage/presign', {
+        fileName,
+        contentType,
+        folder: 'avatars',
+      });
+      const uploadUrl = presign.data.uploadUrl;
+      const publicUrl = presign.data.publicUrl;
+      const fileResponse = await fetch(asset.uri);
+      const blob = await fileResponse.blob();
+      await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': contentType },
+        body: blob,
+      });
+      setAvatarUri(publicUrl);
+      await api.put('/users/me/profile', {
+        name: name.trim() || 'Пользователь',
+        gender: gender ?? null,
+        age: age ? Number(age) : null,
+        height: height ? Number(height) : null,
+        telegram: telegram.trim() || null,
+        avatarUrl: publicUrl,
+      });
+    } catch (error: any) {
+      const rawMessage = error.response?.data?.message || error?.message || 'Не удалось открыть галерею';
+      const message = rawMessage.includes('Network request failed')
+        ? 'Не удалось загрузить фото. Проверьте доступ к API и хранилищу S3.'
+        : rawMessage;
+      Alert.alert('Ошибка', message);
+    } finally {
+      setAvatarUploading(false);
+    }
+  }, [age, gender, height, isAvatarUploading, name, telegram]);
 
   const handleSaveInvite = useCallback(() => {
     if (!inviteCode.trim()) {
       Alert.alert('Инвайт-код', 'Введите код тренера');
       return;
     }
-    setInviteOpen(false);
-    setInviteCode('');
-    Alert.alert('Готово', 'Запрос на смену тренера отправлен');
+
+    Alert.alert(
+      'Сменить тренера',
+      'Вы отвяжетесь от текущего тренера и привяжетесь к новому. Продолжить?',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Сменить',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await api.post('/users/me/trainer', { inviteCode: inviteCode.trim() });
+              const data = response.data;
+              if (data.trainer) {
+                setTrainerName(data.trainer.name ?? '');
+                setTrainerStatus(data.trainer.status || 'На связи');
+                setTrainerAvatar(data.trainer.avatarUrl ?? null);
+
+                const contacts = Array.isArray(data.trainer.contacts) ? [...data.trainer.contacts] : [];
+                if (data.trainer.email && !contacts.some((c: any) => c.value === data.trainer.email)) {
+                  contacts.push({ label: 'Email', value: data.trainer.email });
+                }
+                setTrainerContacts(contacts);
+              } else {
+                setTrainerName('');
+                setTrainerStatus('');
+                setTrainerAvatar(null);
+                setTrainerContacts([]);
+              }
+              setInviteOpen(false);
+              setInviteCode('');
+              Alert.alert('Готово', 'Тренер успешно изменен');
+            } catch (error: any) {
+              const message = error.response?.data?.message || 'Не удалось сменить тренера';
+              Alert.alert('Ошибка', message);
+            }
+          },
+        },
+      ]
+    );
   }, [inviteCode]);
 
   const handleLogout = useCallback(() => {
@@ -67,6 +205,7 @@ export default function ProfileScreen() {
       { text: 'Отмена', style: 'cancel' },
       { text: 'Выйти', style: 'destructive', onPress: async () => {
         await removeToken();
+        await AsyncStorage.removeItem('userRole');
         router.replace('/auth/login');
       }},
     ]);
@@ -83,6 +222,62 @@ export default function ProfileScreen() {
     Alert.alert('Готово', 'Пароль обновлен');
   }, [currentPassword, newPassword]);
 
+  const handleSaveProfile = useCallback(async () => {
+    if (!name.trim()) {
+      Alert.alert('Профиль', 'Введите имя');
+      return;
+    }
+
+    if (telegram.trim() && !telegram.trim().startsWith('@')) {
+      Alert.alert('Профиль', 'Telegram никнейм должен начинаться с @');
+      return;
+    }
+
+    const payload = {
+      name: name.trim(),
+      gender: gender ?? null,
+      age: age ? Number(age) : null,
+      height: height ? Number(height) : null,
+      telegram: telegram.trim() || null,
+      avatarUrl: avatarUri && avatarUri.startsWith('http') ? avatarUri : null,
+    };
+
+    if (payload.age !== null && Number.isNaN(payload.age)) {
+      Alert.alert('Профиль', 'Возраст должен быть числом');
+      return;
+    }
+    if (payload.height !== null && Number.isNaN(payload.height)) {
+      Alert.alert('Профиль', 'Рост должен быть числом');
+      return;
+    }
+
+    try {
+      const response = await api.put('/users/me/profile', payload);
+      const data = response.data;
+      setName(data.profile?.name ?? '');
+
+      const genderValue = String(data.profile?.gender ?? '').toLowerCase();
+      if (genderValue === 'm' || genderValue === 'male') {
+        setGender('male');
+      } else if (genderValue === 'f' || genderValue === 'female') {
+        setGender('female');
+      } else if (genderValue) {
+        setGender('other');
+      } else {
+        setGender(null);
+      }
+
+      setAge(data.profile?.age != null ? String(data.profile.age) : '');
+      setHeight(data.profile?.height != null ? String(data.profile.height) : '');
+      setTelegram(data.profile?.telegram ?? '');
+      setEditOpen(false);
+      Alert.alert('Готово', 'Профиль обновлен');
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Не удалось сохранить профиль';
+      Alert.alert('Ошибка', message);
+    }
+  }, [age, gender, height, name, telegram]);
+
   const handleSeedLocalData = useCallback(() => {
     Alert.alert('Демо-данные', 'Заполнить неделю локальными данными?', [
       { text: 'Отмена', style: 'cancel' },
@@ -91,6 +286,32 @@ export default function ProfileScreen() {
         Alert.alert('Готово', `Добавлено приемов пищи: ${result.mealsAdded}\nАнкет: ${result.surveysSaved}`);
       }},
     ]);
+  }, []);
+
+  const handleQuickSwitch = useCallback(async (role: 'admin' | 'trainer' | 'client') => {
+    const credentials = {
+      admin: { email: 'admin@fitmetrics.com', password: 'admin123' },
+      trainer: { email: 'trainer@fitmetrics.com', password: 'trainer123' },
+      client: { email: 'client1@fitmetrics.com', password: 'client123' },
+    };
+
+    try {
+      const response = await api.post('/auth/login', credentials[role]);
+      if (response.data.accessToken) {
+        await setToken(response.data.accessToken);
+        await AsyncStorage.setItem('userRole', response.data.user?.role ?? role.toUpperCase());
+        if (role === 'trainer') {
+          router.replace('/(trainer)/clients');
+        } else {
+          router.replace('/(tabs)');
+        }
+      } else {
+        Alert.alert('Ошибка', 'Не удалось получить токен');
+      }
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Не удалось переключить пользователя';
+      Alert.alert('Ошибка', message);
+    }
   }, []);
 
   return (
@@ -108,7 +329,7 @@ export default function ProfileScreen() {
               <Text style={styles.headerSubtitle}>Обновляйте профиль и связь с тренером</Text>
 
               <View style={styles.avatarRow}>
-                <TouchableOpacity onPress={handlePickAvatar} style={styles.avatarButton}>
+                <TouchableOpacity onPress={handlePickAvatar} style={styles.avatarButton} hitSlop={8}>
                   {avatarUri ? (
                     <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
                   ) : (
@@ -116,13 +337,13 @@ export default function ProfileScreen() {
                       <Camera size={20} color="#6B7280" />
                     </View>
                   )}
-                  <View style={styles.avatarBadge}>
-                    <Camera size={12} color="#FFFFFF" style={styles.avatarBadgeIcon} />
-                  </View>
                 </TouchableOpacity>
                 <View style={styles.avatarInfo}>
-                  <Text style={styles.avatarName}>{name || 'Имя пользователя'}</Text>
+                  <Text style={styles.avatarName}>{name || (isLoading ? 'Загрузка...' : 'Имя пользователя')}</Text>
                   <Text style={styles.avatarHint}>Нажмите, чтобы сменить фото</Text>
+                  <TouchableOpacity onPress={handlePickAvatar} style={styles.avatarActionButton}>
+                    <Text style={styles.avatarActionText}>Выбрать фото</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -148,9 +369,13 @@ export default function ProfileScreen() {
                   </View>
                 </View>
                 <View style={styles.summaryRow}>
-                  <View style={[styles.summaryItem, styles.summaryItemLast]}>
+                  <View style={styles.summaryItem}>
                     <Text style={styles.summaryLabel}>Рост</Text>
                     <Text style={styles.summaryValue}>{height ? `${height} см` : '—'}</Text>
+                  </View>
+                  <View style={[styles.summaryItem, styles.summaryItemLast]}>
+                    <Text style={styles.summaryLabel}>Telegram</Text>
+                    <Text style={styles.summaryValue}>{telegram || '—'}</Text>
                   </View>
                 </View>
                 <TouchableOpacity onPress={() => setEditOpen(true)} style={styles.inlineEditButton}>
@@ -171,26 +396,30 @@ export default function ProfileScreen() {
                   {trainerAvatar ? (
                     <Image source={{ uri: trainerAvatar }} style={styles.trainerAvatarImage} />
                   ) : (
-                    <Text style={styles.trainerAvatarText}>{trainerName.charAt(0)}</Text>
+                    <Text style={styles.trainerAvatarText}>{trainerDisplayName.charAt(0)}</Text>
                   )}
                 </View>
                 <View>
                   <Text style={styles.trainerLabel}>Ваш тренер</Text>
-                  <Text style={styles.trainerName}>{trainerName}</Text>
+                  <Text style={styles.trainerName}>{trainerDisplayName}</Text>
                 </View>
               </View>
               <View style={styles.trainerStatus}>
-                <Text style={styles.trainerStatusText}>{trainerStatus}</Text>
+                <Text style={styles.trainerStatusText}>{trainerDisplayStatus}</Text>
               </View>
             </View>
 
             <View style={styles.trainerContacts}>
-              {trainerContacts.map((contact) => (
-                <View key={contact.label} style={styles.trainerContactItem}>
-                  <Text style={styles.trainerContactLabel}>{contact.label}</Text>
-                  <Text style={styles.trainerContactValue}>{contact.value}</Text>
-                </View>
-              ))}
+              {trainerContacts.length === 0 ? (
+                <Text style={styles.trainerContactEmpty}>Контакты не указаны</Text>
+              ) : (
+                trainerContacts.map((contact) => (
+                  <View key={contact.label} style={styles.trainerContactItem}>
+                    <Text style={styles.trainerContactLabel}>{contact.label}</Text>
+                    <Text style={styles.trainerContactValue}>{contact.value}</Text>
+                  </View>
+                ))
+              )}
             </View>
           </View>
 
@@ -207,9 +436,22 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           {__DEV__ && (
-            <TouchableOpacity onPress={handleSeedLocalData} style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>Заполнить демо-данными</Text>
-            </TouchableOpacity>
+            <View style={styles.devTools}>
+              <TouchableOpacity onPress={handleSeedLocalData} style={styles.secondaryButton}>
+                <Text style={styles.secondaryButtonText}>Заполнить демо-данными</Text>
+              </TouchableOpacity>
+              <View style={styles.quickSwitchRow}>
+                <TouchableOpacity onPress={() => handleQuickSwitch('admin')} style={styles.quickSwitchButton}>
+                  <Text style={styles.quickSwitchText}>Админ</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleQuickSwitch('trainer')} style={styles.quickSwitchButton}>
+                  <Text style={styles.quickSwitchText}>Тренер</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleQuickSwitch('client')} style={styles.quickSwitchButton}>
+                  <Text style={styles.quickSwitchText}>Клиент</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           )}
         </ScrollView>
 
@@ -258,13 +500,24 @@ export default function ProfileScreen() {
               </View>
 
               <View style={styles.field}>
+                <Text style={styles.fieldLabel}>Telegram</Text>
+                <TextInput
+                  value={telegram}
+                  onChangeText={setTelegram}
+                  placeholder="@username"
+                  style={styles.fieldInput}
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.field}>
                 <Text style={styles.fieldLabel}>Почта</Text>
                 <TextInput
                   value={email}
-                  onChangeText={setEmail}
                   placeholder="Введите почту"
                   keyboardType="email-address"
-                  style={styles.fieldInput}
+                  style={[styles.fieldInput, styles.fieldInputDisabled]}
+                  editable={false}
                 />
               </View>
 
@@ -310,7 +563,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity onPress={() => setEditOpen(false)} style={styles.secondaryButtonInline}>
                   <Text style={styles.secondaryButtonText}>Отмена</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setEditOpen(false)} style={styles.primaryButtonInline}>
+                <TouchableOpacity onPress={handleSaveProfile} style={styles.primaryButtonInline}>
                   <Check size={18} color="white" />
                   <Text style={styles.primaryButtonText}>Сохранить</Text>
                 </TouchableOpacity>
@@ -454,22 +707,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarBadge: {
-    position: 'absolute',
-    right: 6,
-    bottom: 6,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  avatarBadgeIcon: {
-    transform: [{ translateX: 0.5 }, { translateY: 0.5 }],
-  },
   avatarInfo: {
     marginLeft: 12,
     flex: 1,
@@ -483,6 +720,21 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 12,
     color: '#6B7280',
+  },
+  avatarActionButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  avatarActionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#111827',
   },
   summaryWrap: {
     marginTop: 16,
@@ -558,6 +810,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     color: '#111827',
+  },
+  fieldInputDisabled: {
+    color: '#9CA3AF',
   },
   genderRow: {
     flexDirection: 'row',
@@ -677,6 +932,10 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
     paddingTop: 10,
   },
+  trainerContactEmpty: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
   trainerContactItem: {
     marginBottom: 8,
   },
@@ -708,6 +967,29 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
+  },
+  devTools: {
+    marginTop: 12,
+  },
+  quickSwitchRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+    paddingHorizontal: 24,
+  },
+  quickSwitchButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  quickSwitchText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#111827',
   },
   secondaryButtonText: {
     fontSize: 13,

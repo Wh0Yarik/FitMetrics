@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Animated, Dimensions, StyleSheet, Image } from 'react-native';
 import { X, Check, Camera } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -11,6 +11,72 @@ interface AddMeasurementModalProps {
   onSave: (data: Partial<MeasurementEntry>) => void;
   initialData?: MeasurementEntry | null;
 }
+
+const InputField = memo(({
+  label,
+  value,
+  onChange,
+  placeholder = '0.0',
+  unit,
+}: {
+  label: string;
+  value: string;
+  onChange: (text: string) => void;
+  placeholder?: string;
+  unit?: string;
+}) => (
+  <View style={styles.inputField}>
+    <Text style={styles.inputLabel}>{label}</Text>
+    <View style={styles.pillInputRow}>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        keyboardType="decimal-pad"
+        style={styles.pillInputText}
+        placeholderTextColor="#9CA3AF"
+      />
+      {unit ? <Text style={styles.pillUnit}>{unit}</Text> : null}
+    </View>
+  </View>
+));
+
+const PhotoPicker = memo(({
+  label,
+  uri,
+  onPick,
+  onClear,
+}: {
+  label: string;
+  uri: string | null;
+  onPick: () => void;
+  onClear: () => void;
+}) => (
+  <View style={styles.photoPicker}>
+    <Text style={styles.photoLabel}>{label}</Text>
+    <TouchableOpacity
+      onPress={onPick}
+      style={[styles.photoCard, uri ? styles.photoCardActive : styles.photoCardIdle]}
+    >
+      {uri ? (
+        <>
+          <Image source={{ uri }} style={styles.photoImage} resizeMode="cover" />
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              onClear();
+            }}
+            style={styles.photoClear}
+          >
+            <X size={12} color="#FFFFFF" />
+          </TouchableOpacity>
+        </>
+      ) : (
+        <Camera size={22} color="#9CA3AF" />
+      )}
+    </TouchableOpacity>
+  </View>
+));
 
 export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visible, onClose, onSave, initialData }) => {
   // State
@@ -107,46 +173,6 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
     handleClose();
   };
 
-  const InputField = ({ label, value, onChange, placeholder = '0.0' }: any) => (
-    <View style={styles.inputField}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        keyboardType="decimal-pad"
-        style={styles.input}
-      />
-    </View>
-  );
-
-  const PhotoPicker = ({ label, uri, onPick, onClear }: any) => (
-    <View style={styles.photoPicker}>
-      <Text style={styles.photoLabel}>{label}</Text>
-      <TouchableOpacity 
-        onPress={onPick}
-        style={[
-          styles.photoCard,
-          uri ? styles.photoCardActive : styles.photoCardIdle,
-        ]}
-      >
-        {uri ? (
-          <>
-            <Image source={{ uri }} style={styles.photoImage} resizeMode="cover" />
-            <TouchableOpacity 
-              onPress={(e) => { e.stopPropagation(); onClear(); }}
-              style={styles.photoClear}
-            >
-              <X size={12} color="white" />
-            </TouchableOpacity>
-          </>
-        ) : (
-          <Camera size={24} color="#9CA3AF" />
-        )}
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
       <Animated.View 
@@ -170,70 +196,89 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
                 {initialData ? 'Редактировать замер' : 'Новый замер'}
               </Text>
               <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                <X size={20} color="#6B7280" />
+                <X size={18} color={COLORS.primary} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: 100 }}>
+            <ScrollView
+              className="flex-1 p-4"
+              contentContainerStyle={{ paddingBottom: 100 }}
+              keyboardShouldPersistTaps="handled"
+            >
               
               {/* Основные */}
-              <Text style={styles.sectionTitle}>Основные</Text>
-              <View style={styles.row}>
-                <InputField label="Вес (кг)" value={weight} onChange={setWeight} />
-                <View style={styles.rowSpacer} /> 
+              <View style={styles.sectionBlock}>
+                <Text style={styles.subsectionTitle}>Вес</Text>
+                <View style={styles.row}>
+                  <InputField value={weight} onChange={setWeight} unit="кг" />
+                  <View style={styles.rowSpacer} /> 
+                </View>
               </View>
 
               {/* Объемы */}
-              <Text style={styles.sectionTitle}>Объемы (см)</Text>
-              <View style={styles.row}>
-                <InputField label="Грудь" value={chest} onChange={setChest} />
-                <InputField label="Талия" value={waist} onChange={setWaist} />
-                <InputField label="Бедра" value={hips} onChange={setHips} />
+              <View style={styles.sectionBlock}>
+                <Text style={styles.subsectionTitle}>Объемы</Text>
+                <View style={styles.row}>
+                  <InputField label="Грудь" value={chest} onChange={setChest} unit="см" />
+                  <InputField label="Талия" value={waist} onChange={setWaist} unit="см" />
+                  <InputField label="Бедра" value={hips} onChange={setHips} unit="см" />
+                </View>
               </View>
 
               {/* Руки */}
-              <Text style={styles.subsectionTitle}>Руки</Text>
-              <View style={styles.row}>
-                <InputField label="Левая" value={leftArm} onChange={setLeftArm} />
-                <InputField label="Правая" value={rightArm} onChange={setRightArm} />
+              <View style={styles.subsectionBlock}>
+                <Text style={styles.subsectionTitle}>Руки</Text>
+                <View style={styles.row}>
+                  <InputField label="Левая" value={leftArm} onChange={setLeftArm} unit="см" />
+                  <InputField label="Правая" value={rightArm} onChange={setRightArm} unit="см" />
+                </View>
               </View>
 
               {/* Ноги */}
-              <Text style={styles.subsectionTitle}>Ноги</Text>
-              <View style={styles.row}>
-                <InputField label="Левая" value={leftLeg} onChange={setLeftLeg} />
-                <InputField label="Правая" value={rightLeg} onChange={setRightLeg} />
+              <View style={styles.subsectionBlock}>
+                <Text style={styles.subsectionTitle}>Ноги</Text>
+                <View style={styles.row}>
+                  <InputField label="Левая" value={leftLeg} onChange={setLeftLeg} unit="см" />
+                  <InputField label="Правая" value={rightLeg} onChange={setRightLeg} unit="см" />
+                </View>
               </View>
 
               {/* Фото */}
-              <Text style={styles.sectionTitle}>Фото прогресса</Text>
-              <View style={styles.photoRow}>
-                <PhotoPicker 
-                  label="Спереди" 
-                  uri={photoFront} 
-                  onPick={() => pickImage(setPhotoFront)} 
-                  onClear={() => setPhotoFront(null)} 
-                />
-                <PhotoPicker 
-                  label="Сбоку" 
-                  uri={photoSide} 
-                  onPick={() => pickImage(setPhotoSide)} 
-                  onClear={() => setPhotoSide(null)} 
-                />
-                <PhotoPicker 
-                  label="Сзади" 
-                  uri={photoBack} 
-                  onPick={() => pickImage(setPhotoBack)} 
-                  onClear={() => setPhotoBack(null)} 
-                />
+              <View style={styles.sectionBlock}>
+                <Text style={styles.sectionTitle}>Фото прогресса</Text>
+                <View style={styles.photoRow}>
+                  <PhotoPicker 
+                    label="Спереди" 
+                    uri={photoFront} 
+                    onPick={() => pickImage(setPhotoFront)} 
+                    onClear={() => setPhotoFront(null)} 
+                  />
+                  <PhotoPicker 
+                    label="Сбоку" 
+                    uri={photoSide} 
+                    onPick={() => pickImage(setPhotoSide)} 
+                    onClear={() => setPhotoSide(null)} 
+                  />
+                  <PhotoPicker 
+                    label="Сзади" 
+                    uri={photoBack} 
+                    onPick={() => pickImage(setPhotoBack)} 
+                    onClear={() => setPhotoBack(null)} 
+                  />
+                </View>
               </View>
 
               {/* Кнопка */}
               <TouchableOpacity onPress={handleSubmit} style={styles.primaryButton}>
-                <Check size={20} color="white" />
+                <Check size={20} color="#FFFFFF" />
                 <Text style={styles.primaryButtonText}>
                   {initialData ? 'Сохранить' : 'Добавить'}
                 </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={handleClose} style={styles.secondaryButton}>
+                <X size={18} color="#EF4444" />
+                <Text style={styles.secondaryButtonText}>Отмена</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -245,7 +290,7 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
 
 const styles = StyleSheet.create({
   sheet: {
-    backgroundColor: '#F7FAF8',
+    backgroundColor: '#FFFFFF',
     height: '100%',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -255,10 +300,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    padding: 20,
   },
   headerTitle: {
     fontSize: 18,
@@ -266,27 +308,38 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   closeButton: {
-    padding: 8,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 999,
+    width: 32,
+    height: 32,
+    borderRadius: 12,
+    backgroundColor: '#ECFDF3',
+    borderWidth: 1,
+    borderColor: '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111827',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6B7280',
     marginBottom: 10,
     marginTop: 6,
   },
+  sectionBlock: {
+    marginBottom: 16,
+  },
   subsectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '600',
     color: '#6B7280',
     marginBottom: 8,
     marginTop: 6,
   },
+  subsectionBlock: {
+    marginBottom: 12,
+  },
   row: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   rowSpacer: {
     flex: 1,
@@ -301,13 +354,26 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 6,
   },
-  input: {
-    backgroundColor: '#FFFFFF',
-    padding: 12,
-    borderRadius: 14,
+  pillInputRow: {
+    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pillInputText: {
+    flex: 1,
+    fontSize: 20,
+    fontWeight: '700',
     color: '#111827',
+  },
+  pillUnit: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#9CA3AF',
   },
   photoRow: {
     flexDirection: 'row',
@@ -327,20 +393,19 @@ const styles = StyleSheet.create({
   photoCard: {
     width: 88,
     height: 120,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderStyle: 'dashed',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     position: 'relative',
   },
   photoCardIdle: {
-    borderColor: '#D1D5DB',
     backgroundColor: '#F9FAFB',
   },
   photoCardActive: {
-    borderColor: COLORS.primary,
+    borderColor: '#D1FAE5',
     backgroundColor: '#FFFFFF',
   },
   photoImage: {
@@ -351,28 +416,42 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     right: 6,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
     padding: 4,
     borderRadius: 999,
   },
   primaryButton: {
     backgroundColor: COLORS.primary,
     paddingVertical: 12,
-    borderRadius: 16,
+    borderRadius: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 12,
     marginBottom: 24,
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 6 },
   },
   primaryButtonText: {
     marginLeft: 8,
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  secondaryButton: {
+    width: '100%',
+    paddingVertical: 12,
+    borderRadius: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    marginBottom: 16,
+  },
+  secondaryButtonText: {
+    marginLeft: 8,
+    color: '#EF4444',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
