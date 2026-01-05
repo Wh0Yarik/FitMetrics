@@ -112,6 +112,22 @@ export class DailySurveyRepository {
     }
   }
 
+  hasUnsyncedSurvey(date: string): boolean {
+    const row = this.db.getFirstSync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM daily_surveys WHERE date = ? AND synced = 0',
+      [date]
+    );
+    return (row?.count ?? 0) > 0;
+  }
+
+  markSurveyAsSynced(date: string): void {
+    const now = new Date().toISOString();
+    this.db.runSync(
+      'UPDATE daily_surveys SET synced = 1, updated_at = ? WHERE date = ?',
+      [now, date]
+    );
+  }
+
   // Проверка, заполнена ли анкета на сегодня
   isSurveyCompleted(date: string): boolean {
     const result = this.db.getFirstSync<{ count: number }>(

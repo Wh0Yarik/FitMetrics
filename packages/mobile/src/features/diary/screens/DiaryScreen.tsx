@@ -475,6 +475,8 @@ export default function DiaryScreen() {
   // Подключение хуков логики
   const { meals, surveyStatus, dailySurvey, syncStatus, setSyncStatus, refreshData } = useDiaryData(currentDate);
   const syncInFlightRef = useRef(false);
+  const surveySyncInFlightRef = useRef(false);
+  const lastSurveySyncAttemptRef = useRef<Record<string, number>>({});
   const lastSyncAttemptRef = useRef<Record<string, number>>({});
   const relativeLabel = useMemo(() => getRelativeLabel(currentDate), [currentDate]);
   const monthLabel = useMemo(() => {
@@ -583,6 +585,58 @@ export default function DiaryScreen() {
       syncDiaryForDate();
     }
   }, [currentDate, syncDiaryForDate, syncStatus]);
+
+  useEffect(() => {
+    if (dailySurveyRepository.hasUnsyncedSurvey(currentDate)) {
+      syncSurveyForDate();
+    }
+  }, [currentDate, syncSurveyForDate]);
+
+  const syncSurveyForDate = useCallback(async (force?: boolean) => {
+    if (surveySyncInFlightRef.current) return;
+    if (!force) {
+      const lastAttempt = lastSurveySyncAttemptRef.current[currentDate] ?? 0;
+      if (Date.now() - lastAttempt < 15000) {
+        return;
+      }
+      lastSurveySyncAttemptRef.current[currentDate] = Date.now();
+    }
+
+    const token = await getToken();
+    if (!token) return;
+
+    const survey = dailySurveyRepository.getSurveyByDate(currentDate);
+    if (!survey || survey.synced) return;
+
+    surveySyncInFlightRef.current = true;
+    try {
+      await api.post('/surveys/entries', {
+        date: currentDate,
+        weight: survey.weight ?? null,
+        motivation: survey.motivation ?? null,
+        sleep: survey.sleep ?? null,
+        stress: survey.stress ?? null,
+        digestion: survey.digestion ?? null,
+        water: survey.water ?? null,
+        hunger: survey.hunger ?? null,
+        libido: survey.libido ?? null,
+        comment: survey.comment ?? null,
+      });
+
+      dailySurveyRepository.markSurveyAsSynced(currentDate);
+      refreshData();
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const payload = error?.response?.data;
+      console.error('Failed to sync daily survey', {
+        message: error?.message,
+        status,
+        payload,
+      });
+    } finally {
+      surveySyncInFlightRef.current = false;
+    }
+  }, [currentDate, refreshData]);
 
   const weekDays = useMemo(() => {
     const today = new Date();
@@ -753,7 +807,8 @@ export default function DiaryScreen() {
   const handleSaveSurvey = useCallback((data: DailySurveyData) => {
     dailySurveyRepository.saveSurvey(data);
     refreshData();
-  }, [refreshData]);
+    syncSurveyForDate(true);
+  }, [refreshData, syncSurveyForDate]);
 
   // Удаление приема пищи с подтверждением
   const handleDeleteMeal = useCallback((id: string) => {
@@ -832,23 +887,7 @@ export default function DiaryScreen() {
                         ) : (
                           <CloudOff size={14} color="#F97316" />
                         )}
-                        <Text
-                          style={[
-                            styles.syncBadgeText,
-                            syncStatus === 'synced' && styles.syncBadgeTextSuccess,
-                            syncStatus === 'local' && styles.syncBadgeTextLocal,
-                          ]}
-                        >
-                          {syncStatus === 'syncing' ? 'Синхронизация' : syncStatus === 'synced' ? 'На сервере' : 'Локально'}
-                        </Text>
                       </View>
-                      <TouchableOpacity
-                        style={styles.syncButton}
-                        onPress={() => syncDiaryForDate(true)}
-                        disabled={syncStatus === 'syncing'}
-                      >
-                        <RefreshCw size={16} color={syncStatus === 'syncing' ? '#9CA3AF' : '#111827'} />
-                      </TouchableOpacity>
                     </View>
                   </View>
 
@@ -1099,13 +1138,13 @@ export default function DiaryScreen() {
           initialPortions={editingMeal?.portions}
         />
 
-        <DailySurveyModal
-          visible={isSurveyModalOpen}
-          onClose={() => setSurveyModalOpen(false)}
-          onSave={handleSaveSurvey}
-          date={currentDate}
-          initialData={dailySurvey}
-        />
+            <DailySurveyModal
+              visible={isSurveyModalOpen}
+              onClose={() => setSurveyModalOpen(false)}
+              onSave={handleSaveSurvey}
+              date={currentDate}
+              initialData={dailySurvey}
+            />
       </View>
     </GestureHandlerRootView>
   );
@@ -1194,15 +1233,13 @@ const styles = StyleSheet.create({
   syncStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   syncBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 6,
-    borderRadius: 999,
+    borderRadius: 12,
     backgroundColor: '#F3F4F6',
   },
   syncBadgeSuccess: {
@@ -1210,25 +1247,6 @@ const styles = StyleSheet.create({
   },
   syncBadgeLocal: {
     backgroundColor: '#FFF7ED',
-  },
-  syncBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  syncBadgeTextSuccess: {
-    color: '#065F46',
-  },
-  syncBadgeTextLocal: {
-    color: '#9A3412',
-  },
-  syncButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
   },
   weekRangeText: {
     marginTop: 4,
