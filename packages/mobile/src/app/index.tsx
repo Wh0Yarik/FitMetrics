@@ -29,7 +29,7 @@ export default function Index() {
   }
 
   if (!hasToken) {
-    return <Redirect href="/auth/login" />;
+    return <Redirect href="/auth/welcome" />;
   }
 
   if (role?.toLowerCase() === 'trainer') {

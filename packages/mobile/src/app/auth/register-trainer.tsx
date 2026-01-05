@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { api } from '../../shared/api/client';
 import { router } from 'expo-router';
 import { COLORS } from '../../constants/Colors';
+import { Eye, EyeOff } from 'lucide-react-native';
 
 // Схема валидации (повторяет логику бэкенда)
 const registerSchema = z.object({
@@ -19,6 +20,7 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function RegisterTrainerScreen() {
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { control, handleSubmit, formState: { errors } } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -98,14 +100,24 @@ export default function RegisterTrainerScreen() {
                 control={control}
                 name="password"
                 render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    style={[styles.input, errors.password && styles.inputError]}
-                    placeholder="******"
-                    secureTextEntry
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    value={value}
-                  />
+                  <View style={styles.passwordRow}>
+                    <TextInput
+                      style={[styles.input, styles.passwordInput, errors.password && styles.inputError]}
+                      placeholder="******"
+                      secureTextEntry={!showPassword}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      value={value}
+                    />
+                    <TouchableOpacity
+                      style={styles.passwordToggle}
+                      onPress={() => setShowPassword((prev) => !prev)}
+                      accessibilityRole="button"
+                      accessibilityLabel={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                    >
+                      {showPassword ? <EyeOff size={18} color="#9CA3AF" /> : <Eye size={18} color="#9CA3AF" />}
+                    </TouchableOpacity>
+                  </View>
                 )}
               />
               {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
@@ -200,4 +212,18 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  passwordRow: {
+    position: 'relative',
+  },
+  passwordInput: {
+    paddingRight: 44,
+  },
+  passwordToggle: {
+    position: 'absolute',
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
