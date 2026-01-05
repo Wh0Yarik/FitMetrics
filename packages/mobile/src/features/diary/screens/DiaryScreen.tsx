@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StatusBar, Alert, BackHandler, StyleSheet, Modal, Pressable } from 'react-native';
-import { Plus, Pencil, Trash2, ChevronLeft, ChevronDown } from 'lucide-react-native';
+import { Plus, Pencil, Trash2, ChevronLeft, ChevronDown, Cloud, CloudOff, RefreshCw } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, Stack } from 'expo-router';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
@@ -406,11 +406,13 @@ const useDiaryData = (currentDate: string) => {
   const [meals, setMeals] = useState<MealEntry[]>([]);
   const [surveyStatus, setSurveyStatus] = useState<'empty' | 'partial' | 'complete'>('empty');
   const [dailySurvey, setDailySurvey] = useState<DailySurveyData | null>(null);
-  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'local'>('synced');
 
   // Загрузка данных из репозиториев при смене даты
   const loadData = useCallback(() => {
-    setMeals(diaryRepository.getMealsByDate(currentDate));
+    const loadedMeals = diaryRepository.getMealsByDate(currentDate);
+    setMeals(loadedMeals);
+    setSyncStatus(loadedMeals.some((meal) => !meal.synced) ? 'local' : 'synced');
     
     const survey = dailySurveyRepository.getSurveyByDate(currentDate);
     setDailySurvey(survey);
@@ -428,7 +430,7 @@ const useDiaryData = (currentDate: string) => {
     }, [loadData])
   );
 
-  return { meals, surveyStatus, dailySurvey, syncStatus, refreshData: loadData };
+  return { meals, surveyStatus, dailySurvey, syncStatus, setSyncStatus, refreshData: loadData };
 };
 
 // --- Основной компонент экрана ---
@@ -470,7 +472,8 @@ export default function DiaryScreen() {
   const [hasTrainer, setHasTrainer] = useState(false);
 
   // Подключение хуков логики
-  const { meals, surveyStatus, dailySurvey, refreshData } = useDiaryData(currentDate);
+  const { meals, surveyStatus, dailySurvey, syncStatus, setSyncStatus, refreshData } = useDiaryData(currentDate);
+  const syncInFlightRef = useRef(false);
   const relativeLabel = useMemo(() => getRelativeLabel(currentDate), [currentDate]);
   const monthLabel = useMemo(() => {
     const label = calendarMonth.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
@@ -518,6 +521,46 @@ export default function DiaryScreen() {
     () => resolveNutritionGoalForDate(currentDate),
     [currentDate, resolveNutritionGoalForDate]
   );
+
+  const syncDiaryForDate = useCallback(async () => {
+    if (syncInFlightRef.current) return;
+    const mealsForDate = diaryRepository.getMealsByDate(currentDate);
+    if (mealsForDate.length === 0) {
+      setSyncStatus('synced');
+      return;
+    }
+
+    syncInFlightRef.current = true;
+    setSyncStatus('syncing');
+    try {
+      await api.post('/diary/entries', {
+        date: currentDate,
+        meals: mealsForDate.map((meal) => ({
+          name: meal.name,
+          time: meal.time,
+          protein: meal.portions.protein,
+          fat: meal.portions.fat,
+          carbs: meal.portions.carbs,
+          fiber: meal.portions.fiber,
+        })),
+      });
+
+      diaryRepository.markMealsAsSynced(currentDate);
+      setSyncStatus('synced');
+      refreshData();
+    } catch (error) {
+      console.error('Failed to sync diary entries', error);
+      setSyncStatus('local');
+    } finally {
+      syncInFlightRef.current = false;
+    }
+  }, [currentDate, refreshData, setSyncStatus]);
+
+  useEffect(() => {
+    if (syncStatus === 'local' && diaryRepository.hasUnsyncedMeals(currentDate)) {
+      syncDiaryForDate();
+    }
+  }, [currentDate, syncDiaryForDate, syncStatus]);
 
   const weekDays = useMemo(() => {
     const today = new Date();
@@ -750,6 +793,39 @@ export default function DiaryScreen() {
                           <Text style={styles.dateText}>{getHeaderTitle(currentDate)}</Text>
                         </View>
                         <ChevronDown size={16} color="#9CA3AF" />
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.syncStatus}>
+                      <View
+                        style={[
+                          styles.syncBadge,
+                          syncStatus === 'synced' && styles.syncBadgeSuccess,
+                          syncStatus === 'local' && styles.syncBadgeLocal,
+                        ]}
+                      >
+                        {syncStatus === 'syncing' ? (
+                          <RefreshCw size={14} color="#6B7280" />
+                        ) : syncStatus === 'synced' ? (
+                          <Cloud size={14} color="#10B981" />
+                        ) : (
+                          <CloudOff size={14} color="#F97316" />
+                        )}
+                        <Text
+                          style={[
+                            styles.syncBadgeText,
+                            syncStatus === 'synced' && styles.syncBadgeTextSuccess,
+                            syncStatus === 'local' && styles.syncBadgeTextLocal,
+                          ]}
+                        >
+                          {syncStatus === 'syncing' ? 'Синхронизация' : syncStatus === 'synced' ? 'На сервере' : 'Локально'}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.syncButton}
+                        onPress={syncDiaryForDate}
+                        disabled={syncStatus === 'syncing'}
+                      >
+                        <RefreshCw size={16} color={syncStatus === 'syncing' ? '#9CA3AF' : '#111827'} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1061,14 +1137,15 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   headerTopRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
     paddingVertical: 4,
+    gap: 8,
   },
   dateLeft: {
     flexDirection: 'row',
@@ -1091,6 +1168,45 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     paddingVertical: 4,
+  },
+  syncStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  syncBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#F3F4F6',
+  },
+  syncBadgeSuccess: {
+    backgroundColor: '#ECFDF3',
+  },
+  syncBadgeLocal: {
+    backgroundColor: '#FFF7ED',
+  },
+  syncBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  syncBadgeTextSuccess: {
+    color: '#065F46',
+  },
+  syncBadgeTextLocal: {
+    color: '#9A3412',
+  },
+  syncButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
   },
   weekRangeText: {
     marginTop: 4,

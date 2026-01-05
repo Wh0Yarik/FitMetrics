@@ -136,27 +136,118 @@ docker-compose down -v
 | --- | --- | --- | --- |
 | `POST` | `/api/storage/presign` | Получить presigned URL для загрузки файла | Public |
 
-## 8. Запуск мобильного приложения
+## 8. Запуск сервисов и приложения
 
-Для корректной работы мобильного приложения необходимо соблюдать последовательность запуска сервисов.
+Ниже описаны два сценария: локальная разработка и запуск на сервере (Docker + HTTPS).
 
-1.  **База данных (Docker)**
-    Убедитесь, что контейнер с PostgreSQL запущен и готов к соединениям:
+### 8.1 Локальная разработка (Mac/Windows)
+
+1.  **База данных и MinIO (Docker)**
     ```bash
     docker-compose up -d
     ```
 
 2.  **Бэкенд (API)**
-    В отдельном окне терминала запустите сервер API, чтобы приложение могло отправлять запросы:
     ```bash
-    npm run dev:api
+    cd packages/api
+    npm run dev
     ```
+    По умолчанию слушает порт **3001** на `0.0.0.0`.
 
 3.  **Мобильное приложение (Expo)**
-    В новом окне терминала запустите проект React Native. Рекомендуется использовать флаг очистки кеша при старте:
+    В новом окне терминала:
     ```bash
-    npm run start:mobile -- --clear
+    cd packages/mobile
+    npx expo start -c
     ```
+
+### 8.2 Продакшн/сервер (Windows 11 + Docker)
+
+**Где поднимать БД и бэкенд**
+- **БД (PostgreSQL) и MinIO** поднимаются на сервере в Docker.
+- **Бэкенд (API)** также поднимается на сервере в Docker.
+- **Expo** запускается на локальном компьютере разработчика (Mac/PC), не на сервере.
+
+1.  **Подготовка домена и портов**
+    - A‑запись домена указывает на публичный IP сервера (например, `api.fitmetrics.ru`).
+    - Открыты порты **80/443** на сервере и проброшены на роутере.
+
+2.  **Запуск на сервере**
+    ```cmd
+    cd C:\Fitmetrics
+    docker compose up -d --build
+    ```
+
+3.  **Проверка**
+    ```cmd
+    curl -i https://api.fitmetrics.ru/health
+    ```
+
+4.  **Подключение мобильного приложения**
+    В `packages/mobile/.env` на машине разработчика:
+    ```dotenv
+    EXPO_PUBLIC_API_URL=https://api.fitmetrics.ru/api
+    ```
+    Затем перезапуск Expo:
+    ```bash
+    cd packages/mobile
+    npx expo start -c
+    ```
+
+### 8.3 Доставка обновлений на продовый сервер
+
+Рекомендуемый поток обновлений:
+
+1.  **На сервере перейти в папку проекта**
+    ```cmd
+    cd C:\Fitmetrics
+    ```
+
+2.  **Получить последние изменения из Git**
+    ```cmd
+    git pull
+    ```
+
+3.  **Пересобрать и перезапустить контейнеры**
+    ```cmd
+    docker compose up -d --build
+    ```
+
+4.  **Если были изменения схемы БД (Prisma)**
+    Выполните миграции:
+    ```cmd
+    docker exec -i fitmetrics_api npx prisma migrate deploy --schema ./prisma/schema.prisma
+    ```
+
+5.  **Проверка после деплоя**
+    ```cmd
+    curl -i https://api.fitmetrics.ru/health
+    ```
+
+Если нужно откатиться:
+- Используйте `git log` и `git checkout <commit>` с последующим `docker compose up -d --build`.
+
+### 8.4 Dev build для Android (EAS)
+
+1.  **Логин в EAS**
+    ```bash
+    eas login
+    ```
+
+2.  **Инициализация конфигурации**
+    ```bash
+    cd packages/mobile
+    eas build:configure
+    ```
+
+3.  **Сборка dev build**
+    ```bash
+    eas build --profile development --platform android
+    ```
+
+4.  **Установка на устройство**
+    - Скачайте APK по ссылке из EAS и установите вручную.
+    - Либо используйте `--distribution internal` для внутреннего распространения.
 
 
     # Руководство по тестированию и настройке (Setup Guide)

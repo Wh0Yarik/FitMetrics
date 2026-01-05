@@ -104,7 +104,7 @@ export class DiaryRepository {
     const now = new Date().toISOString();
     this.db.runSync(
       `UPDATE meal_entries 
-       SET name = ?, protein = ?, fat = ?, carbs = ?, fiber = ?, updated_at = ?
+       SET name = ?, protein = ?, fat = ?, carbs = ?, fiber = ?, synced = 0, updated_at = ?
        WHERE id = ?`,
       [
         name,
@@ -115,6 +115,22 @@ export class DiaryRepository {
         now,
         id,
       ]
+    );
+  }
+
+  hasUnsyncedMeals(date: string): boolean {
+    const row = this.db.getFirstSync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM meal_entries WHERE date = ? AND synced = 0',
+      [date]
+    );
+    return (row?.count ?? 0) > 0;
+  }
+
+  markMealsAsSynced(date: string): void {
+    const now = new Date().toISOString();
+    this.db.runSync(
+      'UPDATE meal_entries SET synced = 1, updated_at = ? WHERE date = ?',
+      [now, date]
     );
   }
 
