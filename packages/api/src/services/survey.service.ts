@@ -68,7 +68,7 @@ export class SurveyService {
 
     const survey = await prisma.dailySurvey.upsert({
       where: {
-        clientId_date: {
+        unique_survey_per_day: {
           clientId: client.id,
           date,
         },
