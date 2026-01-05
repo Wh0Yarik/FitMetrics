@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StatusBar, Image, Alert, StyleSheet, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Calendar, Ruler, Pencil, Trash2, ChevronLeft, ChevronDown } from 'lucide-react-native';
+import { Plus, Calendar, Ruler, Pencil, Trash2, ChevronLeft, ChevronDown, Cloud, RefreshCw } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import Svg, { Defs, LinearGradient, Stop, Path } from 'react-native-svg';
@@ -246,6 +246,7 @@ export default function MeasurementsScreen() {
   const [editingMeasurement, setEditingMeasurement] = useState<MeasurementEntry | null>(null);
   const [currentDate, setCurrentDate] = useState(() => formatDateKey(new Date()));
   const [isCalendarOpen, setCalendarOpen] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing'>('synced');
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const date = getDateObj(currentDate);
     return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -258,6 +259,7 @@ export default function MeasurementsScreen() {
 
   const syncMeasurements = useCallback(async () => {
     try {
+      setSyncStatus('syncing');
       const response = await api.get('/measurements/entries');
       const items = Array.isArray(response.data) ? response.data : [];
       items.forEach((item: any) => {
@@ -287,6 +289,8 @@ export default function MeasurementsScreen() {
         status,
         payload,
       });
+    } finally {
+      setSyncStatus('synced');
     }
   }, [loadData]);
 
@@ -486,6 +490,15 @@ export default function MeasurementsScreen() {
                 </View>
                 <ChevronDown size={16} color="#9CA3AF" />
               </TouchableOpacity>
+              <View style={styles.syncStatus}>
+                <View style={[styles.syncBadge, syncStatus === 'synced' && styles.syncBadgeSuccess]}>
+                  {syncStatus === 'syncing' ? (
+                    <RefreshCw size={14} color="#6B7280" />
+                  ) : (
+                    <Cloud size={14} color="#10B981" />
+                  )}
+                </View>
+              </View>
             </View>
 
             <View style={styles.weekRow}>
@@ -757,13 +770,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
   },
   headerTopRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
+    gap: 8,
     paddingVertical: 4,
   },
   dateLeft: {
@@ -787,6 +801,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     paddingVertical: 4,
+  },
+  syncStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  syncBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+  },
+  syncBadgeSuccess: {
+    backgroundColor: '#ECFDF3',
   },
   weekRow: {
     marginTop: 12,
