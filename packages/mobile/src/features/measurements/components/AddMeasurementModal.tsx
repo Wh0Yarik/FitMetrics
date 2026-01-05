@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Animated, Dimensions, StyleSheet, Image } from 'react-native';
 import { X, Check, Camera } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -9,7 +9,7 @@ interface AddMeasurementModalProps {
   visible: boolean;
   onClose: () => void;
   onSave: (data: Partial<MeasurementEntry>) => void;
-  initialData?: MeasurementEntry | null;
+  initialData?: Partial<MeasurementEntry> | null;
 }
 
 const InputField = memo(({
@@ -143,7 +143,7 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
     ]).start(() => onClose());
   };
 
-  const pickImage = async (setter: (uri: string | null) => void) => {
+  const pickImage = useCallback(async (setter: (uri: string | null) => void) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -153,7 +153,14 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
     if (!result.canceled) {
       setter(result.assets[0].uri);
     }
-  };
+  }, []);
+
+  const handlePickFront = useCallback(() => pickImage(setPhotoFront), [pickImage]);
+  const handlePickSide = useCallback(() => pickImage(setPhotoSide), [pickImage]);
+  const handlePickBack = useCallback(() => pickImage(setPhotoBack), [pickImage]);
+  const handleClearFront = useCallback(() => setPhotoFront(null), []);
+  const handleClearSide = useCallback(() => setPhotoSide(null), []);
+  const handleClearBack = useCallback(() => setPhotoBack(null), []);
 
   const handleSubmit = () => {
     const data: Partial<MeasurementEntry> = {
@@ -210,7 +217,12 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
               <View style={styles.sectionBlock}>
                 <Text style={styles.subsectionTitle}>Вес</Text>
                 <View style={styles.row}>
-                  <InputField value={weight} onChange={setWeight} unit="кг" />
+                  <InputField
+                    label=""
+                    value={weight}
+                    onChange={setWeight}
+                    unit="кг"
+                  />
                   <View style={styles.rowSpacer} /> 
                 </View>
               </View>
@@ -219,9 +231,24 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
               <View style={styles.sectionBlock}>
                 <Text style={styles.subsectionTitle}>Объемы</Text>
                 <View style={styles.row}>
-                  <InputField label="Грудь" value={chest} onChange={setChest} unit="см" />
-                  <InputField label="Талия" value={waist} onChange={setWaist} unit="см" />
-                  <InputField label="Бедра" value={hips} onChange={setHips} unit="см" />
+                  <InputField
+                    label="Грудь"
+                    value={chest}
+                    onChange={setChest}
+                    unit="см"
+                  />
+                  <InputField
+                    label="Талия"
+                    value={waist}
+                    onChange={setWaist}
+                    unit="см"
+                  />
+                  <InputField
+                    label="Бедра"
+                    value={hips}
+                    onChange={setHips}
+                    unit="см"
+                  />
                 </View>
               </View>
 
@@ -229,8 +256,18 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
               <View style={styles.subsectionBlock}>
                 <Text style={styles.subsectionTitle}>Руки</Text>
                 <View style={styles.row}>
-                  <InputField label="Левая" value={leftArm} onChange={setLeftArm} unit="см" />
-                  <InputField label="Правая" value={rightArm} onChange={setRightArm} unit="см" />
+                  <InputField
+                    label="Левая"
+                    value={leftArm}
+                    onChange={setLeftArm}
+                    unit="см"
+                  />
+                  <InputField
+                    label="Правая"
+                    value={rightArm}
+                    onChange={setRightArm}
+                    unit="см"
+                  />
                 </View>
               </View>
 
@@ -238,8 +275,18 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
               <View style={styles.subsectionBlock}>
                 <Text style={styles.subsectionTitle}>Ноги</Text>
                 <View style={styles.row}>
-                  <InputField label="Левая" value={leftLeg} onChange={setLeftLeg} unit="см" />
-                  <InputField label="Правая" value={rightLeg} onChange={setRightLeg} unit="см" />
+                  <InputField
+                    label="Левая"
+                    value={leftLeg}
+                    onChange={setLeftLeg}
+                    unit="см"
+                  />
+                  <InputField
+                    label="Правая"
+                    value={rightLeg}
+                    onChange={setRightLeg}
+                    unit="см"
+                  />
                 </View>
               </View>
 
@@ -247,23 +294,23 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
               <View style={styles.sectionBlock}>
                 <Text style={styles.sectionTitle}>Фото прогресса</Text>
                 <View style={styles.photoRow}>
-                  <PhotoPicker 
-                    label="Спереди" 
-                    uri={photoFront} 
-                    onPick={() => pickImage(setPhotoFront)} 
-                    onClear={() => setPhotoFront(null)} 
+                  <PhotoPicker
+                    label="Спереди"
+                    uri={photoFront}
+                    onPick={handlePickFront}
+                    onClear={handleClearFront}
                   />
-                  <PhotoPicker 
-                    label="Сбоку" 
-                    uri={photoSide} 
-                    onPick={() => pickImage(setPhotoSide)} 
-                    onClear={() => setPhotoSide(null)} 
+                  <PhotoPicker
+                    label="Сбоку"
+                    uri={photoSide}
+                    onPick={handlePickSide}
+                    onClear={handleClearSide}
                   />
-                  <PhotoPicker 
-                    label="Сзади" 
-                    uri={photoBack} 
-                    onPick={() => pickImage(setPhotoBack)} 
-                    onClear={() => setPhotoBack(null)} 
+                  <PhotoPicker
+                    label="Сзади"
+                    uri={photoBack}
+                    onPick={handlePickBack}
+                    onClear={handleClearBack}
                   />
                 </View>
               </View>

@@ -111,7 +111,8 @@ export default function RegisterTrainerScreen() {
                     />
                     <TouchableOpacity
                       style={styles.passwordToggle}
-                      onPress={() => setShowPassword((prev) => !prev)}
+                      onPressIn={() => setShowPassword(true)}
+                      onPressOut={() => setShowPassword(false)}
                       accessibilityRole="button"
                       accessibilityLabel={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
                     >
@@ -214,9 +215,12 @@ const styles = StyleSheet.create({
   buttonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   passwordRow: {
     position: 'relative',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   passwordInput: {
     paddingRight: 44,
+    marginBottom: 0,
   },
   passwordToggle: {
     position: 'absolute',

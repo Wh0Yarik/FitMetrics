@@ -339,13 +339,11 @@ const MealItem = React.memo(({
       }}
       renderRightActions={() => (
         <View style={styles.swipeActions}>
-          <TouchableOpacity onPress={handleEdit} style={[styles.swipeButton, styles.swipeEdit]}>
-            <Pencil size={16} color="#334155" />
-            <Text style={styles.swipeText}>Редактировать</Text>
+          <TouchableOpacity onPress={handleEdit} style={[styles.swipeButton, styles.swipeEdit, styles.swipeButtonSpacing]}>
+            <Pencil size={18} color="#334155" />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleDelete} style={[styles.swipeButton, styles.swipeDelete]}>
-            <Trash2 size={16} color="#DC2626" />
-            <Text style={[styles.swipeText, styles.swipeDeleteText]}>Удалить</Text>
+            <Trash2 size={18} color="#DC2626" />
           </TouchableOpacity>
         </View>
       )}
@@ -1734,23 +1732,27 @@ const styles = StyleSheet.create({
     marginLeft: -6,
   },
   swipeActions: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
-    height: '100%',
-    paddingRight: 6,
-    paddingBottom: 12,
-    paddingTop: 0,
+    justifyContent: 'space-between',
+    height: '88%',
+    paddingRight: 12,
+    paddingLeft: 12,
+    paddingVertical: 0,
   },
   swipeButton: {
-    width: 108,
-    height: '100%',
+    width: 44,
+    height: '45%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
+    marginVertical: 0,
+  },
+  swipeButtonSpacing: {
+    marginBottom: 0,
   },
   swipeEdit: {
     borderColor: '#CBD5E1',
@@ -1758,15 +1760,6 @@ const styles = StyleSheet.create({
   swipeDelete: {
     borderColor: '#FCA5A5',
     backgroundColor: '#FFF1F2',
-  },
-  swipeText: {
-    marginTop: 6,
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  swipeDeleteText: {
-    color: '#DC2626',
   },
   addCard: {
     flexDirection: 'row',

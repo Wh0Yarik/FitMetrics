@@ -105,7 +105,8 @@ export default function LoginScreen() {
                     />
                     <TouchableOpacity
                       style={styles.passwordToggle}
-                      onPress={() => setShowPassword((prev) => !prev)}
+                      onPressIn={() => setShowPassword(true)}
+                      onPressOut={() => setShowPassword(false)}
                       accessibilityRole="button"
                       accessibilityLabel={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
                     >
@@ -214,9 +215,12 @@ const styles = StyleSheet.create({
   registerLinkText: { color: COLORS.primary, fontSize: 13, fontWeight: '600' },
   passwordRow: {
     position: 'relative',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   passwordInput: {
     paddingRight: 44,
+    marginBottom: 0,
   },
   passwordToggle: {
     position: 'absolute',

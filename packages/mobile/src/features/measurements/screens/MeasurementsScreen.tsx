@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StatusBar, Image, Alert, StyleSheet, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Calendar, Ruler, Pencil, Trash2, ChevronLeft, ChevronDown, Cloud, RefreshCw } from 'lucide-react-native';
@@ -10,6 +10,7 @@ import { measurementsRepository, MeasurementEntry } from '../repositories/Measur
 import { AddMeasurementModal } from '../components/AddMeasurementModal';
 import { COLORS } from '../../../constants/Colors';
 import { api } from '../../../shared/api/client';
+import { dailySurveyRepository } from '../../diary/repositories/DailySurveyRepository';
 
 type MetricKey = 'weight' | 'waist' | 'hips' | 'chest';
 
@@ -69,6 +70,32 @@ const getWeekDates = (currentDate: string) => {
 };
 
 const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+const buildLinePath = (values: Array<number | null>) => {
+  const numericValues = values.filter((value): value is number => typeof value === 'number');
+  if (numericValues.length < 2) return '';
+
+  const minValue = Math.min(...numericValues);
+  const maxValue = Math.max(...numericValues);
+  const range = maxValue - minValue || 1;
+
+  let started = false;
+  return values
+    .map((value, index) => {
+      if (value == null) {
+        started = false;
+        return '';
+      }
+      const x = (index / Math.max(1, values.length - 1)) * 100;
+      const normalized = (value - minValue) / range;
+      const y = 100 - normalized * 100;
+      const command = started ? 'L' : 'M';
+      started = true;
+      return `${command} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .filter(Boolean)
+    .join(' ');
+};
 
 const WeekProgressBorder = ({
   progress,
@@ -247,6 +274,7 @@ export default function MeasurementsScreen() {
   const [currentDate, setCurrentDate] = useState(() => formatDateKey(new Date()));
   const [isCalendarOpen, setCalendarOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing'>('synced');
+  const [surveyPrefill, setSurveyPrefill] = useState<number | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const date = getDateObj(currentDate);
     return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -256,6 +284,20 @@ export default function MeasurementsScreen() {
     const data = measurementsRepository.getAllMeasurements();
     setMeasurements(data);
   }, []);
+
+  const getSurveyWeight = useCallback((dateStr: string) => {
+    const survey = dailySurveyRepository.getSurveyByDate(dateStr);
+    return survey?.weight ?? null;
+  }, []);
+
+  const enrichedMeasurements = useMemo(
+    () => measurements.map((entry) => {
+      if (entry.weight != null) return entry;
+      const surveyWeight = getSurveyWeight(entry.date);
+      return surveyWeight != null ? { ...entry, weight: surveyWeight } : entry;
+    }),
+    [measurements, getSurveyWeight]
+  );
 
   const syncMeasurements = useCallback(async () => {
     try {
@@ -294,6 +336,33 @@ export default function MeasurementsScreen() {
     }
   }, [loadData]);
 
+  const syncSurveyWeight = useCallback(async (date: string) => {
+    const survey = dailySurveyRepository.getSurveyByDate(date);
+    if (!survey) return;
+    try {
+      await api.post('/surveys/entries', {
+        date,
+        weight: survey.weight ?? null,
+        motivation: survey.motivation ?? null,
+        sleep: survey.sleep ?? null,
+        stress: survey.stress ?? null,
+        digestion: survey.digestion ?? null,
+        water: survey.water ?? null,
+        hunger: survey.hunger ?? null,
+        libido: survey.libido ?? null,
+        comment: survey.comment ?? null,
+      });
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const payload = error?.response?.data;
+      console.error('Failed to sync survey weight', {
+        message: error?.message,
+        status,
+        payload,
+      });
+    }
+  }, []);
+
   const relativeLabel = useMemo(() => getRelativeLabel(currentDate), [currentDate]);
   const monthLabel = useMemo(() => {
     const label = calendarMonth.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
@@ -316,16 +385,16 @@ export default function MeasurementsScreen() {
   }, [calendarMonth]);
   const measurementsByDate = useMemo(() => {
     const map = new Map<string, MeasurementEntry>();
-    measurements.forEach((entry) => {
+    enrichedMeasurements.forEach((entry) => {
       map.set(entry.date, entry);
     });
     return map;
-  }, [measurements]);
+  }, [enrichedMeasurements]);
   const weeklyLatestInfo = useMemo(() => {
-    if (measurements.length === 0) return null;
+    if (enrichedMeasurements.length === 0) return null;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const latest = measurements.reduce<Date | null>((acc, entry) => {
+    const latest = enrichedMeasurements.reduce<Date | null>((acc, entry) => {
       const date = getDateObj(entry.date);
       date.setHours(0, 0, 0, 0);
       if (date > today) return acc;
@@ -336,7 +405,7 @@ export default function MeasurementsScreen() {
     const diffDays = Math.max(0, Math.round((today.getTime() - latest.getTime()) / 86400000));
     const isRecent = diffDays <= 6;
     const latestKey = formatDateKey(latest);
-    const entry = measurements.find((item) => item.date === latestKey) ?? null;
+    const entry = enrichedMeasurements.find((item) => item.date === latestKey) ?? null;
     if (diffDays === 0) {
       return { label: 'сегодня', isRecent, entry };
     }
@@ -348,16 +417,29 @@ export default function MeasurementsScreen() {
         ? 'дня'
         : 'дней';
     return { label: `${diffDays} ${suffix} назад`, isRecent, entry };
-  }, [measurements]);
+  }, [enrichedMeasurements]);
   const currentMeasurement = measurementsByDate.get(currentDate) ?? null;
   const measurementsSorted = useMemo(
-    () => [...measurements].sort((a, b) => a.date.localeCompare(b.date)),
-    [measurements]
+    () => [...enrichedMeasurements].sort((a, b) => a.date.localeCompare(b.date)),
+    [enrichedMeasurements]
   );
   const recentMeasurements = useMemo(
     () => measurementsSorted.slice(-7),
     [measurementsSorted]
   );
+  const weightSeries = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Array.from({ length: 14 }, (_, index) => {
+      const day = new Date(today);
+      day.setDate(today.getDate() - (13 - index));
+      const dateStr = formatDateKey(day);
+      const entry = measurementsByDate.get(dateStr);
+      if (entry?.weight != null) return entry.weight;
+      return getSurveyWeight(dateStr);
+    });
+  }, [measurementsByDate, getSurveyWeight]);
+
   const statsCards = useMemo(() => {
     const configs = [
       { key: 'weight', label: 'Вес', unit: 'кг', color: '#22C55E' },
@@ -367,32 +449,37 @@ export default function MeasurementsScreen() {
     ] as const;
 
     return configs.map((config) => {
-      const values = measurementsSorted
-        .map((item) => item[config.key as MetricKey])
-        .filter((value): value is number => typeof value === 'number');
+      const valuesSource = config.key === 'weight'
+        ? weightSeries
+        : measurementsSorted.map((item) => item[config.key as MetricKey] ?? null);
+      const values = valuesSource.filter((value): value is number => typeof value === 'number');
       const latestValue = values.length > 0 ? values[values.length - 1] : null;
       const prevValue = values.length > 1 ? values[values.length - 2] : null;
       const delta = latestValue != null && prevValue != null ? latestValue - prevValue : null;
 
-      const seriesValues = recentMeasurements.map((item) => {
-        const value = item[config.key as MetricKey];
-        return typeof value === 'number' ? value : null;
-      });
+      const seriesValues = config.key === 'weight'
+        ? weightSeries
+        : recentMeasurements.map((item) => {
+            const value = item[config.key as MetricKey];
+            return typeof value === 'number' ? value : null;
+          });
       const numericSeries = seriesValues.filter((value): value is number => value != null);
       const maxValue = numericSeries.length > 0 ? Math.max(...numericSeries) : 0;
       const series = seriesValues.map((value) => {
         if (value == null || maxValue === 0) return 0;
         return Math.max(0.12, value / maxValue);
       });
+      const linePath = config.key === 'weight' ? buildLinePath(seriesValues) : '';
 
       return {
         ...config,
         latestValue,
         delta,
         series,
+        linePath,
       };
     });
-  }, [measurementsSorted, recentMeasurements]);
+  }, [measurementsSorted, recentMeasurements, weightSeries]);
   const weekDays = useMemo(() => {
     const today = new Date();
     const todayStr = formatDateKey(today);
@@ -423,6 +510,11 @@ export default function MeasurementsScreen() {
     }, [loadData, syncMeasurements])
   );
 
+  useEffect(() => {
+    const survey = dailySurveyRepository.getSurveyByDate(currentDate);
+    setSurveyPrefill(survey?.weight ?? null);
+  }, [currentDate]);
+
   const handleOpenCalendar = useCallback(() => {
     const date = getDateObj(currentDate);
     setCalendarMonth(new Date(date.getFullYear(), date.getMonth(), 1));
@@ -434,11 +526,16 @@ export default function MeasurementsScreen() {
   }, []);
 
   const handleSave = (data: Partial<MeasurementEntry>) => {
+    const targetDate = editingMeasurement?.date ?? currentDate;
     measurementsRepository.saveMeasurement({
       ...data,
       id: editingMeasurement?.id,
-      date: editingMeasurement?.date ?? currentDate,
+      date: targetDate,
     });
+    if (data.weight != null) {
+      dailySurveyRepository.updateWeightForDate(targetDate, data.weight);
+      syncSurveyWeight(targetDate);
+    }
     setEditingMeasurement(null);
     setModalOpen(false);
     loadData();
@@ -611,7 +708,9 @@ export default function MeasurementsScreen() {
                     <Text style={styles.statsCardTitle}>{card.label}</Text>
                     <Text style={styles.statsCardChevron}>›</Text>
                   </View>
-                  <Text style={styles.statsCardSub}>Последние 7 дней</Text>
+                  <Text style={styles.statsCardSub}>
+                    {card.key === 'weight' ? 'Последние 14 дней' : 'Последние 7 дней'}
+                  </Text>
                   <View style={styles.statsCardBody}>
                     <View style={styles.statsCardValues}>
                       <Text style={styles.statsCardValue}>{formattedValue}</Text>
@@ -629,18 +728,31 @@ export default function MeasurementsScreen() {
                       </Text>
                     </View>
                     <View style={styles.statsSparkline}>
-                      {card.series.map((ratio, index) => (
-                        <View
-                          key={`${card.key}-${index}`}
-                          style={[
-                            styles.statsBar,
-                            {
-                              height: `${Math.max(0, ratio) * 100}%`,
-                              backgroundColor: ratio > 0 ? card.color : '#E5E7EB',
-                            },
-                          ]}
-                        />
-                      ))}
+                      {card.key === 'weight' && card.linePath ? (
+                        <Svg width="100%" height="100%" viewBox="0 0 100 100">
+                          <Path
+                            d={card.linePath}
+                            fill="none"
+                            stroke={card.color}
+                            strokeWidth="4"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </Svg>
+                      ) : (
+                        card.series.map((ratio, index) => (
+                          <View
+                            key={`${card.key}-${index}`}
+                            style={[
+                              styles.statsBar,
+                              {
+                                height: `${Math.max(0, ratio) * 100}%`,
+                                backgroundColor: ratio > 0 ? card.color : '#E5E7EB',
+                              },
+                            ]}
+                          />
+                        ))
+                      )}
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -719,7 +831,7 @@ export default function MeasurementsScreen() {
             setEditingMeasurement(null);
           }}
           onSave={handleSave}
-          initialData={editingMeasurement}
+          initialData={editingMeasurement ?? (surveyPrefill != null ? { weight: surveyPrefill } : null)}
         />
       </SafeAreaView>
     </GestureHandlerRootView>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Animated, Dimensions, StyleSheet } from 'react-native';
 import { X, Check } from 'lucide-react-native';
 import { DailySurveyData } from '../repositories/DailySurveyRepository';
@@ -12,19 +12,52 @@ interface DailySurveyModalProps {
   initialData?: DailySurveyData | null;
 }
 
+const MOTIVATION_OPTIONS = ['low', 'moderate', 'high'] as const;
+const MOTIVATION_LABELS: Record<(typeof MOTIVATION_OPTIONS)[number], string> = {
+  low: 'Низкая',
+  moderate: 'Умеренная',
+  high: 'Высокая',
+};
+const SLEEP_OPTIONS = ['0-4', '4-6', '6-8', '8+'] as const;
+const STRESS_OPTIONS = ['low', 'moderate', 'high'] as const;
+const STRESS_LABELS: Record<(typeof STRESS_OPTIONS)[number], string> = {
+  low: 'Низкий',
+  moderate: 'Умеренный',
+  high: 'Высокий',
+};
+const DIGESTION_OPTIONS = ['0', '1', '2+'] as const;
+const DIGESTION_LABELS: Record<(typeof DIGESTION_OPTIONS)[number], string> = {
+  '0': '0 раз',
+  '1': '1 раз',
+  '2+': '2+ раз',
+};
+const WATER_OPTIONS = ['0-1', '1-2', '2-3', '2+'] as const;
+const HUNGER_OPTIONS = ['no_appetite', 'moderate', 'constant'] as const;
+const HUNGER_LABELS: Record<(typeof HUNGER_OPTIONS)[number], string> = {
+  no_appetite: 'Нет аппетита',
+  moderate: 'Умеренно',
+  constant: 'Постоянно',
+};
+const LIBIDO_OPTIONS = ['low', 'moderate', 'high'] as const;
+const LIBIDO_LABELS: Record<(typeof LIBIDO_OPTIONS)[number], string> = {
+  low: 'Низкое',
+  moderate: 'Умеренное',
+  high: 'Высокое',
+};
+
 // Вспомогательный компонент для группы кнопок выбора
-const SelectionGroup = <T extends string>({ 
-  label, 
-  options, 
-  value, 
+const SelectionGroup = memo(({
+  label,
+  options,
+  value,
   onChange,
-  labels 
-}: { 
-  label: string; 
-  options: T[]; 
-  value: T | null; 
-  onChange: (val: T) => void;
-  labels?: Record<T, string>;
+  labels,
+}: {
+  label: string;
+  options: readonly string[];
+  value: string | null;
+  onChange: (val: string) => void;
+  labels?: Record<string, string>;
 }) => (
   <View className="mb-6">
     <Text style={styles.sectionLabel}>{label}</Text>
@@ -48,7 +81,7 @@ const SelectionGroup = <T extends string>({
       })}
     </View>
   </View>
-);
+));
 
 export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onClose, onSave, date, initialData }) => {
   // State
@@ -133,7 +166,10 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onC
   const handleSubmit = () => {
     // Валидация веса
     const weightNum = parseFloat(weight.replace(',', '.'));
-    const validWeight = (!weight || isNaN(weightNum) || weightNum <= 0) ? null : parseFloat(weightNum.toFixed(1));
+    const hasWeight = weight.trim().length > 0;
+    const validWeight = (!hasWeight || isNaN(weightNum) || weightNum <= 0)
+      ? null
+      : parseFloat(weightNum.toFixed(1));
 
     const surveyData: DailySurveyData = {
       date,
@@ -199,54 +235,54 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({ visible, onC
             {/* Вопросы */}
             <SelectionGroup
               label="Мотивация"
-              options={['low', 'moderate', 'high']}
-              labels={{ low: 'Низкая', moderate: 'Умеренная', high: 'Высокая' }}
+              options={MOTIVATION_OPTIONS}
+              labels={MOTIVATION_LABELS}
               value={motivation}
               onChange={setMotivation}
             />
 
             <SelectionGroup
               label="Сон (часов)"
-              options={['0-4', '4-6', '6-8', '8+']}
+              options={SLEEP_OPTIONS}
               value={sleep}
               onChange={setSleep}
             />
 
             <SelectionGroup
               label="Уровень стресса"
-              options={['low', 'moderate', 'high']}
-              labels={{ low: 'Низкий', moderate: 'Умеренный', high: 'Высокий' }}
+              options={STRESS_OPTIONS}
+              labels={STRESS_LABELS}
               value={stress}
               onChange={setStress}
             />
 
             <SelectionGroup
               label="Пищеварение (стул)"
-              options={['0', '1', '2+']}
-              labels={{ '0': '0 раз', '1': '1 раз', '2+': '2+ раз' }}
+              options={DIGESTION_OPTIONS}
+              labels={DIGESTION_LABELS}
               value={digestion}
               onChange={setDigestion}
             />
 
             <SelectionGroup
               label="Вода (литров)"
-              options={['0-1', '1-2', '2-3', '2+']}
+              options={WATER_OPTIONS}
               value={water}
               onChange={setWater}
             />
 
             <SelectionGroup
               label="Чувство голода"
-              options={['no_appetite', 'moderate', 'constant']}
-              labels={{ no_appetite: 'Нет аппетита', moderate: 'Умеренно', constant: 'Постоянно' }}
+              options={HUNGER_OPTIONS}
+              labels={HUNGER_LABELS}
               value={hunger}
               onChange={setHunger}
             />
 
             <SelectionGroup
               label="Либидо"
-              options={['low', 'moderate', 'high']}
-              labels={{ low: 'Низкое', moderate: 'Умеренное', high: 'Высокое' }}
+              options={LIBIDO_OPTIONS}
+              labels={LIBIDO_LABELS}
               value={libido}
               onChange={setLibido}
             />

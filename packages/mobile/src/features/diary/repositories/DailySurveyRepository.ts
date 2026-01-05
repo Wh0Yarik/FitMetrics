@@ -112,6 +112,23 @@ export class DailySurveyRepository {
     }
   }
 
+  updateWeightForDate(date: string, weight: number | null): void {
+    const existing = this.getSurveyByDate(date);
+    const payload: DailySurveyData = {
+      date,
+      weight,
+      motivation: existing?.motivation ?? null,
+      sleep: existing?.sleep ?? null,
+      stress: existing?.stress ?? null,
+      digestion: existing?.digestion ?? null,
+      water: existing?.water ?? null,
+      hunger: existing?.hunger ?? null,
+      libido: existing?.libido ?? null,
+      comment: existing?.comment,
+    };
+    this.saveSurvey(payload);
+  }
+
   upsertFromServer(data: DailySurveyData): void {
     const existing = this.getSurveyByDate(data.date);
     const id = existing?.id || data.id || Crypto.randomUUID();
