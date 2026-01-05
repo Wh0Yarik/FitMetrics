@@ -18,3 +18,17 @@ export const syncDailySurvey = async (req: Request, res: Response, next: NextFun
     next(error);
   }
 };
+
+export const listDailySurveys = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const result = await surveyService.listDailySurveys(userId);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};

@@ -105,4 +105,59 @@ export class SurveyService {
 
     return { surveyId: survey.id, synced: true };
   }
+
+  async listDailySurveys(userId: string) {
+    const client = await prisma.client.findUnique({ where: { userId } });
+    if (!client) {
+      throw new AppError('Client not found', 404);
+    }
+
+    const surveys = await prisma.dailySurvey.findMany({
+      where: { clientId: client.id },
+      orderBy: { date: 'desc' },
+    });
+
+    return surveys.map((survey) => ({
+      date: survey.date.toISOString().slice(0, 10),
+      weight: survey.weight ?? null,
+      motivation: mapScaleBack(survey.motivation, { 1: 'low', 2: 'moderate', 3: 'high' }),
+      sleep: mapSleepBack(survey.sleepHours),
+      stress: mapScaleBack(survey.stress, { 1: 'low', 2: 'moderate', 3: 'high' }),
+      digestion: mapDigestionBack(survey.digestion),
+      water: mapWaterBack(survey.water),
+      hunger: mapScaleBack(survey.hunger, { 1: 'no_appetite', 2: 'moderate', 3: 'constant' }),
+      libido: mapScaleBack(survey.libido, { 1: 'low', 2: 'moderate', 3: 'high' }),
+      comment: survey.comment ?? null,
+    }));
+  }
 }
+
+const mapScaleBack = <T extends string>(value: number | null, map: Record<number, T>) => {
+  if (value == null) return null;
+  return map[value] ?? null;
+};
+
+const mapSleepBack = (value: number | null) => {
+  if (value == null) return null;
+  if (value < 4) return '0-4';
+  if (value < 6) return '4-6';
+  if (value < 8) return '6-8';
+  return '8+';
+};
+
+const mapWaterBack = (value: number | null) => {
+  if (value == null) return null;
+  if (value <= 1) return '0-1';
+  if (value <= 2) return '1-2';
+  if (value <= 3) return '2-3';
+  return '2+';
+};
+
+const mapDigestionBack = (value: string | null) => {
+  if (!value) return null;
+  if (value === '0' || value === '1' || value === '2+') return value;
+  if (value === 'bad') return '0';
+  if (value === 'good') return '1';
+  if (value === 'excellent') return '2+';
+  return null;
+};

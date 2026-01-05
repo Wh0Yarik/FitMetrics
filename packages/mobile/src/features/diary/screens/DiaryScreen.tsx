@@ -477,6 +477,7 @@ export default function DiaryScreen() {
   const syncInFlightRef = useRef(false);
   const surveySyncInFlightRef = useRef(false);
   const lastSurveySyncAttemptRef = useRef<Record<string, number>>({});
+  const lastSurveyPullRef = useRef(0);
   const lastSyncAttemptRef = useRef<Record<string, number>>({});
   const relativeLabel = useMemo(() => getRelativeLabel(currentDate), [currentDate]);
   const monthLabel = useMemo(() => {
@@ -586,12 +587,6 @@ export default function DiaryScreen() {
     }
   }, [currentDate, syncDiaryForDate, syncStatus]);
 
-  useEffect(() => {
-    if (dailySurveyRepository.hasUnsyncedSurvey(currentDate)) {
-      syncSurveyForDate();
-    }
-  }, [currentDate, syncSurveyForDate]);
-
   const syncSurveyForDate = useCallback(async (force?: boolean) => {
     if (surveySyncInFlightRef.current) return;
     if (!force) {
@@ -637,6 +632,55 @@ export default function DiaryScreen() {
       surveySyncInFlightRef.current = false;
     }
   }, [currentDate, refreshData]);
+
+  const syncSurveysFromServer = useCallback(async (force?: boolean) => {
+    if (!force && Date.now() - lastSurveyPullRef.current < 30000) {
+      return;
+    }
+    lastSurveyPullRef.current = Date.now();
+
+    try {
+      const response = await api.get('/surveys/entries');
+      const items = Array.isArray(response.data) ? response.data : [];
+      items.forEach((item: any) => {
+        if (!item?.date) return;
+        dailySurveyRepository.upsertFromServer({
+          date: item.date,
+          weight: item.weight ?? null,
+          motivation: item.motivation ?? null,
+          sleep: item.sleep ?? null,
+          stress: item.stress ?? null,
+          digestion: item.digestion ?? null,
+          water: item.water ?? null,
+          hunger: item.hunger ?? null,
+          libido: item.libido ?? null,
+          comment: item.comment ?? undefined,
+          synced: true,
+        });
+      });
+      refreshData();
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const payload = error?.response?.data;
+      console.error('Failed to pull daily surveys', {
+        message: error?.message,
+        status,
+        payload,
+      });
+    }
+  }, [refreshData]);
+
+  useEffect(() => {
+    if (dailySurveyRepository.hasUnsyncedSurvey(currentDate)) {
+      syncSurveyForDate();
+    }
+  }, [currentDate, syncSurveyForDate]);
+
+  useFocusEffect(
+    useCallback(() => {
+      syncSurveysFromServer();
+    }, [syncSurveysFromServer])
+  );
 
   const weekDays = useMemo(() => {
     const today = new Date();

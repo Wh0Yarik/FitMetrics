@@ -112,6 +112,40 @@ export class DailySurveyRepository {
     }
   }
 
+  upsertFromServer(data: DailySurveyData): void {
+    const existing = this.getSurveyByDate(data.date);
+    const id = existing?.id || data.id || Crypto.randomUUID();
+    const timestamp = new Date().toISOString();
+
+    if (existing) {
+      this.db.runSync(
+        `UPDATE daily_surveys SET 
+          weight = ?, motivation = ?, sleep = ?, stress = ?, 
+          digestion = ?, water = ?, hunger = ?, libido = ?, 
+          comment = ?, synced = 1, updated_at = ?
+         WHERE id = ?`,
+        [
+          data.weight ?? null, data.motivation ?? null, data.sleep ?? null, data.stress ?? null,
+          data.digestion ?? null, data.water ?? null, data.hunger ?? null, data.libido ?? null,
+          data.comment ?? null, timestamp, id
+        ]
+      );
+      return;
+    }
+
+    this.db.runSync(
+      `INSERT INTO daily_surveys (
+        id, date, weight, motivation, sleep, stress, 
+        digestion, water, hunger, libido, comment, synced, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+      [
+        id, data.date, data.weight ?? null, data.motivation ?? null, data.sleep ?? null, data.stress ?? null,
+        data.digestion ?? null, data.water ?? null, data.hunger ?? null, data.libido ?? null,
+        data.comment ?? null, timestamp
+      ]
+    );
+  }
+
   hasUnsyncedSurvey(date: string): boolean {
     const row = this.db.getFirstSync<{ count: number }>(
       'SELECT COUNT(*) as count FROM daily_surveys WHERE date = ? AND synced = 0',
