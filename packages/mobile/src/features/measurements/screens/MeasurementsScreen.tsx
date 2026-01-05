@@ -9,6 +9,7 @@ import Svg, { Defs, LinearGradient, Stop, Path } from 'react-native-svg';
 import { measurementsRepository, MeasurementEntry } from '../repositories/MeasurementsRepository';
 import { AddMeasurementModal } from '../components/AddMeasurementModal';
 import { COLORS } from '../../../constants/Colors';
+import { api } from '../../../shared/api/client';
 
 type MetricKey = 'weight' | 'waist' | 'hips' | 'chest';
 
@@ -255,6 +256,40 @@ export default function MeasurementsScreen() {
     setMeasurements(data);
   }, []);
 
+  const syncMeasurements = useCallback(async () => {
+    try {
+      const response = await api.get('/measurements/entries');
+      const items = Array.isArray(response.data) ? response.data : [];
+      items.forEach((item: any) => {
+        const date = typeof item.date === 'string' ? item.date.slice(0, 10) : '';
+        if (!date) return;
+        measurementsRepository.upsertFromServer({
+          id: item.id,
+          date,
+          chest: item.chest ?? null,
+          waist: item.waist ?? null,
+          hips: item.hips ?? null,
+          leftArm: item.arms ?? null,
+          rightArm: item.arms ?? null,
+          leftLeg: item.legs ?? null,
+          rightLeg: item.legs ?? null,
+          photoFront: item.photoFront ?? null,
+          photoSide: item.photoSide ?? null,
+          photoBack: item.photoBack ?? null,
+        });
+      });
+      loadData();
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const payload = error?.response?.data;
+      console.error('Failed to sync measurements', {
+        message: error?.message,
+        status,
+        payload,
+      });
+    }
+  }, [loadData]);
+
   const relativeLabel = useMemo(() => getRelativeLabel(currentDate), [currentDate]);
   const monthLabel = useMemo(() => {
     const label = calendarMonth.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
@@ -380,7 +415,8 @@ export default function MeasurementsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [loadData])
+      syncMeasurements();
+    }, [loadData, syncMeasurements])
   );
 
   const handleOpenCalendar = useCallback(() => {

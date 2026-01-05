@@ -104,6 +104,60 @@ export class MeasurementsRepository {
     }
   }
 
+  upsertFromServer(data: {
+    id?: string;
+    date: string;
+    weight?: number | null;
+    chest?: number | null;
+    waist?: number | null;
+    hips?: number | null;
+    leftArm?: number | null;
+    rightArm?: number | null;
+    leftLeg?: number | null;
+    rightLeg?: number | null;
+    photoFront?: string | null;
+    photoSide?: string | null;
+    photoBack?: string | null;
+  }): void {
+    const now = new Date().toISOString();
+    const existing = data.id ? this.getMeasurementById(data.id) : this.getMeasurementByDate(data.date);
+    const id = existing?.id || data.id || Crypto.randomUUID();
+
+    if (existing) {
+      this.db.runSync(
+        `UPDATE measurements SET 
+          weight = ?, chest = ?, waist = ?, hips = ?, 
+          left_arm = ?, right_arm = ?, left_leg = ?, right_leg = ?,
+          photo_front = ?, photo_side = ?, photo_back = ?,
+          synced = 1, updated_at = ?
+         WHERE id = ?`,
+        [
+          data.weight ?? null, data.chest ?? null, data.waist ?? null, data.hips ?? null,
+          data.leftArm ?? null, data.rightArm ?? null, data.leftLeg ?? null, data.rightLeg ?? null,
+          data.photoFront ?? null, data.photoSide ?? null, data.photoBack ?? null,
+          now, id
+        ]
+      );
+      return;
+    }
+
+    this.db.runSync(
+      `INSERT INTO measurements (
+        id, date, weight, chest, waist, hips, 
+        left_arm, right_arm, left_leg, right_leg,
+        photo_front, photo_side, photo_back,
+        synced, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+      [
+        id, data.date,
+        data.weight ?? null, data.chest ?? null, data.waist ?? null, data.hips ?? null,
+        data.leftArm ?? null, data.rightArm ?? null, data.leftLeg ?? null, data.rightLeg ?? null,
+        data.photoFront ?? null, data.photoSide ?? null, data.photoBack ?? null,
+        now, now
+      ]
+    );
+  }
+
   deleteMeasurement(id: string): void {
     this.db.runSync('DELETE FROM measurements WHERE id = ?', [id]);
   }
