@@ -13,6 +13,7 @@ import { diaryRepository, MealEntry } from '../repositories/DiaryRepository';
 import { dailySurveyRepository, DailySurveyData } from '../repositories/DailySurveyRepository';
 import { COLORS } from '../../../constants/Colors';
 import { api } from '../../../shared/api/client';
+import { getToken } from '../../../shared/lib/storage';
 
 // --- Конфигурация и константы ---
 
@@ -474,6 +475,7 @@ export default function DiaryScreen() {
   // Подключение хуков логики
   const { meals, surveyStatus, dailySurvey, syncStatus, setSyncStatus, refreshData } = useDiaryData(currentDate);
   const syncInFlightRef = useRef(false);
+  const lastSyncAttemptRef = useRef<Record<string, number>>({});
   const relativeLabel = useMemo(() => getRelativeLabel(currentDate), [currentDate]);
   const monthLabel = useMemo(() => {
     const label = calendarMonth.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
@@ -522,8 +524,22 @@ export default function DiaryScreen() {
     [currentDate, resolveNutritionGoalForDate]
   );
 
-  const syncDiaryForDate = useCallback(async () => {
+  const syncDiaryForDate = useCallback(async (force?: boolean) => {
     if (syncInFlightRef.current) return;
+    if (!force) {
+      const lastAttempt = lastSyncAttemptRef.current[currentDate] ?? 0;
+      if (Date.now() - lastAttempt < 15000) {
+        return;
+      }
+      lastSyncAttemptRef.current[currentDate] = Date.now();
+    }
+
+    const token = await getToken();
+    if (!token) {
+      setSyncStatus('local');
+      return;
+    }
+
     const mealsForDate = diaryRepository.getMealsByDate(currentDate);
     if (mealsForDate.length === 0) {
       setSyncStatus('synced');
@@ -548,8 +564,14 @@ export default function DiaryScreen() {
       diaryRepository.markMealsAsSynced(currentDate);
       setSyncStatus('synced');
       refreshData();
-    } catch (error) {
-      console.error('Failed to sync diary entries', error);
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const payload = error?.response?.data;
+      console.error('Failed to sync diary entries', {
+        message: error?.message,
+        status,
+        payload,
+      });
       setSyncStatus('local');
     } finally {
       syncInFlightRef.current = false;
@@ -822,7 +844,7 @@ export default function DiaryScreen() {
                       </View>
                       <TouchableOpacity
                         style={styles.syncButton}
-                        onPress={syncDiaryForDate}
+                        onPress={() => syncDiaryForDate(true)}
                         disabled={syncStatus === 'syncing'}
                       >
                         <RefreshCw size={16} color={syncStatus === 'syncing' ? '#9CA3AF' : '#111827'} />
