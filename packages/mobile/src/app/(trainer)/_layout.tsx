@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
-import { BookOpen, Ruler, LineChart, User, Users } from 'lucide-react-native';
+import { BookOpen, Ruler, User, Users } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TrainerLayout() {
@@ -65,16 +65,6 @@ export default function TrainerLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View className={`items-center justify-center w-12 h-12 rounded-2xl ${focused ? 'bg-gray-800' : ''}`}>
               <Ruler size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="analytics"
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <View className={`items-center justify-center w-12 h-12 rounded-2xl ${focused ? 'bg-gray-800' : ''}`}>
-              <LineChart size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
             </View>
           ),
         }}
