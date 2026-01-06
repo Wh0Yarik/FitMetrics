@@ -85,18 +85,23 @@ export class AuthService {
   }
 
   async registerClient(data: z.infer<typeof registerClientSchema>) {
-    // 1. Проверяем инвайт-код
-    const invite = await prisma.inviteCode.findUnique({
-      where: { code: data.inviteCode },
-    });
-
-    if (!invite) {
-      throw new AppError('Invalid invite code', 400);
-    }
-
+    const inviteCode = data.inviteCode?.trim();
     const now = new Date();
-    if (invite.status !== InviteStatus.NEW || invite.expiresAt < now) {
-      throw new AppError('Invite code is not active', 400);
+    let invite: { id: string; trainerId: string; status: InviteStatus; expiresAt: Date } | null = null;
+
+    if (inviteCode) {
+      // 1. Проверяем инвайт-код
+      invite = await prisma.inviteCode.findUnique({
+        where: { code: inviteCode },
+      });
+
+      if (!invite) {
+        throw new AppError('Invalid invite code', 400);
+      }
+
+      if (invite.status !== InviteStatus.NEW || invite.expiresAt < now) {
+        throw new AppError('Invite code is not active', 400);
+      }
     }
 
     // 2. Проверяем существование пользователя
@@ -124,21 +129,23 @@ export class AuthService {
           userId: user.id,
           name: data.name,
           birthDate: this.parseBirthDate(data.birthDate),
-          currentTrainerId: invite.trainerId,
+          currentTrainerId: invite?.trainerId ?? null,
         },
       });
 
-      // Обновляем инвайт (защита от повторного использования)
-      const updated = await tx.inviteCode.updateMany({
-        where: { id: invite.id, status: InviteStatus.NEW },
-        data: {
-          status: InviteStatus.USED,
-          clientId: client.id,
-          usedAt: now,
-        },
-      });
-      if (updated.count === 0) {
-        throw new AppError('Invite code is not active', 400);
+      if (invite) {
+        // Обновляем инвайт (защита от повторного использования)
+        const updated = await tx.inviteCode.updateMany({
+          where: { id: invite.id, status: InviteStatus.NEW },
+          data: {
+            status: InviteStatus.USED,
+            clientId: client.id,
+            usedAt: now,
+          },
+        });
+        if (updated.count === 0) {
+          throw new AppError('Invite code is not active', 400);
+        }
       }
 
       return { user, client };

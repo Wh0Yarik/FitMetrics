@@ -27,6 +27,16 @@ export const changeTrainer = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+export const removeTrainer = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const result = await userService.removeTrainer(userId);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.userId;

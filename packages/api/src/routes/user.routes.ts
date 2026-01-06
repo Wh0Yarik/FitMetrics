@@ -6,6 +6,7 @@ const router = Router();
 
 router.get('/me', authenticate, UserController.getMe);
 router.post('/me/trainer', authenticate, UserController.changeTrainer);
+router.delete('/me/trainer', authenticate, UserController.removeTrainer);
 router.put('/me/profile', authenticate, UserController.updateProfile);
 
 export default router;

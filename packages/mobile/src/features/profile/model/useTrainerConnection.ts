@@ -5,6 +5,7 @@ import { api } from '../../../shared/api/client';
 
 type TrainerContact = { label: string; value: string };
 type TrainerPayload = {
+  id?: string | null;
   name?: string | null;
   status?: string | null;
   avatarUrl?: string | null;
@@ -12,6 +13,7 @@ type TrainerPayload = {
 };
 
 export const useTrainerConnection = () => {
+  const [trainerId, setTrainerId] = useState<string | null>(null);
   const [trainerName, setTrainerName] = useState('');
   const [trainerStatus, setTrainerStatus] = useState('');
   const [trainerAvatar, setTrainerAvatar] = useState<string | null>(null);
@@ -24,6 +26,7 @@ export const useTrainerConnection = () => {
 
   const applyTrainerData = useCallback((trainer: TrainerPayload | null) => {
     if (trainer) {
+      setTrainerId(trainer.id ?? null);
       setTrainerName(trainer.name ?? '');
       setTrainerStatus(trainer.status || 'На связи');
       setTrainerAvatar(trainer.avatarUrl ?? null);
@@ -31,6 +34,7 @@ export const useTrainerConnection = () => {
       const contacts = Array.isArray(trainer.contacts) ? [...trainer.contacts] : [];
       setTrainerContacts(contacts);
     } else {
+      setTrainerId(null);
       setTrainerName('');
       setTrainerStatus('');
       setTrainerAvatar(null);
@@ -70,7 +74,20 @@ export const useTrainerConnection = () => {
     );
   }, [applyTrainerData, inviteCode]);
 
+  const removeTrainer = useCallback(async () => {
+    try {
+      const response = await api.delete('/users/me/trainer');
+      const data = response.data;
+      applyTrainerData(data.trainer ?? null);
+      Alert.alert('Готово', 'Тренер удален');
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Не удалось удалить тренера';
+      Alert.alert('Ошибка', message);
+    }
+  }, [applyTrainerData]);
+
   return {
+    trainerId,
     trainerName,
     trainerStatus,
     trainerAvatar,
@@ -83,5 +100,6 @@ export const useTrainerConnection = () => {
     setInviteOpen,
     applyTrainerData,
     handleSaveInvite,
+    removeTrainer,
   };
 };

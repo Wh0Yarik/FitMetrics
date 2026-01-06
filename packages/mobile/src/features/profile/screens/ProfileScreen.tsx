@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Alert,
   Easing,
   LayoutAnimation,
   Platform,
@@ -16,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronDown, X } from 'lucide-react-native';
+import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 
 import { AppButton, AppInput, Card, colors, radii, spacing } from '../../../shared/ui';
 import { normalizeBirthDateInput } from '../../../shared/lib/date';
@@ -37,6 +39,7 @@ export default function ProfileScreen() {
   const [isTrainerOpen, setTrainerOpen] = useState(false);
   const editBackdropOpacity = useRef(new Animated.Value(0)).current;
   const editSheetTranslate = useRef(new Animated.Value(420)).current;
+  const trainerSwipeRef = useRef<Swipeable>(null);
 
   const trainer = useTrainerConnection();
   const profile = useUserProfile({ onTrainerLoaded: trainer.applyTrainerData });
@@ -63,6 +66,17 @@ export default function ProfileScreen() {
     );
     setTrainerOpen((prev) => !prev);
   };
+
+  const handleRemoveTrainer = useCallback(() => {
+    Alert.alert('Удалить тренера', 'Вы уверены, что хотите удалить тренера?', [
+      { text: 'Отмена', style: 'cancel', onPress: () => trainerSwipeRef.current?.close() },
+      {
+        text: 'Удалить',
+        style: 'destructive',
+        onPress: () => trainer.removeTrainer(),
+      },
+    ]);
+  }, [trainer]);
 
   useEffect(() => {
     if (isEditOpen) {
@@ -104,7 +118,7 @@ export default function ProfileScreen() {
   }, [editBackdropOpacity, editSheetTranslate, isEditOpen]);
 
   return (
-    <View style={styles.screen}>
+    <GestureHandlerRootView style={styles.screen}>
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <StatusBar barStyle="dark-content" />
 
@@ -130,21 +144,50 @@ export default function ProfileScreen() {
 
           {isTrainerOpen ? (
             <View style={styles.accordionBody}>
-              <TrainerCard
-                trainerDisplayName={trainer.trainerDisplayName}
-                trainerDisplayStatus={trainer.trainerDisplayStatus}
-                trainerAvatar={trainer.trainerAvatar}
-                trainerContacts={trainer.trainerContacts}
-              />
-              <View style={styles.trainerAction}>
-                <AppButton
-                  title="Сменить тренера"
-                  onPress={() => trainer.setInviteOpen(true)}
-                  variant="secondary"
-                  size="md"
-                  style={styles.trainerActionButton}
-                />
-              </View>
+              {trainer.trainerId ? (
+                <>
+                  <Swipeable
+                    ref={trainerSwipeRef}
+                    overshootRight={false}
+                    rightThreshold={60}
+                    renderRightActions={() => (
+                      <TouchableOpacity onPress={handleRemoveTrainer} style={styles.trainerRemoveAction}>
+                        <Text style={styles.trainerRemoveText}>Удалить</Text>
+                      </TouchableOpacity>
+                    )}
+                  >
+                    <TrainerCard
+                      trainerDisplayName={trainer.trainerDisplayName}
+                      trainerDisplayStatus={trainer.trainerDisplayStatus}
+                      trainerAvatar={trainer.trainerAvatar}
+                      trainerContacts={trainer.trainerContacts}
+                    />
+                  </Swipeable>
+                  <View style={styles.trainerAction}>
+                    <AppButton
+                      title="Сменить тренера"
+                      onPress={() => trainer.setInviteOpen(true)}
+                      variant="secondary"
+                      size="md"
+                      style={styles.trainerActionButton}
+                    />
+                  </View>
+                </>
+              ) : (
+                <Card style={styles.trainerEmptyCard}>
+                  <Text style={styles.trainerEmptyTitle}>Введите инвайт-код тренера</Text>
+                  <AppInput
+                    label="Инвайт-код"
+                    value={trainer.inviteCode}
+                    onChangeText={trainer.setInviteCode}
+                    placeholder="6 символов"
+                    autoCapitalize="characters"
+                    containerStyle={styles.modalField}
+                    style={styles.modalInput}
+                  />
+                  <AppButton title="Привязать тренера" onPress={trainer.handleSaveInvite} size="md" />
+                </Card>
+              )}
             </View>
           ) : null}
 
@@ -322,7 +365,7 @@ export default function ProfileScreen() {
           </View>
         </Modal>
       </SafeAreaView>
-    </View>
+    </GestureHandlerRootView>
   );
 }
 
@@ -370,6 +413,28 @@ const styles = StyleSheet.create({
   },
   trainerActionButton: {
     paddingHorizontal: spacing.md,
+  },
+  trainerRemoveAction: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    marginLeft: 12,
+  },
+  trainerRemoveText: {
+    color: '#B91C1C',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  trainerEmptyCard: {
+    marginHorizontal: spacing.xl,
+  },
+  trainerEmptyTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
   },
   sectionDivider: {
     height: 1,

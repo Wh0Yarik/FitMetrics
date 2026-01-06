@@ -15,7 +15,10 @@ const registerClientSchema = z.object({
   birthDate: z.string().regex(/^\d{2}\.\d{2}\.\d{4}$/, 'Введите дату в формате ДД.ММ.ГГГГ'),
   email: z.string().email('Некорректный email'),
   password: z.string().min(6, 'Пароль должен быть не короче 6 символов'),
-  inviteCode: z.string().length(6, 'Код должен состоять из 6 символов'),
+  inviteCode: z
+    .string()
+    .optional()
+    .refine((value) => !value || value.length === 6, 'Код должен состоять из 6 символов'),
 });
 
 type RegisterClientFormData = z.infer<typeof registerClientSchema>;
@@ -36,7 +39,12 @@ export default function RegisterClientScreen() {
         Alert.alert('Ошибка', 'Дата рождения должна быть в формате ДД.ММ.ГГГГ');
         return;
       }
-      await api.post('/auth/register-client', { ...data, birthDate });
+      const payload = {
+        ...data,
+        birthDate,
+        inviteCode: data.inviteCode?.trim() || undefined,
+      };
+      await api.post('/auth/register-client', payload);
       
       Alert.alert('Успех', 'Аккаунт клиента создан! Теперь войдите в систему.', [
         { text: 'OK', onPress: () => router.replace('/auth/login') }
@@ -63,7 +71,7 @@ export default function RegisterClientScreen() {
             <View style={styles.headerCard}>
               <Text style={styles.headerKicker}>Регистрация</Text>
               <Text style={styles.headerText}>Аккаунт клиента</Text>
-              <Text style={styles.subText}>Введите инвайт-код от тренера</Text>
+              <Text style={styles.subText}>Инвайт-код можно добавить позже</Text>
             </View>
 
             <View style={styles.formCard}>
@@ -147,7 +155,7 @@ export default function RegisterClientScreen() {
               />
               {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
 
-              <Text style={styles.label}>Код приглашения</Text>
+              <Text style={styles.label}>Код приглашения (опционально)</Text>
               <Controller
                 control={control}
                 name="inviteCode"

@@ -27,12 +27,8 @@ export const TrainerCard = ({
           )}
         </View>
         <View>
-          <Text style={styles.trainerLabel}>Ваш тренер</Text>
           <Text style={styles.trainerName}>{trainerDisplayName}</Text>
         </View>
-      </View>
-      <View style={styles.trainerStatus}>
-        <Text style={styles.trainerStatusText}>{trainerDisplayStatus}</Text>
       </View>
     </View>
 
@@ -70,26 +66,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  trainerLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
   trainerName: {
-    marginTop: 4,
     fontSize: 16,
     fontWeight: '700',
     color: '#111827',
-  },
-  trainerStatus: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: '#ECFDF3',
-  },
-  trainerStatusText: {
-    color: '#166534',
-    fontSize: 11,
-    fontWeight: '700',
   },
   trainerAvatar: {
     width: 40,

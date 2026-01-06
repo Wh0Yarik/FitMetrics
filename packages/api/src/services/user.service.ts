@@ -299,4 +299,25 @@ export class UserService {
 
     return this.getMe(userId);
   }
+
+  async removeTrainer(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { client: true },
+    });
+
+    if (!user || !user.client) {
+      throw new AppError('Client profile not found', 404);
+    }
+
+    await prisma.client.update({
+      where: { id: user.client.id },
+      data: {
+        currentTrainerId: null,
+        archivedByTrainerId: null,
+      },
+    });
+
+    return this.getMe(userId);
+  }
 }
