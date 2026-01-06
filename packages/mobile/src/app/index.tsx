@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Redirect } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getToken } from '../shared/lib/storage';
+import { getToken, getUserId, setUserId } from '../shared/lib/storage';
+import { setCurrentUserId } from '../shared/db/userSession';
+import { api } from '../shared/api/client';
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(true);
@@ -12,9 +14,25 @@ export default function Index() {
   useEffect(() => {
     const checkAuth = async () => {
       const token = await getToken();
+      const storedUserId = await getUserId();
       const userRole = await AsyncStorage.getItem('userRole');
+      if (token && !storedUserId) {
+        try {
+          const response = await api.get('/users/me');
+          const fetchedUserId = response.data?.id;
+          if (fetchedUserId) {
+            await setUserId(fetchedUserId);
+            setCurrentUserId(fetchedUserId);
+          }
+        } catch (error) {
+          console.warn('Failed to restore user id:', error);
+        }
+      }
       setHasToken(!!token);
       setRole(userRole);
+      if (storedUserId) {
+        setCurrentUserId(storedUserId);
+      }
       setIsLoading(false);
     };
     checkAuth();
@@ -29,7 +47,7 @@ export default function Index() {
   }
 
   if (!hasToken) {
-    return <Redirect href="/auth/login" />;
+    return <Redirect href="/auth/welcome" />;
   }
 
   if (role?.toLowerCase() === 'trainer') {

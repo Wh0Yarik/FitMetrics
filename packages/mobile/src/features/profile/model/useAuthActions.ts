@@ -1,0 +1,93 @@
+import { useCallback, useState } from 'react';
+import { Alert } from 'react-native';
+import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { removeToken, removeUserId, setToken, setUserId } from '../../../shared/lib/storage';
+import { setCurrentUserId } from '../../../shared/db/userSession';
+import { seedLocalData } from '../../../shared/db/seedLocalData';
+import { api } from '../../../shared/api/client';
+
+export const useAuthActions = () => {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [isPasswordOpen, setPasswordOpen] = useState(false);
+
+  const handleLogout = useCallback(() => {
+    Alert.alert('Выход', 'Вы уверены, что хотите выйти?', [
+      { text: 'Отмена', style: 'cancel' },
+      { text: 'Выйти', style: 'destructive', onPress: async () => {
+        await removeToken();
+        await removeUserId();
+        setCurrentUserId(null);
+        await AsyncStorage.removeItem('userRole');
+        router.replace('/auth/login');
+      }},
+    ]);
+  }, []);
+
+  const handleSavePassword = useCallback(() => {
+    if (!currentPassword || !newPassword) {
+      Alert.alert('Смена пароля', 'Заполните оба поля');
+      return;
+    }
+    setPasswordOpen(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    Alert.alert('Готово', 'Пароль обновлен');
+  }, [currentPassword, newPassword]);
+
+  const handleSeedLocalData = useCallback(() => {
+    Alert.alert('Демо-данные', 'Заполнить неделю локальными данными?', [
+      { text: 'Отмена', style: 'cancel' },
+      { text: 'Заполнить', style: 'default', onPress: () => {
+        const result = seedLocalData();
+        Alert.alert('Готово', `Добавлено приемов пищи: ${result.mealsAdded}\nАнкет: ${result.surveysSaved}`);
+      }},
+    ]);
+  }, []);
+
+  const handleQuickSwitch = useCallback(async (role: 'admin' | 'trainer' | 'client') => {
+    const credentials = {
+      admin: { email: 'admin@fitmetrics.com', password: 'admin123' },
+      trainer: { email: 'trainer@fitmetrics.com', password: 'trainer123' },
+      client: { email: 'client1@fitmetrics.com', password: 'client123' },
+    };
+
+    try {
+      const response = await api.post('/auth/login', credentials[role]);
+      if (response.data.accessToken) {
+        await setToken(response.data.accessToken);
+        const currentUserId = response.data.user?.id;
+        if (currentUserId) {
+          await setUserId(currentUserId);
+          setCurrentUserId(currentUserId);
+        }
+        await AsyncStorage.setItem('userRole', response.data.user?.role ?? role.toUpperCase());
+        if (role === 'trainer') {
+          router.replace('/(trainer)/clients');
+        } else {
+          router.replace('/(tabs)');
+        }
+      } else {
+        Alert.alert('Ошибка', 'Не удалось получить токен');
+      }
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Не удалось переключить пользователя';
+      Alert.alert('Ошибка', message);
+    }
+  }, []);
+
+  return {
+    currentPassword,
+    newPassword,
+    isPasswordOpen,
+    setCurrentPassword,
+    setNewPassword,
+    setPasswordOpen,
+    handleLogout,
+    handleSavePassword,
+    handleSeedLocalData,
+    handleQuickSwitch,
+  };
+};

@@ -21,7 +21,8 @@ import { COLORS } from '../../../constants/Colors';
 import { trainerApi, TrainerClientSummary, TrainerInvite } from '../services/trainerApi';
 import { onClientsUpdated } from '../services/trainerEvents';
 import { api } from '../../../shared/api/client';
-import { removeToken } from '../../../shared/lib/storage';
+import { removeToken, removeUserId } from '../../../shared/lib/storage';
+import { setCurrentUserId } from '../../../shared/db/userSession';
 
 type FilterKey = 'all' | 'attention' | 'no-measurements' | 'archived';
 
@@ -200,6 +201,8 @@ export default function TrainerDashboardScreen() {
         style: 'destructive',
         onPress: async () => {
           await removeToken();
+          await removeUserId();
+          setCurrentUserId(null);
           await AsyncStorage.removeItem('userRole');
           router.replace('/auth/login');
         },

@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 const TOKEN_KEY = 'user_access_token';
+const USER_ID_KEY = 'user_id';
 
 /**
  * Получить токен авторизации
@@ -45,5 +46,50 @@ export const removeToken = async (): Promise<void> => {
     }
   } catch (error) {
     console.error('Error removing token:', error);
+  }
+};
+
+/**
+ * Получить id пользователя (для локальной валидации данных)
+ */
+export const getUserId = async (): Promise<string | null> => {
+  try {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(USER_ID_KEY);
+    }
+    return await SecureStore.getItemAsync(USER_ID_KEY);
+  } catch (error) {
+    console.error('Error getting user id:', error);
+    return null;
+  }
+};
+
+/**
+ * Сохранить id пользователя
+ */
+export const setUserId = async (userId: string): Promise<void> => {
+  try {
+    if (Platform.OS === 'web') {
+      localStorage.setItem(USER_ID_KEY, userId);
+    } else {
+      await SecureStore.setItemAsync(USER_ID_KEY, userId);
+    }
+  } catch (error) {
+    console.error('Error setting user id:', error);
+  }
+};
+
+/**
+ * Удалить id пользователя
+ */
+export const removeUserId = async (): Promise<void> => {
+  try {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(USER_ID_KEY);
+    } else {
+      await SecureStore.deleteItemAsync(USER_ID_KEY);
+    }
+  } catch (error) {
+    console.error('Error removing user id:', error);
   }
 };
