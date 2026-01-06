@@ -91,7 +91,7 @@ export class DiaryService {
     const entries = await prisma.diaryEntry.findMany({
       where,
       include: {
-        meals: true,
+        mealEntries: true,
       },
       orderBy: { date: 'desc' },
     });
@@ -99,7 +99,7 @@ export class DiaryService {
     return entries.map((entry) => ({
       id: entry.id,
       date: entry.date.toISOString().slice(0, 10),
-      meals: entry.meals.map((meal) => ({
+      meals: entry.mealEntries.map((meal) => ({
         id: meal.id,
         name: meal.name,
         time: meal.time ? meal.time.toISOString() : null,
