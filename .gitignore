@@ -40,3 +40,5 @@ backup_full.sql
 # IDEs
 .vscode/
 .idea/
+# Allow Prisma migrations
+!packages/api/prisma/migrations/**/*.sql
