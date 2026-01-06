@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Animated, Dimensions, StyleSheet, Image } from 'react-native';
-import { X, Check, Camera } from 'lucide-react-native';
-import * as ImagePicker from 'expo-image-picker';
+import React, { useEffect, useRef, useCallback } from 'react';
+import { Modal, View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, Animated, Dimensions, StyleSheet } from 'react-native';
+import { X } from 'lucide-react-native';
 import { MeasurementEntry } from '../repositories/MeasurementsRepository';
 import { COLORS } from '../../../constants/Colors';
+import { useMeasurementForm } from '../model/useMeasurementForm';
+import { usePhotoUpload } from '../model/usePhotoUpload';
+import { MeasurementForm } from './MeasurementForm';
 
 interface AddMeasurementModalProps {
   visible: boolean;
@@ -12,86 +14,34 @@ interface AddMeasurementModalProps {
   initialData?: Partial<MeasurementEntry> | null;
 }
 
-const InputField = memo(({
-  label,
-  value,
-  onChange,
-  placeholder = '0.0',
-  unit,
-}: {
-  label: string;
-  value: string;
-  onChange: (text: string) => void;
-  placeholder?: string;
-  unit?: string;
-}) => (
-  <View style={styles.inputField}>
-    <Text style={styles.inputLabel}>{label}</Text>
-    <View style={styles.pillInputRow}>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        keyboardType="decimal-pad"
-        style={styles.pillInputText}
-        placeholderTextColor="#9CA3AF"
-      />
-      {unit ? <Text style={styles.pillUnit}>{unit}</Text> : null}
-    </View>
-  </View>
-));
-
-const PhotoPicker = memo(({
-  label,
-  uri,
-  onPick,
-  onClear,
-}: {
-  label: string;
-  uri: string | null;
-  onPick: () => void;
-  onClear: () => void;
-}) => (
-  <View style={styles.photoPicker}>
-    <Text style={styles.photoLabel}>{label}</Text>
-    <TouchableOpacity
-      onPress={onPick}
-      style={[styles.photoCard, uri ? styles.photoCardActive : styles.photoCardIdle]}
-    >
-      {uri ? (
-        <>
-          <Image source={{ uri }} style={styles.photoImage} resizeMode="cover" />
-          <TouchableOpacity
-            onPress={(e) => {
-              e.stopPropagation();
-              onClear();
-            }}
-            style={styles.photoClear}
-          >
-            <X size={12} color="#FFFFFF" />
-          </TouchableOpacity>
-        </>
-      ) : (
-        <Camera size={22} color="#9CA3AF" />
-      )}
-    </TouchableOpacity>
-  </View>
-));
 
 export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visible, onClose, onSave, initialData }) => {
-  // State
-  const [weight, setWeight] = useState('');
-  const [chest, setChest] = useState('');
-  const [waist, setWaist] = useState('');
-  const [hips, setHips] = useState('');
-  const [leftArm, setLeftArm] = useState('');
-  const [rightArm, setRightArm] = useState('');
-  const [leftLeg, setLeftLeg] = useState('');
-  const [rightLeg, setRightLeg] = useState('');
-  
-  const [photoFront, setPhotoFront] = useState<string | null>(null);
-  const [photoSide, setPhotoSide] = useState<string | null>(null);
-  const [photoBack, setPhotoBack] = useState<string | null>(null);
+  const {
+    weight,
+    chest,
+    waist,
+    hips,
+    leftArm,
+    rightArm,
+    leftLeg,
+    rightLeg,
+    photoFront,
+    photoSide,
+    photoBack,
+    setWeight,
+    setChest,
+    setWaist,
+    setHips,
+    setLeftArm,
+    setRightArm,
+    setLeftLeg,
+    setRightLeg,
+    setPhotoFront,
+    setPhotoSide,
+    setPhotoBack,
+    payload,
+  } = useMeasurementForm({ visible, initialData });
+  const { pickAndUpload } = usePhotoUpload();
 
   // Animation
   const screenHeight = Dimensions.get('window').height;
@@ -100,33 +50,6 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
 
   useEffect(() => {
     if (visible) {
-      // Reset or Load Data
-      if (initialData) {
-        setWeight(initialData.weight?.toString() || '');
-        setChest(initialData.chest?.toString() || '');
-        setWaist(initialData.waist?.toString() || '');
-        setHips(initialData.hips?.toString() || '');
-        setLeftArm(initialData.leftArm?.toString() || '');
-        setRightArm(initialData.rightArm?.toString() || '');
-        setLeftLeg(initialData.leftLeg?.toString() || '');
-        setRightLeg(initialData.rightLeg?.toString() || '');
-        setPhotoFront(initialData.photoFront || null);
-        setPhotoSide(initialData.photoSide || null);
-        setPhotoBack(initialData.photoBack || null);
-      } else {
-        setWeight('');
-        setChest('');
-        setWaist('');
-        setHips('');
-        setLeftArm('');
-        setRightArm('');
-        setLeftLeg('');
-        setRightLeg('');
-        setPhotoFront(null);
-        setPhotoSide(null);
-        setPhotoBack(null);
-      }
-
       slideAnim.setValue(screenHeight);
       fadeAnim.setValue(0);
       Animated.parallel([
@@ -143,40 +66,15 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
     ]).start(() => onClose());
   };
 
-  const pickImage = useCallback(async (setter: (uri: string | null) => void) => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.7,
-    });
-
-    if (!result.canceled) {
-      setter(result.assets[0].uri);
-    }
-  }, []);
-
-  const handlePickFront = useCallback(() => pickImage(setPhotoFront), [pickImage]);
-  const handlePickSide = useCallback(() => pickImage(setPhotoSide), [pickImage]);
-  const handlePickBack = useCallback(() => pickImage(setPhotoBack), [pickImage]);
+  const handlePickFront = useCallback(() => pickAndUpload(setPhotoFront), [pickAndUpload]);
+  const handlePickSide = useCallback(() => pickAndUpload(setPhotoSide), [pickAndUpload]);
+  const handlePickBack = useCallback(() => pickAndUpload(setPhotoBack), [pickAndUpload]);
   const handleClearFront = useCallback(() => setPhotoFront(null), []);
   const handleClearSide = useCallback(() => setPhotoSide(null), []);
   const handleClearBack = useCallback(() => setPhotoBack(null), []);
 
   const handleSubmit = () => {
-    const data: Partial<MeasurementEntry> = {
-      weight: parseFloat(weight) || null,
-      chest: parseFloat(chest) || null,
-      waist: parseFloat(waist) || null,
-      hips: parseFloat(hips) || null,
-      leftArm: parseFloat(leftArm) || null,
-      rightArm: parseFloat(rightArm) || null,
-      leftLeg: parseFloat(leftLeg) || null,
-      rightLeg: parseFloat(rightLeg) || null,
-      photoFront,
-      photoSide,
-      photoBack,
-    };
-    onSave(data);
+    onSave(payload);
     handleClose();
   };
 
@@ -207,127 +105,36 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
               </TouchableOpacity>
             </View>
 
-            <ScrollView
-              className="flex-1 p-4"
-              contentContainerStyle={{ paddingBottom: 100 }}
-              keyboardShouldPersistTaps="handled"
-            >
-              
-              {/* Основные */}
-              <View style={styles.sectionBlock}>
-                <Text style={styles.subsectionTitle}>Вес</Text>
-                <View style={styles.row}>
-                  <InputField
-                    label=""
-                    value={weight}
-                    onChange={setWeight}
-                    unit="кг"
-                  />
-                  <View style={styles.rowSpacer} /> 
-                </View>
-              </View>
-
-              {/* Объемы */}
-              <View style={styles.sectionBlock}>
-                <Text style={styles.subsectionTitle}>Объемы</Text>
-                <View style={styles.row}>
-                  <InputField
-                    label="Грудь"
-                    value={chest}
-                    onChange={setChest}
-                    unit="см"
-                  />
-                  <InputField
-                    label="Талия"
-                    value={waist}
-                    onChange={setWaist}
-                    unit="см"
-                  />
-                  <InputField
-                    label="Бедра"
-                    value={hips}
-                    onChange={setHips}
-                    unit="см"
-                  />
-                </View>
-              </View>
-
-              {/* Руки */}
-              <View style={styles.subsectionBlock}>
-                <Text style={styles.subsectionTitle}>Руки</Text>
-                <View style={styles.row}>
-                  <InputField
-                    label="Левая"
-                    value={leftArm}
-                    onChange={setLeftArm}
-                    unit="см"
-                  />
-                  <InputField
-                    label="Правая"
-                    value={rightArm}
-                    onChange={setRightArm}
-                    unit="см"
-                  />
-                </View>
-              </View>
-
-              {/* Ноги */}
-              <View style={styles.subsectionBlock}>
-                <Text style={styles.subsectionTitle}>Ноги</Text>
-                <View style={styles.row}>
-                  <InputField
-                    label="Левая"
-                    value={leftLeg}
-                    onChange={setLeftLeg}
-                    unit="см"
-                  />
-                  <InputField
-                    label="Правая"
-                    value={rightLeg}
-                    onChange={setRightLeg}
-                    unit="см"
-                  />
-                </View>
-              </View>
-
-              {/* Фото */}
-              <View style={styles.sectionBlock}>
-                <Text style={styles.sectionTitle}>Фото прогресса</Text>
-                <View style={styles.photoRow}>
-                  <PhotoPicker
-                    label="Спереди"
-                    uri={photoFront}
-                    onPick={handlePickFront}
-                    onClear={handleClearFront}
-                  />
-                  <PhotoPicker
-                    label="Сбоку"
-                    uri={photoSide}
-                    onPick={handlePickSide}
-                    onClear={handleClearSide}
-                  />
-                  <PhotoPicker
-                    label="Сзади"
-                    uri={photoBack}
-                    onPick={handlePickBack}
-                    onClear={handleClearBack}
-                  />
-                </View>
-              </View>
-
-              {/* Кнопка */}
-              <TouchableOpacity onPress={handleSubmit} style={styles.primaryButton}>
-                <Check size={20} color="#FFFFFF" />
-                <Text style={styles.primaryButtonText}>
-                  {initialData ? 'Сохранить' : 'Добавить'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={handleClose} style={styles.secondaryButton}>
-                <X size={18} color="#EF4444" />
-                <Text style={styles.secondaryButtonText}>Отмена</Text>
-              </TouchableOpacity>
-            </ScrollView>
+            <MeasurementForm
+              weight={weight}
+              chest={chest}
+              waist={waist}
+              hips={hips}
+              leftArm={leftArm}
+              rightArm={rightArm}
+              leftLeg={leftLeg}
+              rightLeg={rightLeg}
+              photoFront={photoFront}
+              photoSide={photoSide}
+              photoBack={photoBack}
+              onChangeWeight={setWeight}
+              onChangeChest={setChest}
+              onChangeWaist={setWaist}
+              onChangeHips={setHips}
+              onChangeLeftArm={setLeftArm}
+              onChangeRightArm={setRightArm}
+              onChangeLeftLeg={setLeftLeg}
+              onChangeRightLeg={setRightLeg}
+              onPickFront={handlePickFront}
+              onPickSide={handlePickSide}
+              onPickBack={handlePickBack}
+              onClearFront={handleClearFront}
+              onClearSide={handleClearSide}
+              onClearBack={handleClearBack}
+              onSubmit={handleSubmit}
+              onCancel={handleClose}
+              submitLabel={initialData ? 'Сохранить' : 'Добавить'}
+            />
           </View>
         </Animated.View>
       </KeyboardAvoidingView>
@@ -363,142 +170,5 @@ const styles = StyleSheet.create({
     borderColor: '#D1FAE5',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 10,
-    marginTop: 6,
-  },
-  sectionBlock: {
-    marginBottom: 16,
-  },
-  subsectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 8,
-    marginTop: 6,
-  },
-  subsectionBlock: {
-    marginBottom: 12,
-  },
-  row: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  rowSpacer: {
-    flex: 1,
-  },
-  inputField: {
-    flex: 1,
-    marginRight: 12,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 6,
-  },
-  pillInputRow: {
-    backgroundColor: '#F9FAFB',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  pillInputText: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  pillUnit: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#9CA3AF',
-  },
-  photoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  photoPicker: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  photoLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 8,
-  },
-  photoCard: {
-    width: 88,
-    height: 120,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  photoCardIdle: {
-    backgroundColor: '#F9FAFB',
-  },
-  photoCardActive: {
-    borderColor: '#D1FAE5',
-    backgroundColor: '#FFFFFF',
-  },
-  photoImage: {
-    width: '100%',
-    height: '100%',
-  },
-  photoClear: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    padding: 4,
-    borderRadius: 999,
-  },
-  primaryButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 12,
-    borderRadius: 22,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
-    marginBottom: 24,
-  },
-  primaryButtonText: {
-    marginLeft: 8,
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  secondaryButton: {
-    width: '100%',
-    paddingVertical: 12,
-    borderRadius: 22,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    marginBottom: 16,
-  },
-  secondaryButtonText: {
-    marginLeft: 8,
-    color: '#EF4444',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

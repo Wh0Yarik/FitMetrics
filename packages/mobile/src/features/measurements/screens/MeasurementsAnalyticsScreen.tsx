@@ -1,12 +1,12 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, StatusBar, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TrendingDown, TrendingUp } from 'lucide-react-native';
-import { useFocusEffect } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
 
-import { measurementsRepository, MeasurementEntry } from '../repositories/MeasurementsRepository';
+import { MeasurementEntry } from '../repositories/MeasurementsRepository';
 import { COLORS } from '../../../constants/Colors';
+import { useMeasurementsList } from '../model/useMeasurementsList';
 
 const METRICS = [
   { key: 'weight', label: 'Вес', unit: 'кг' },
@@ -59,21 +59,14 @@ const buildChartPath = (points: number[], width: number, height: number) => {
 };
 
 export default function MeasurementsAnalyticsScreen() {
-  const [measurements, setMeasurements] = useState<MeasurementEntry[]>([]);
   const [selectedMetric, setSelectedMetric] = useState<MetricKey>('weight');
   const [selectedPeriod, setSelectedPeriod] = useState<7 | 30 | 90>(30);
   const { width } = useWindowDimensions();
 
-  const loadData = useCallback(() => {
-    const data = measurementsRepository.getAllMeasurements();
-    setMeasurements(data);
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [loadData])
-  );
+  const { measurements } = useMeasurementsList({
+    currentDate: new Date().toISOString().slice(0, 10),
+    setSyncStatus: () => {},
+  });
 
   const latestMeasurement = measurements[0];
   const previousMeasurement = measurements[1];

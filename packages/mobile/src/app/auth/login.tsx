@@ -6,10 +6,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { api } from '../../shared/api/client';
 import { router } from 'expo-router';
-import { setToken } from '../../shared/lib/storage';
+import { setToken, setUserId } from '../../shared/lib/storage';
 import { COLORS } from '../../constants/Colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Eye, EyeOff } from 'lucide-react-native';
+import { setCurrentUserId } from '../../shared/db/userSession';
 
 const loginSchema = z.object({
   email: z.string().email('Некорректный email'),
@@ -33,6 +34,11 @@ export default function LoginScreen() {
       
       if (response.data.accessToken) {
         await setToken(response.data.accessToken);
+        const currentUserId = response.data.user?.id;
+        if (currentUserId) {
+          await setUserId(currentUserId);
+          setCurrentUserId(currentUserId);
+        }
         const userRole = response.data.user?.role;
         if (userRole) {
           await AsyncStorage.setItem('userRole', userRole);

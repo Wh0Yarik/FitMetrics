@@ -8,9 +8,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { COLORS } from '../../../constants/Colors';
-import { removeToken, setToken } from '../../../shared/lib/storage';
+import { removeToken, removeUserId, setToken, setUserId } from '../../../shared/lib/storage';
 import { seedLocalData } from '../../../shared/db/seedLocalData';
 import { api } from '../../../shared/api/client';
+import { setCurrentUserId } from '../../../shared/db/userSession';
 
 const GENDERS = [
   { key: 'male', label: 'Мужской' },
@@ -205,6 +206,8 @@ export default function ProfileScreen() {
       { text: 'Отмена', style: 'cancel' },
       { text: 'Выйти', style: 'destructive', onPress: async () => {
         await removeToken();
+        await removeUserId();
+        setCurrentUserId(null);
         await AsyncStorage.removeItem('userRole');
         router.replace('/auth/login');
       }},
@@ -299,6 +302,11 @@ export default function ProfileScreen() {
       const response = await api.post('/auth/login', credentials[role]);
       if (response.data.accessToken) {
         await setToken(response.data.accessToken);
+        const currentUserId = response.data.user?.id;
+        if (currentUserId) {
+          await setUserId(currentUserId);
+          setCurrentUserId(currentUserId);
+        }
         await AsyncStorage.setItem('userRole', response.data.user?.role ?? role.toUpperCase());
         if (role === 'trainer') {
           router.replace('/(trainer)/clients');

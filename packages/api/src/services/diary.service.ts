@@ -74,4 +74,40 @@ export class DiaryService {
       return { diaryId: diary.id, synced: true };
     });
   }
+
+  async listDiaryEntries(userId: string, from?: string, to?: string) {
+    const client = await prisma.client.findUnique({ where: { userId } });
+    if (!client) {
+      throw new AppError('Client not found', 404);
+    }
+
+    const where: any = { clientId: client.id };
+    if (from || to) {
+      where.date = {};
+      if (from) where.date.gte = toDate(from);
+      if (to) where.date.lte = toDate(to);
+    }
+
+    const entries = await prisma.diaryEntry.findMany({
+      where,
+      include: {
+        meals: true,
+      },
+      orderBy: { date: 'desc' },
+    });
+
+    return entries.map((entry) => ({
+      id: entry.id,
+      date: entry.date.toISOString().slice(0, 10),
+      meals: entry.meals.map((meal) => ({
+        id: meal.id,
+        name: meal.name,
+        time: meal.time ? meal.time.toISOString() : null,
+        protein: meal.protein,
+        fat: meal.fat,
+        carbs: meal.carbs,
+        fiber: meal.fiber,
+      })),
+    }));
+  }
 }
