@@ -24,6 +24,10 @@
       },
       "package": "com.whoyarik.mobile"
     },
+    "androidNavigationBar": {
+      "backgroundColor": "#00000000",
+      "barStyle": "dark-content"
+    },
     "web": {
       "favicon": "./assets/favicon.png"
     },

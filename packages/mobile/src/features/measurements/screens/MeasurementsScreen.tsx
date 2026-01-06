@@ -1,16 +1,17 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StatusBar, Image, Alert, StyleSheet, Modal, Pressable } from 'react-native';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, Image, Alert, StyleSheet, Modal, Pressable, PanResponder, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Calendar, Ruler, Pencil, Trash2, ChevronLeft, ChevronDown, Cloud, RefreshCw } from 'lucide-react-native';
+import { Plus, Calendar, Ruler, Pencil, Trash2, ChevronLeft } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
-import Svg, { Defs, LinearGradient, Stop, Path } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 
 import { measurementsRepository, MeasurementEntry } from '../repositories/MeasurementsRepository';
 import { AddMeasurementModal } from '../components/AddMeasurementModal';
 import { COLORS } from '../../../constants/Colors';
 import { api } from '../../../shared/api/client';
 import { dailySurveyRepository } from '../../diary/repositories/DailySurveyRepository';
+import { CalendarHeader, CalendarWeekDay } from '../../../shared/components/CalendarHeader';
 
 type MetricKey = 'weight' | 'waist' | 'hips' | 'chest';
 
@@ -24,6 +25,12 @@ const formatDateKey = (date: Date) => {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+const shiftDate = (dateStr: string, days: number) => {
+  const date = getDateObj(dateStr);
+  date.setDate(date.getDate() + days);
+  return formatDateKey(date);
 };
 
 const getHeaderTitle = (currentDate: string) => {
@@ -97,90 +104,6 @@ const buildLinePath = (values: Array<number | null>) => {
     .join(' ');
 };
 
-const WeekProgressBorder = ({
-  progress,
-  accent,
-  baseColor,
-}: {
-  progress: number;
-  accent: string;
-  baseColor: string;
-}) => {
-  const normalized = Math.max(0, progress);
-  const baseProgress = Math.min(1, normalized);
-  const overflowProgress = Math.min(1, Math.max(0, normalized - 1));
-  const rectWidth = 37;
-  const rectHeight = 69;
-  const rectRadius = 18;
-  const rectX = 0.5;
-  const rectY = 0.5;
-  const rectRight = rectX + rectWidth;
-  const rectBottom = rectY + rectHeight;
-  const rectTop = rectY;
-  const rectLeft = rectX;
-  const topCenterX = rectX + rectWidth / 2;
-  const straightLength = 2 * (rectWidth + rectHeight - 4 * rectRadius);
-  const curvedLength = 2 * Math.PI * rectRadius;
-  const perimeter = straightLength + curvedLength;
-  const filled = baseProgress * perimeter;
-  const remaining = perimeter - filled;
-  const overflowFilled = overflowProgress * perimeter;
-  const overflowRemaining = perimeter - overflowFilled;
-  const path = [
-    `M ${topCenterX} ${rectTop}`,
-    `L ${rectRight - rectRadius} ${rectTop}`,
-    `A ${rectRadius} ${rectRadius} 0 0 1 ${rectRight} ${rectTop + rectRadius}`,
-    `L ${rectRight} ${rectBottom - rectRadius}`,
-    `A ${rectRadius} ${rectRadius} 0 0 1 ${rectRight - rectRadius} ${rectBottom}`,
-    `L ${rectLeft + rectRadius} ${rectBottom}`,
-    `A ${rectRadius} ${rectRadius} 0 0 1 ${rectLeft} ${rectBottom - rectRadius}`,
-    `L ${rectLeft} ${rectTop + rectRadius}`,
-    `A ${rectRadius} ${rectRadius} 0 0 1 ${rectLeft + rectRadius} ${rectTop}`,
-    `L ${topCenterX} ${rectTop}`,
-  ].join(' ');
-  const accentBase = accent.startsWith('#') ? accent.slice(0, 7) : accent;
-  const gradientId = `measure-week-${accentBase.replace('#', '')}`;
-  const overflowColor = '#F97316';
-
-  return (
-    <Svg width="100%" height="100%" viewBox="0 0 38 70">
-      <Defs>
-        <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={accentBase} stopOpacity="0.95" />
-          <Stop offset="1" stopColor={`${accentBase}66`} />
-        </LinearGradient>
-      </Defs>
-      <Path
-        d={path}
-        fill="none"
-        stroke={baseColor}
-        strokeWidth="2"
-      />
-      <Path
-        d={path}
-        fill="none"
-        stroke={`url(#${gradientId})`}
-        strokeWidth="2"
-        strokeDasharray={`${filled} ${remaining}`}
-        strokeDashoffset="0"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {overflowProgress > 0 ? (
-        <Path
-          d={path}
-          fill="none"
-          stroke={overflowColor}
-          strokeWidth="2"
-          strokeDasharray={`${overflowFilled} ${overflowRemaining}`}
-          strokeDashoffset="0"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      ) : null}
-    </Svg>
-  );
-};
 
 const formatDate = (date: string) =>
   new Date(date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -272,6 +195,7 @@ export default function MeasurementsScreen() {
   const [isModalOpen, setModalOpen] = useState(false);
   const [editingMeasurement, setEditingMeasurement] = useState<MeasurementEntry | null>(null);
   const [currentDate, setCurrentDate] = useState(() => formatDateKey(new Date()));
+  const [visibleWeekDate, setVisibleWeekDate] = useState(currentDate);
   const [isCalendarOpen, setCalendarOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing'>('synced');
   const [surveyPrefill, setSurveyPrefill] = useState<number | null>(null);
@@ -279,6 +203,10 @@ export default function MeasurementsScreen() {
     const date = getDateObj(currentDate);
     return new Date(date.getFullYear(), date.getMonth(), 1);
   });
+
+  useEffect(() => {
+    setVisibleWeekDate(currentDate);
+  }, [currentDate]);
 
   const loadData = useCallback(() => {
     const data = measurementsRepository.getAllMeasurements();
@@ -483,7 +411,7 @@ export default function MeasurementsScreen() {
   const weekDays = useMemo(() => {
     const today = new Date();
     const todayStr = formatDateKey(today);
-    return getWeekDates(currentDate).map((day, index) => {
+    return getWeekDates(visibleWeekDate).map((day, index) => {
       const dateStr = formatDateKey(day);
       const hasMeasurement = measurementsByDate.has(dateStr);
       return {
@@ -497,7 +425,17 @@ export default function MeasurementsScreen() {
         progress: hasMeasurement ? 1 : 0,
       };
     });
-  }, [currentDate, measurementsByDate]);
+  }, [currentDate, measurementsByDate, visibleWeekDate]);
+  const calendarWeekDays = useMemo<CalendarWeekDay[]>(() => weekDays.map((day) => ({
+    dateStr: day.dateStr,
+    label: day.label,
+    day: day.day,
+    isSelected: day.isSelected,
+    isToday: day.isToday,
+    progress: day.progress,
+    showProgress: day.hasMeasurement || day.isSelected,
+    markerState: day.hasMeasurement ? 'complete' : 'none',
+  })), [weekDays]);
   const selectedMeasurements = useMemo(
     () => measurements.filter((entry) => entry.date === currentDate),
     [currentDate, measurements]
@@ -524,6 +462,69 @@ export default function MeasurementsScreen() {
   const handleMonthShift = useCallback((direction: number) => {
     setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + direction, 1));
   }, []);
+
+  const calendarAnim = useRef(new Animated.Value(0)).current;
+  const animateCalendar = useCallback((direction: number) => {
+    calendarAnim.setValue(direction * -18);
+    Animated.timing(calendarAnim, {
+      toValue: 0,
+      duration: 280,
+      useNativeDriver: true,
+    }).start();
+  }, [calendarAnim]);
+
+  const calendarPanResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) =>
+      Math.abs(gesture.dx) > 20 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+    onPanResponderMove: (_, gesture) => {
+      const clamped = Math.max(-24, Math.min(24, gesture.dx * 0.25));
+      calendarAnim.setValue(clamped);
+    },
+    onPanResponderRelease: (_, gesture) => {
+      if (Math.abs(gesture.dx) < 40) {
+        Animated.timing(calendarAnim, {
+          toValue: 0,
+          duration: 160,
+          useNativeDriver: true,
+        }).start();
+        return;
+      }
+      const direction = gesture.dx > 0 ? -1 : 1;
+      handleMonthShift(direction);
+      animateCalendar(direction);
+    },
+  }), [animateCalendar, calendarAnim, handleMonthShift]);
+
+  const weekSwipeAnim = useRef(new Animated.Value(0)).current;
+  const handleWeekShift = useCallback((direction: number) => {
+    setVisibleWeekDate((prev) => shiftDate(prev, direction * 7));
+  }, []);
+
+  const weekPanResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) =>
+      Math.abs(gesture.dx) > 20 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+    onPanResponderMove: (_, gesture) => {
+      const clamped = Math.max(-28, Math.min(28, gesture.dx * 0.2));
+      weekSwipeAnim.setValue(clamped);
+    },
+    onPanResponderRelease: (_, gesture) => {
+      if (Math.abs(gesture.dx) < 40) {
+        Animated.timing(weekSwipeAnim, {
+          toValue: 0,
+          duration: 160,
+          useNativeDriver: true,
+        }).start();
+        return;
+      }
+      const direction = gesture.dx > 0 ? -1 : 1;
+      handleWeekShift(direction);
+      Animated.timing(weekSwipeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    },
+  }), [handleWeekShift, weekSwipeAnim]);
 
   const handleSave = (data: Partial<MeasurementEntry>) => {
     const targetDate = editingMeasurement?.date ?? currentDate;
@@ -573,75 +574,20 @@ export default function MeasurementsScreen() {
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <StatusBar barStyle="dark-content" />
 
-        <View style={styles.headerWrap}>
-          <View style={styles.headerCard}>
-            <View style={styles.headerTopRow}>
-              <TouchableOpacity style={styles.dateRow} onPress={handleOpenCalendar}>
-                <View style={styles.dateLeft}>
-                  {relativeLabel ? (
-                    <View style={styles.relativePill}>
-                      <Text style={styles.relativePillText}>{relativeLabel}</Text>
-                    </View>
-                  ) : null}
-                  <Text style={styles.dateText}>{getHeaderTitle(currentDate)}</Text>
-                </View>
-                <ChevronDown size={16} color="#9CA3AF" />
-              </TouchableOpacity>
-              <View style={styles.syncStatus}>
-                <View style={[styles.syncBadge, syncStatus === 'synced' && styles.syncBadgeSuccess]}>
-                  {syncStatus === 'syncing' ? (
-                    <RefreshCw size={14} color="#6B7280" />
-                  ) : (
-                    <Cloud size={14} color="#10B981" />
-                  )}
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.weekRow}>
-              <View style={styles.weekDays}>
-                {weekDays.map((day) => (
-                  <TouchableOpacity
-                    key={day.dateStr}
-                    onPress={() => setCurrentDate(day.dateStr)}
-                    style={[
-                      styles.weekDayItem,
-                      day.isSelected && styles.weekDayItemSelected,
-                      day.isToday && !day.isSelected && styles.weekDayItemToday,
-                    ]}
-                  >
-                    {(day.hasMeasurement || day.isSelected) && (
-                      <View pointerEvents="none" style={styles.weekDayProgress}>
-                        <WeekProgressBorder
-                          progress={day.progress}
-                          accent={day.isSelected ? '#FFFFFF' : COLORS.primary}
-                          baseColor={day.isSelected ? 'rgba(255,255,255,0.35)' : '#E5E7EB'}
-                        />
-                      </View>
-                    )}
-                    <Text style={[styles.weekDayLabel, day.isSelected && styles.weekDayLabelSelected]}>
-                      {day.label}
-                    </Text>
-                    <View
-                      style={[
-                        styles.weekDayDot,
-                        !day.hasMeasurement && styles.weekDayDotHidden,
-                        day.isSelected && styles.weekDayDotSelected,
-                      ]}
-                    />
-                    {day.isSelected ? (
-                      <View style={styles.weekDayNumberPill}>
-                        <Text style={styles.weekDayNumberSelected}>{day.day}</Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.weekDayNumber}>{day.day}</Text>
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </View>
-        </View>
+        <CalendarHeader
+          dateLabel={getHeaderTitle(currentDate)}
+          relativeLabel={relativeLabel}
+          syncStatus={syncStatus}
+          weekDays={calendarWeekDays}
+          onOpenCalendar={handleOpenCalendar}
+          onSelectDay={(dateStr) => {
+            setCurrentDate(dateStr);
+            setVisibleWeekDate(dateStr);
+          }}
+          weekSwipeAnim={weekSwipeAnim}
+          weekPanHandlers={weekPanResponder.panHandlers}
+          useSafeArea={false}
+        />
 
         <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 120 }}>
           <TouchableOpacity
@@ -779,7 +725,13 @@ export default function MeasurementsScreen() {
                   <Text key={label} style={styles.calendarWeekLabel}>{label}</Text>
                 ))}
               </View>
-              <View style={styles.calendarGrid}>
+              <Animated.View
+                style={[
+                  styles.calendarGrid,
+                  { transform: [{ translateX: calendarAnim }] },
+                ]}
+                {...calendarPanResponder.panHandlers}
+              >
                 {calendarDays.map((day, index) => {
                   if (!day) {
                     return <View key={`empty-${index}`} style={styles.calendarCellEmpty} />;
@@ -794,6 +746,7 @@ export default function MeasurementsScreen() {
                       style={styles.calendarCell}
                       onPress={() => {
                         setCurrentDate(dateStr);
+                        setVisibleWeekDate(dateStr);
                         setCalendarOpen(false);
                       }}
                     >
@@ -819,7 +772,7 @@ export default function MeasurementsScreen() {
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+              </Animated.View>
             </Pressable>
           </Pressable>
         </Modal>
@@ -865,143 +818,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#E0F2FE',
     opacity: 0.5,
-  },
-  headerWrap: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
-  },
-  headerCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 4,
-  },
-  dateLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  relativePill: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  relativePillText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  dateText: {
-    color: '#111827',
-    fontSize: 18,
-    fontWeight: '700',
-    paddingVertical: 4,
-  },
-  syncStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  syncBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-  },
-  syncBadgeSuccess: {
-    backgroundColor: '#ECFDF3',
-  },
-  weekRow: {
-    marginTop: 12,
-  },
-  weekDays: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 6,
-  },
-  weekDayItem: {
-    width: 38,
-    height: 70,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-  },
-  weekDayProgress: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  weekDayItemSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  weekDayItemToday: {
-    borderColor: '#D1FAE5',
-    backgroundColor: '#ECFDF3',
-  },
-  weekDayLabel: {
-    fontSize: 10,
-    color: '#9CA3AF',
-    fontWeight: '700',
-  },
-  weekDayLabelSelected: {
-    color: '#FFFFFF',
-  },
-  weekDayNumber: {
-    marginTop: 2,
-    fontSize: 16,
-    fontWeight: '300',
-    color: '#111827',
-  },
-  weekDayDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    marginTop: 4,
-    backgroundColor: COLORS.primary,
-  },
-  weekDayDotHidden: {
-    opacity: 0,
-  },
-  weekDayDotSelected: {
-    backgroundColor: '#FFFFFF',
-  },
-  weekDayNumberPill: {
-    marginTop: 4,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  weekDayNumberSelected: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: COLORS.primary,
   },
   sectionHeader: {
     paddingHorizontal: 24,
