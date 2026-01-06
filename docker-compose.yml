@@ -35,7 +35,34 @@ services:
       mc anonymous set download local/fitmetrics-media;
       exit 0;
       "
+  api:
+    build:
+      context: ./packages/api
+    container_name: fitmetrics_api
+    restart: always
+    env_file:
+      - ./packages/api/.env
+    depends_on:
+      - db
+      - minio
+    expose:
+      - "3001"
+  caddy:
+    image: caddy:2
+    container_name: fitmetrics_caddy
+    restart: always
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
 
 volumes:
   postgres_data:
   minio_data:
+  caddy_data:
+  caddy_config:
