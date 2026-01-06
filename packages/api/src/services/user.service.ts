@@ -13,10 +13,18 @@ export class UserService {
       include: {
         client: {
           include: {
-            currentTrainer: true,
+            currentTrainer: {
+              include: {
+                user: true,
+              },
+            },
           },
         },
-        trainer: true,
+        trainer: {
+          include: {
+            user: true,
+          },
+        },
       },
     });
 
@@ -31,13 +39,18 @@ export class UserService {
       avatarUrl: string | null;
       phone: string | null;
       socialLink: string | null;
+      user?: {
+        email: string;
+      } | null;
     }) => {
       const contacts: { label: string; value: string }[] = [];
       if (trainer.phone) {
         contacts.push({ label: 'Телефон', value: trainer.phone });
       }
       if (trainer.socialLink) {
-        contacts.push({ label: 'Соцсеть', value: trainer.socialLink });
+        const normalized = trainer.socialLink.trim();
+        const label = normalized.includes('t.me') || normalized.startsWith('@') ? 'Telegram' : 'Соцсеть';
+        contacts.push({ label, value: normalized });
       }
       return {
         id: trainer.id,
@@ -45,6 +58,7 @@ export class UserService {
         status: trainer.moderationStatus,
         avatarUrl: trainer.avatarUrl ?? null,
         contacts,
+        email: trainer.user?.email ?? null,
       };
     };
 
