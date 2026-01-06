@@ -11,7 +11,9 @@ import { api } from '../../../shared/api/client';
 export const useAuthActions = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [isPasswordOpen, setPasswordOpen] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [currentPasswordError, setCurrentPasswordError] = useState<string | null>(null);
+  const [confirmPasswordError, setConfirmPasswordError] = useState<string | null>(null);
 
   const handleLogout = useCallback(() => {
     Alert.alert('Выход', 'Вы уверены, что хотите выйти?', [
@@ -27,16 +29,37 @@ export const useAuthActions = () => {
     ]);
   }, []);
 
-  const handleSavePassword = useCallback(() => {
-    if (!currentPassword || !newPassword) {
-      Alert.alert('Смена пароля', 'Заполните оба поля');
-      return;
+  const handleSavePassword = useCallback(async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Alert.alert('Смена пароля', 'Заполните все поля');
+      return false;
     }
-    setPasswordOpen(false);
-    setCurrentPassword('');
-    setNewPassword('');
-    Alert.alert('Готово', 'Пароль обновлен');
-  }, [currentPassword, newPassword]);
+    if (newPassword !== confirmPassword) {
+      setConfirmPasswordError('Пароли не совпадают');
+      return false;
+    }
+    try {
+      await api.put('/users/me/password', {
+        currentPassword,
+        newPassword,
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setCurrentPasswordError(null);
+      setConfirmPasswordError(null);
+      Alert.alert('Готово', 'Пароль обновлен');
+      return true;
+    } catch (error: any) {
+      const message = error.response?.data?.message;
+      if (typeof message === 'string' && message.toLowerCase().includes('current password')) {
+        setCurrentPasswordError('Неверный пароль');
+        return false;
+      }
+      Alert.alert('Ошибка', message || 'Не удалось обновить пароль');
+      return false;
+    }
+  }, [confirmPassword, currentPassword, newPassword]);
 
   const handleSeedLocalData = useCallback(() => {
     Alert.alert('Демо-данные', 'Заполнить неделю локальными данными?', [
@@ -85,10 +108,14 @@ export const useAuthActions = () => {
   return {
     currentPassword,
     newPassword,
-    isPasswordOpen,
+    confirmPassword,
+    currentPasswordError,
+    confirmPasswordError,
     setCurrentPassword,
     setNewPassword,
-    setPasswordOpen,
+    setConfirmPassword,
+    setCurrentPasswordError,
+    setConfirmPasswordError,
     handleLogout,
     handleSavePassword,
     handleSeedLocalData,

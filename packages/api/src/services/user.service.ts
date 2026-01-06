@@ -1,3 +1,4 @@
+import bcrypt from 'bcrypt';
 import prisma from '../lib/db';
 import { AppError } from '../lib/AppError';
 import { InviteStatus } from '@prisma/client';
@@ -39,6 +40,8 @@ export class UserService {
       avatarUrl: string | null;
       phone: string | null;
       socialLink: string | null;
+      bio: string | null;
+      specialization: string | null;
       user?: {
         email: string;
       } | null;
@@ -57,6 +60,8 @@ export class UserService {
         name: trainer.name,
         status: trainer.moderationStatus,
         avatarUrl: trainer.avatarUrl ?? null,
+        bio: trainer.bio ?? null,
+        specialization: trainer.specialization ?? null,
         contacts,
       };
     };
@@ -298,6 +303,33 @@ export class UserService {
     });
 
     return this.getMe(userId);
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    if (newPassword.trim().length < 6) {
+      throw new AppError('Password must be at least 6 characters long', 400);
+    }
+
+    const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isValid) {
+      throw new AppError('Invalid current password', 400);
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    return { status: 'ok' };
   }
 
   async removeTrainer(userId: string) {

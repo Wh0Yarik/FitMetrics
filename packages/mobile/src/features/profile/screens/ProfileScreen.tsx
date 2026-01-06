@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Animated,
   Alert,
+  Dimensions,
   Easing,
   LayoutAnimation,
+  Linking,
   Platform,
   UIManager,
   View,
@@ -17,9 +19,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronDown, X } from 'lucide-react-native';
-import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 
-import { AppButton, AppInput, Card, colors, radii, spacing } from '../../../shared/ui';
+import { AppButton, AppInput, Card, colors, radii, spacing, useTabBarVisibility } from '../../../shared/ui';
 import { normalizeBirthDateInput } from '../../../shared/lib/date';
 import { ProfileHeader } from '../components/ProfileHeader';
 import { TrainerCard } from '../components/TrainerCard';
@@ -33,13 +34,32 @@ const GENDERS = [
   { key: 'female', label: 'Женский' },
 ] as const;
 
+const SHEET_HEIGHT = Math.round(Dimensions.get('window').height * 0.75);
+const SHEET_ANIM = {
+  inDuration: 200,
+  outDuration: 200,
+  inEasing: Easing.out(Easing.cubic),
+  outEasing: Easing.in(Easing.cubic),
+  translateStart: SHEET_HEIGHT,
+  translateInDuration: 800,
+  translateOutDuration: 450,
+};
+
 export default function ProfileScreen() {
+  const { setHidden: setTabBarHidden } = useTabBarVisibility();
   const [isEditOpen, setEditOpen] = useState(false);
   const [isEditVisible, setEditVisible] = useState(false);
   const [isTrainerOpen, setTrainerOpen] = useState(false);
+  const [isTrainerSheetOpen, setTrainerSheetOpen] = useState(false);
+  const [isTrainerSheetVisible, setTrainerSheetVisible] = useState(false);
+  const [isPasswordSheetOpen, setPasswordSheetOpen] = useState(false);
+  const [isPasswordSheetVisible, setPasswordSheetVisible] = useState(false);
   const editBackdropOpacity = useRef(new Animated.Value(0)).current;
-  const editSheetTranslate = useRef(new Animated.Value(420)).current;
-  const trainerSwipeRef = useRef<Swipeable>(null);
+  const editSheetTranslate = useRef(new Animated.Value(SHEET_ANIM.translateStart)).current;
+  const trainerSheetOpacity = useRef(new Animated.Value(0)).current;
+  const trainerSheetTranslate = useRef(new Animated.Value(SHEET_ANIM.translateStart)).current;
+  const passwordSheetOpacity = useRef(new Animated.Value(0)).current;
+  const passwordSheetTranslate = useRef(new Animated.Value(SHEET_ANIM.translateStart)).current;
 
   const trainer = useTrainerConnection();
   const profile = useUserProfile({ onTrainerLoaded: trainer.applyTrainerData });
@@ -52,6 +72,10 @@ export default function ProfileScreen() {
     }
   };
 
+  const isPasswordSaveDisabled = !auth.currentPassword.trim()
+    || !auth.newPassword.trim()
+    || !auth.confirmPassword.trim();
+
   const genderOptions = useMemo(() => GENDERS, []);
 
   useEffect(() => {
@@ -59,6 +83,10 @@ export default function ProfileScreen() {
       UIManager.setLayoutAnimationEnabledExperimental(true);
     }
   }, []);
+
+  useEffect(() => {
+    setTabBarHidden(isEditOpen || isTrainerSheetOpen || isPasswordSheetOpen);
+  }, [isEditOpen, isPasswordSheetOpen, isTrainerSheetOpen, setTabBarHidden]);
 
   const handleToggleTrainer = () => {
     LayoutAnimation.configureNext(
@@ -68,15 +96,50 @@ export default function ProfileScreen() {
   };
 
   const handleRemoveTrainer = useCallback(() => {
-    Alert.alert('Удалить тренера', 'Вы уверены, что хотите удалить тренера?', [
-      { text: 'Отмена', style: 'cancel', onPress: () => trainerSwipeRef.current?.close() },
+    Alert.alert('Расстаться с тренером', 'Вы уверены, что хотите расстаться с тренером?', [
+      { text: 'Отмена', style: 'cancel' },
       {
         text: 'Удалить',
         style: 'destructive',
-        onPress: () => trainer.removeTrainer(),
+        onPress: () => {
+          setTrainerSheetOpen(false);
+          trainer.removeTrainer();
+        },
       },
     ]);
   }, [trainer]);
+
+  const openTrainerSheet = useCallback(() => {
+    setTrainerSheetOpen(true);
+  }, []);
+
+  const closeTrainerSheet = useCallback(() => {
+    setTrainerSheetOpen(false);
+  }, []);
+
+  const handleTrainerContactPress = useCallback(async (label: string, value: string) => {
+    const normalized = value.trim();
+    let url = '';
+
+    if (label.toLowerCase().includes('телефон')) {
+      url = `tel:${normalized}`;
+    } else if (normalized.startsWith('@')) {
+      url = `https://t.me/${normalized.slice(1)}`;
+    } else if (normalized.includes('t.me')) {
+      url = normalized.startsWith('http') ? normalized : `https://${normalized}`;
+    } else if (normalized.startsWith('http')) {
+      url = normalized;
+    }
+
+    if (!url) {
+      return;
+    }
+
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) {
+      await Linking.openURL(url);
+    }
+  }, []);
 
   useEffect(() => {
     if (isEditOpen) {
@@ -84,14 +147,14 @@ export default function ProfileScreen() {
       Animated.parallel([
         Animated.timing(editBackdropOpacity, {
           toValue: 1,
-          duration: 320,
-          easing: Easing.out(Easing.cubic),
+          duration: SHEET_ANIM.inDuration,
+          easing: SHEET_ANIM.inEasing,
           useNativeDriver: true,
         }),
         Animated.timing(editSheetTranslate, {
           toValue: 0,
-          duration: 360,
-          easing: Easing.out(Easing.cubic),
+          duration: SHEET_ANIM.translateInDuration,
+          easing: SHEET_ANIM.inEasing,
           useNativeDriver: true,
         }),
       ]).start();
@@ -99,14 +162,14 @@ export default function ProfileScreen() {
       Animated.parallel([
         Animated.timing(editBackdropOpacity, {
           toValue: 0,
-          duration: 200,
-          easing: Easing.in(Easing.cubic),
+          duration: SHEET_ANIM.outDuration,
+          easing: SHEET_ANIM.outEasing,
           useNativeDriver: true,
         }),
         Animated.timing(editSheetTranslate, {
-          toValue: 420,
-          duration: 240,
-          easing: Easing.in(Easing.cubic),
+          toValue: SHEET_ANIM.translateStart,
+          duration: SHEET_ANIM.translateOutDuration,
+          easing: SHEET_ANIM.outEasing,
           useNativeDriver: true,
         }),
       ]).start(({ finished }) => {
@@ -117,8 +180,86 @@ export default function ProfileScreen() {
     }
   }, [editBackdropOpacity, editSheetTranslate, isEditOpen]);
 
+  useEffect(() => {
+    if (isTrainerSheetOpen) {
+      setTrainerSheetVisible(true);
+      Animated.parallel([
+        Animated.timing(trainerSheetOpacity, {
+          toValue: 1,
+          duration: SHEET_ANIM.inDuration,
+          easing: SHEET_ANIM.inEasing,
+          useNativeDriver: true,
+        }),
+        Animated.timing(trainerSheetTranslate, {
+          toValue: 0,
+          duration: SHEET_ANIM.translateInDuration,
+          easing: SHEET_ANIM.inEasing,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(trainerSheetOpacity, {
+          toValue: 0,
+          duration: SHEET_ANIM.outDuration,
+          easing: SHEET_ANIM.outEasing,
+          useNativeDriver: true,
+        }),
+        Animated.timing(trainerSheetTranslate, {
+          toValue: SHEET_ANIM.translateStart,
+          duration: SHEET_ANIM.translateOutDuration,
+          easing: SHEET_ANIM.outEasing,
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) {
+          setTrainerSheetVisible(false);
+        }
+      });
+    }
+  }, [isTrainerSheetOpen, trainerSheetOpacity, trainerSheetTranslate]);
+
+  useEffect(() => {
+    if (isPasswordSheetOpen) {
+      setPasswordSheetVisible(true);
+      Animated.parallel([
+        Animated.timing(passwordSheetOpacity, {
+          toValue: 1,
+          duration: SHEET_ANIM.inDuration,
+          easing: SHEET_ANIM.inEasing,
+          useNativeDriver: true,
+        }),
+        Animated.timing(passwordSheetTranslate, {
+          toValue: 0,
+          duration: SHEET_ANIM.translateInDuration,
+          easing: SHEET_ANIM.inEasing,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(passwordSheetOpacity, {
+          toValue: 0,
+          duration: SHEET_ANIM.outDuration,
+          easing: SHEET_ANIM.outEasing,
+          useNativeDriver: true,
+        }),
+        Animated.timing(passwordSheetTranslate, {
+          toValue: SHEET_ANIM.translateStart,
+          duration: SHEET_ANIM.translateOutDuration,
+          easing: SHEET_ANIM.outEasing,
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) {
+          setPasswordSheetVisible(false);
+        }
+      });
+    }
+  }, [isPasswordSheetOpen, passwordSheetOpacity, passwordSheetTranslate]);
+
   return (
-    <GestureHandlerRootView style={styles.screen}>
+    <View style={styles.screen}>
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <StatusBar barStyle="dark-content" />
 
@@ -146,36 +287,17 @@ export default function ProfileScreen() {
             <View style={styles.accordionBody}>
               {trainer.trainerId ? (
                 <>
-                  <Swipeable
-                    ref={trainerSwipeRef}
-                    overshootRight={false}
-                    rightThreshold={60}
-                    renderRightActions={() => (
-                      <TouchableOpacity onPress={handleRemoveTrainer} style={styles.trainerRemoveAction}>
-                        <Text style={styles.trainerRemoveText}>Удалить</Text>
-                      </TouchableOpacity>
-                    )}
-                  >
+                  <Pressable onPress={openTrainerSheet}>
                     <TrainerCard
                       trainerDisplayName={trainer.trainerDisplayName}
                       trainerDisplayStatus={trainer.trainerDisplayStatus}
                       trainerAvatar={trainer.trainerAvatar}
                       trainerContacts={trainer.trainerContacts}
                     />
-                  </Swipeable>
-                  <View style={styles.trainerAction}>
-                    <AppButton
-                      title="Сменить тренера"
-                      onPress={() => trainer.setInviteOpen(true)}
-                      variant="secondary"
-                      size="md"
-                      style={styles.trainerActionButton}
-                    />
-                  </View>
+                  </Pressable>
                 </>
               ) : (
                 <Card style={styles.trainerEmptyCard}>
-                  <Text style={styles.trainerEmptyTitle}>Введите инвайт-код тренера</Text>
                   <AppInput
                     label="Инвайт-код"
                     value={trainer.inviteCode}
@@ -185,7 +307,7 @@ export default function ProfileScreen() {
                     containerStyle={styles.modalField}
                     style={styles.modalInput}
                   />
-                  <AppButton title="Привязать тренера" onPress={trainer.handleSaveInvite} size="md" />
+                  <AppButton title="Применить" onPress={trainer.handleSaveInvite} size="md" />
                 </Card>
               )}
             </View>
@@ -195,7 +317,7 @@ export default function ProfileScreen() {
 
           <Card style={styles.settingsCard}>
             <SettingsMenu
-              onChangePassword={() => auth.setPasswordOpen(true)}
+              onChangePassword={() => setPasswordSheetOpen(true)}
               onLogout={auth.handleLogout}
             />
           </Card>
@@ -238,20 +360,20 @@ export default function ProfileScreen() {
           </View>
         </Modal>
 
-        <Modal visible={isEditVisible} transparent animationType="none" onRequestClose={() => setEditOpen(false)}>
-          <View style={styles.sheetRoot}>
+        {isEditVisible ? (
+          <View style={styles.sheetPortal} pointerEvents="auto">
             <Pressable onPress={() => setEditOpen(false)} style={StyleSheet.absoluteFillObject}>
               <Animated.View style={[styles.sheetOverlay, { opacity: editBackdropOpacity }]} />
             </Pressable>
             <Animated.View style={[styles.sheetCardContainer, { transform: [{ translateY: editSheetTranslate }] }]}>
-              <Card style={styles.sheetCard}>
+              <Card style={styles.sheetCardLarge}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>Редактировать профиль</Text>
                   <TouchableOpacity onPress={() => setEditOpen(false)} style={styles.closeButton}>
                     <X size={16} color="#6B7280" />
                   </TouchableOpacity>
-              </View>
-
+                </View>
+                <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetScrollContent} showsVerticalScrollIndicator={false}>
               <AppInput
                 label="Имя"
                 value={profile.name}
@@ -322,50 +444,181 @@ export default function ProfileScreen() {
                 </View>
               </View>
 
-              <View style={styles.actionRow}>
-                <AppButton title="Отмена" onPress={() => setEditOpen(false)} variant="secondary" size="md" />
-                <AppButton title="Сохранить" onPress={handleSaveProfile} size="md" />
+              <View style={styles.sheetActionRow}>
+                <AppButton
+                  title="Сохранить"
+                  onPress={handleSaveProfile}
+                  size="md"
+                  style={styles.sheetActionButton}
+                />
+                <AppButton
+                  title="Отмена"
+                  onPress={() => setEditOpen(false)}
+                  variant="secondary"
+                  size="md"
+                  style={styles.sheetActionButton}
+                />
               </View>
+                </ScrollView>
               </Card>
             </Animated.View>
           </View>
-        </Modal>
+        ) : null}
 
-        <Modal visible={auth.isPasswordOpen} transparent animationType="fade" onRequestClose={() => auth.setPasswordOpen(false)}>
-          <View style={styles.modalBackdrop}>
-            <Card style={styles.modalCard}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Сменить пароль</Text>
-                <TouchableOpacity onPress={() => auth.setPasswordOpen(false)} style={styles.closeButton}>
-                  <X size={16} color="#6B7280" />
-                </TouchableOpacity>
-              </View>
+        {isPasswordSheetVisible ? (
+          <View style={styles.sheetPortal} pointerEvents="auto">
+            <Pressable onPress={() => setPasswordSheetOpen(false)} style={StyleSheet.absoluteFillObject}>
+              <Animated.View style={[styles.sheetOverlay, { opacity: passwordSheetOpacity }]} />
+            </Pressable>
+            <Animated.View style={[styles.sheetCardContainer, { transform: [{ translateY: passwordSheetTranslate }] }]}>
+              <Card style={styles.sheetCardLarge}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Сменить пароль</Text>
+                  <TouchableOpacity onPress={() => setPasswordSheetOpen(false)} style={styles.closeButton}>
+                    <X size={16} color="#6B7280" />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetScrollContent} showsVerticalScrollIndicator={false}>
+                  <AppInput
+                    label="Старый пароль"
+                    value={auth.currentPassword}
+                    onChangeText={(value) => {
+                      auth.setCurrentPassword(value);
+                      if (auth.currentPasswordError) {
+                        auth.setCurrentPasswordError(null);
+                      }
+                    }}
+                    placeholder="Введите старый пароль"
+                    secureTextEntry
+                    containerStyle={styles.modalField}
+                    style={styles.modalInput}
+                    error={auth.currentPasswordError}
+                  />
 
-              <AppInput
-                label="Старый пароль"
-                value={auth.currentPassword}
-                onChangeText={auth.setCurrentPassword}
-                placeholder="Введите старый пароль"
-                secureTextEntry
-              />
+                  <AppInput
+                    label="Новый пароль"
+                    value={auth.newPassword}
+                    onChangeText={(value) => {
+                      auth.setNewPassword(value);
+                      if (auth.confirmPasswordError) {
+                        auth.setConfirmPasswordError(null);
+                      }
+                    }}
+                    placeholder="Введите новый пароль"
+                    secureTextEntry
+                    containerStyle={styles.modalField}
+                    style={styles.modalInput}
+                  />
 
-              <AppInput
-                label="Новый пароль"
-                value={auth.newPassword}
-                onChangeText={auth.setNewPassword}
-                placeholder="Введите новый пароль"
-                secureTextEntry
-              />
+                  <AppInput
+                    label="Повторите пароль"
+                    value={auth.confirmPassword}
+                    onChangeText={(value) => {
+                      auth.setConfirmPassword(value);
+                      if (auth.confirmPasswordError) {
+                        auth.setConfirmPasswordError(null);
+                      }
+                    }}
+                    placeholder="Повторите новый пароль"
+                    secureTextEntry
+                    containerStyle={styles.modalField}
+                    style={styles.modalInput}
+                    error={auth.confirmPasswordError}
+                  />
 
-              <View style={styles.actionRow}>
-                <AppButton title="Отмена" onPress={() => auth.setPasswordOpen(false)} variant="secondary" size="md" />
-                <AppButton title="Сохранить" onPress={auth.handleSavePassword} size="md" />
-              </View>
-            </Card>
+                  <View style={styles.sheetActionRow}>
+                    <AppButton
+                      title="Сохранить"
+                      onPress={async () => {
+                        const saved = await auth.handleSavePassword();
+                        if (saved) {
+                          setPasswordSheetOpen(false);
+                        }
+                      }}
+                      disabled={isPasswordSaveDisabled}
+                      size="md"
+                      style={styles.sheetActionButton}
+                    />
+                    <AppButton
+                      title="Отмена"
+                      onPress={() => setPasswordSheetOpen(false)}
+                      variant="secondary"
+                      size="md"
+                      style={styles.sheetActionButton}
+                    />
+                  </View>
+                </ScrollView>
+              </Card>
+            </Animated.View>
           </View>
-        </Modal>
+        ) : null}
+
+        {isTrainerSheetVisible && trainer.trainerId ? (
+          <View style={styles.sheetPortal} pointerEvents="auto">
+            <Pressable onPress={closeTrainerSheet} style={StyleSheet.absoluteFillObject}>
+              <Animated.View style={[styles.sheetOverlay, { opacity: trainerSheetOpacity }]} />
+            </Pressable>
+            <Animated.View style={[styles.sheetCardContainer, { transform: [{ translateY: trainerSheetTranslate }] }]}>
+              <Card style={styles.sheetCardLarge}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Тренер</Text>
+                  <TouchableOpacity onPress={closeTrainerSheet} style={styles.closeButton}>
+                    <X size={16} color="#6B7280" />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetScrollContent} showsVerticalScrollIndicator={false}>
+
+                <View style={styles.trainerSheetHeader}>
+                  <View style={styles.trainerSheetAvatar}>
+                    {trainer.trainerAvatar ? (
+                      <Animated.Image source={{ uri: trainer.trainerAvatar }} style={styles.trainerSheetAvatarImage} />
+                    ) : (
+                      <Text style={styles.trainerSheetAvatarText}>{trainer.trainerDisplayName.charAt(0)}</Text>
+                    )}
+                  </View>
+                  <Text style={styles.trainerSheetName}>{trainer.trainerDisplayName}</Text>
+                  {trainer.trainerSpecialization ? (
+                    <Text style={styles.trainerSheetSubtitle}>{trainer.trainerSpecialization}</Text>
+                  ) : null}
+                </View>
+
+                {trainer.trainerBio ? (
+                  <Text style={styles.trainerSheetBio}>{trainer.trainerBio}</Text>
+                ) : null}
+
+                <View style={styles.trainerSheetContacts}>
+                  {trainer.trainerContacts.length === 0 ? (
+                    <Text style={styles.trainerSheetEmpty}>Контакты не указаны</Text>
+                  ) : (
+                    trainer.trainerContacts.map((contact) => (
+                      <TouchableOpacity
+                        key={`${contact.label}-${contact.value}`}
+                        onPress={() => handleTrainerContactPress(contact.label, contact.value)}
+                        style={styles.trainerSheetContactItem}
+                      >
+                        <Text style={styles.trainerSheetContactLabel}>{contact.label}</Text>
+                        <Text style={styles.trainerSheetContactValue}>{contact.value}</Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </View>
+
+                <View style={styles.sheetActionRow}>
+                  <AppButton
+                    title="Расстаться с тренером"
+                    onPress={handleRemoveTrainer}
+                    variant="danger"
+                    size="md"
+                    style={styles.sheetActionButton}
+                  />
+                </View>
+                </ScrollView>
+              </Card>
+            </Animated.View>
+          </View>
+        ) : null}
       </SafeAreaView>
-    </GestureHandlerRootView>
+    </View>
   );
 }
 
@@ -406,35 +659,8 @@ const styles = StyleSheet.create({
   accordionBody: {
     marginTop: spacing.xs,
   },
-  trainerAction: {
-    marginHorizontal: spacing.xl,
-    marginTop: spacing.sm,
-    alignItems: 'flex-start',
-  },
-  trainerActionButton: {
-    paddingHorizontal: spacing.md,
-  },
-  trainerRemoveAction: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    marginLeft: 12,
-  },
-  trainerRemoveText: {
-    color: '#B91C1C',
-    fontSize: 12,
-    fontWeight: '700',
-  },
   trainerEmptyCard: {
     marginHorizontal: spacing.xl,
-  },
-  trainerEmptyTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
   },
   sectionDivider: {
     height: 1,
@@ -471,7 +697,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backgroundColor: 'rgba(43, 54, 81, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -487,6 +713,11 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(15, 23, 42, 0.45)',
   },
+  sheetPortal: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    zIndex: 20,
+  },
   sheetCardContainer: {
     width: '100%',
     position: 'absolute',
@@ -499,6 +730,83 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     paddingBottom: spacing.xl,
+  },
+  sheetCardLarge: {
+    width: '100%',
+    height: SHEET_HEIGHT,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    paddingBottom: 0,
+  },
+  sheetScroll: {
+    flex: 1,
+  },
+  sheetScrollContent: {
+    paddingBottom: 0,
+  },
+  trainerSheetHeader: {
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  trainerSheetAvatar: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+    overflow: 'hidden',
+  },
+  trainerSheetAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  trainerSheetAvatarText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  trainerSheetName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  trainerSheetSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  trainerSheetBio: {
+    fontSize: 13,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+  },
+  trainerSheetContacts: {
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    paddingTop: spacing.sm,
+  },
+  trainerSheetContactItem: {
+    paddingVertical: spacing.xs,
+  },
+  trainerSheetContactLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  trainerSheetContactValue: {
+    marginTop: 2,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  trainerSheetEmpty: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -577,10 +885,20 @@ const styles = StyleSheet.create({
     marginRight: 0,
   },
   actionRow: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     marginTop: spacing.sm,
     gap: spacing.sm,
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    marginHorizontal: spacing.xl,
+  },
+  sheetActionRow: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  sheetActionButton: {
+    width: '100%',
   },
 });

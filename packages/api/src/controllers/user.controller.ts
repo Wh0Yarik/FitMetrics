@@ -90,3 +90,20 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
     next(error);
   }
 };
+
+export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const currentPassword = String(req.body.currentPassword ?? '').trim();
+    const newPassword = String(req.body.newPassword ?? '').trim();
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current and new passwords are required' });
+    }
+
+    const result = await userService.changePassword(userId, currentPassword, newPassword);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};

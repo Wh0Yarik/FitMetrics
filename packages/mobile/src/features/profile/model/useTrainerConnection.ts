@@ -10,6 +10,8 @@ type TrainerPayload = {
   status?: string | null;
   avatarUrl?: string | null;
   contacts?: TrainerContact[];
+  bio?: string | null;
+  specialization?: string | null;
 };
 
 export const useTrainerConnection = () => {
@@ -18,6 +20,8 @@ export const useTrainerConnection = () => {
   const [trainerStatus, setTrainerStatus] = useState('');
   const [trainerAvatar, setTrainerAvatar] = useState<string | null>(null);
   const [trainerContacts, setTrainerContacts] = useState<TrainerContact[]>([]);
+  const [trainerBio, setTrainerBio] = useState('');
+  const [trainerSpecialization, setTrainerSpecialization] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [isInviteOpen, setInviteOpen] = useState(false);
 
@@ -30,6 +34,8 @@ export const useTrainerConnection = () => {
       setTrainerName(trainer.name ?? '');
       setTrainerStatus(trainer.status || 'На связи');
       setTrainerAvatar(trainer.avatarUrl ?? null);
+      setTrainerBio(trainer.bio ?? '');
+      setTrainerSpecialization(trainer.specialization ?? '');
 
       const contacts = Array.isArray(trainer.contacts) ? [...trainer.contacts] : [];
       setTrainerContacts(contacts);
@@ -39,6 +45,8 @@ export const useTrainerConnection = () => {
       setTrainerStatus('');
       setTrainerAvatar(null);
       setTrainerContacts([]);
+      setTrainerBio('');
+      setTrainerSpecialization('');
     }
   }, []);
 
@@ -48,30 +56,19 @@ export const useTrainerConnection = () => {
       return;
     }
 
-    Alert.alert(
-      'Сменить тренера',
-      'Вы отвяжетесь от текущего тренера и привяжетесь к новому. Продолжить?',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Сменить',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const response = await api.post('/users/me/trainer', { inviteCode: inviteCode.trim() });
-              const data = response.data;
-              applyTrainerData(data.trainer ?? null);
-              setInviteOpen(false);
-              setInviteCode('');
-              Alert.alert('Готово', 'Тренер успешно изменен');
-            } catch (error: any) {
-              const message = error.response?.data?.message || 'Не удалось сменить тренера';
-              Alert.alert('Ошибка', message);
-            }
-          },
-        },
-      ]
-    );
+    (async () => {
+      try {
+        const response = await api.post('/users/me/trainer', { inviteCode: inviteCode.trim() });
+        const data = response.data;
+        applyTrainerData(data.trainer ?? null);
+        setInviteOpen(false);
+        setInviteCode('');
+        Alert.alert('Готово', 'Тренер успешно изменен');
+      } catch (error: any) {
+        const message = error.response?.data?.message || 'Не удалось сменить тренера';
+        Alert.alert('Ошибка', message);
+      }
+    })();
   }, [applyTrainerData, inviteCode]);
 
   const removeTrainer = useCallback(async () => {
@@ -92,6 +89,8 @@ export const useTrainerConnection = () => {
     trainerStatus,
     trainerAvatar,
     trainerContacts,
+    trainerBio,
+    trainerSpecialization,
     inviteCode,
     isInviteOpen,
     trainerDisplayName,

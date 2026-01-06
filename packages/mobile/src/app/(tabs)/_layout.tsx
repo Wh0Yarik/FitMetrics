@@ -2,8 +2,10 @@ import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 import { BookOpen, Ruler, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TabBarVisibilityProvider, useTabBarVisibility } from '../../shared/ui';
 
-export default function TabLayout() {
+const TabsContent = () => {
+  const { translateY } = useTabBarVisibility();
   const insets = useSafeAreaInsets();
 
   return (
@@ -31,6 +33,7 @@ export default function TabLayout() {
           shadowRadius: 16,
           shadowOffset: { width: 0, height: 8 },
           elevation: 6,
+          transform: [{ translateY }],
         },
         tabBarItemStyle: {
           marginVertical: 6,
@@ -68,5 +71,13 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+  );
+};
+
+export default function TabLayout() {
+  return (
+    <TabBarVisibilityProvider>
+      <TabsContent />
+    </TabBarVisibilityProvider>
   );
 }

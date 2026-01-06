@@ -3,4 +3,5 @@ export { AppInput } from './AppInput';
 export { Card } from './Card';
 export { ErrorMessage } from './ErrorMessage';
 export { Loader } from './Loader';
+export { TabBarVisibilityProvider, useTabBarVisibility } from './TabBarVisibilityContext';
 export { colors, radii, shadows, spacing } from './theme';
