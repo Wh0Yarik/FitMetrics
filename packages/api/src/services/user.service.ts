@@ -3,6 +3,10 @@ import { AppError } from '../lib/AppError';
 import { InviteStatus } from '@prisma/client';
 
 export class UserService {
+  private formatBirthDate(value: Date | null) {
+    return value ? value.toISOString().slice(0, 10) : null;
+  }
+
   async getMe(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -62,15 +66,15 @@ export class UserService {
         id: user.id,
         role: user.role,
         email: user.email,
-        profile: {
-          name: user.client.name,
-          gender: user.client.gender,
-          age: user.client.age,
-          height: user.client.height,
-          avatarUrl: user.client.avatarUrl ?? null,
-          telegram: user.client.telegram ?? null,
-          currentWeight: latestSurvey?.weight ?? null,
-        },
+          profile: {
+            name: user.client.name,
+            gender: user.client.gender,
+            birthDate: this.formatBirthDate(user.client.birthDate ?? null),
+            height: user.client.height,
+            avatarUrl: user.client.avatarUrl ?? null,
+            telegram: user.client.telegram ?? null,
+            currentWeight: latestSurvey?.weight ?? null,
+          },
         nutritionGoals: latestGoal
           ? {
               dailyProtein: latestGoal.dailyProtein,
@@ -101,7 +105,7 @@ export class UserService {
           userId: user.id,
           name: user.trainer.name,
           gender: null,
-          age: null,
+          birthDate: null,
           height: null,
           currentTrainerId: user.trainer.id,
         },
@@ -114,7 +118,7 @@ export class UserService {
         profile: {
           name: createdClient.name,
           gender: createdClient.gender,
-          age: createdClient.age,
+          birthDate: this.formatBirthDate(createdClient.birthDate ?? null),
           height: createdClient.height,
           avatarUrl: createdClient.avatarUrl ?? null,
           telegram: createdClient.telegram ?? null,
@@ -132,7 +136,7 @@ export class UserService {
       profile: {
         name: user.email,
         gender: null,
-        age: null,
+        birthDate: null,
         height: null,
         avatarUrl: null,
         telegram: null,
@@ -148,7 +152,7 @@ export class UserService {
     data: {
       name: string;
       gender?: string | null;
-      age?: number | null;
+      birthDate?: Date | null;
       height?: number | null;
       avatarUrl?: string | null;
       telegram?: string | null;
@@ -170,7 +174,7 @@ export class UserService {
           userId: user.id,
           name: data.name,
           gender: null,
-          age: null,
+          birthDate: null,
           height: null,
           currentTrainerId: user.trainer.id,
         },
@@ -191,7 +195,7 @@ export class UserService {
         data: {
           name: data.name,
           gender: normalizedGender,
-          age: data.age ?? null,
+          birthDate: data.birthDate ?? null,
           height: data.height ?? null,
           avatarUrl: data.avatarUrl ?? undefined,
           telegram: data.telegram ?? undefined,
@@ -249,7 +253,7 @@ export class UserService {
             userId: user.id,
             name: user.trainer.name,
             gender: null,
-            age: null,
+            birthDate: null,
             height: null,
             currentTrainerId: invite.trainerId,
           },

@@ -35,8 +35,8 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
       return res.status(400).json({ message: 'Name is required' });
     }
     const gender = req.body.gender ? String(req.body.gender).trim() : null;
-    const age = req.body.age !== undefined && req.body.age !== null && req.body.age !== ''
-      ? Number(req.body.age)
+    const birthDateRaw = req.body.birthDate !== undefined && req.body.birthDate !== null && req.body.birthDate !== ''
+      ? String(req.body.birthDate).trim()
       : null;
     const height = req.body.height !== undefined && req.body.height !== null && req.body.height !== ''
       ? Number(req.body.height)
@@ -44,17 +44,33 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
     const avatarUrl = req.body.avatarUrl ? String(req.body.avatarUrl).trim() : null;
     const telegram = req.body.telegram ? String(req.body.telegram).trim() : null;
 
-    if (age !== null && Number.isNaN(age)) {
-      return res.status(400).json({ message: 'Age must be a number' });
-    }
     if (height !== null && Number.isNaN(height)) {
       return res.status(400).json({ message: 'Height must be a number' });
+    }
+
+    let birthDate: Date | null = null;
+    if (birthDateRaw) {
+      const parts = birthDateRaw.split('-').map((value) => Number(value));
+      if (parts.length !== 3) {
+        return res.status(400).json({ message: 'Birth date must be in YYYY-MM-DD format' });
+      }
+      const [year, month, day] = parts;
+      const parsed = new Date(Date.UTC(year, month - 1, day));
+      const valid =
+        !Number.isNaN(parsed.getTime()) &&
+        parsed.getUTCFullYear() === year &&
+        parsed.getUTCMonth() === month - 1 &&
+        parsed.getUTCDate() === day;
+      if (!valid) {
+        return res.status(400).json({ message: 'Birth date must be in YYYY-MM-DD format' });
+      }
+      birthDate = parsed;
     }
 
     const result = await userService.updateProfile(userId, {
       name,
       gender,
-      age,
+      birthDate,
       height,
       avatarUrl,
       telegram,

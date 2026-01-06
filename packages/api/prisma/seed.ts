@@ -46,9 +46,9 @@ async function main() {
 
   const clientPassword = await bcrypt.hash('client123', 10)
   const clientSeeds = [
-    { email: 'client1@fitmetrics.com', name: 'Иван Петров', gender: 'M', age: 31, height: 178, baseWeight: 82 },
-    { email: 'client2@fitmetrics.com', name: 'Мария Соколова', gender: 'F', age: 27, height: 165, baseWeight: 62 },
-    { email: 'client3@fitmetrics.com', name: 'Артем К.', gender: 'M', age: 35, height: 182, baseWeight: 88 },
+    { email: 'client1@fitmetrics.com', name: 'Иван Петров', gender: 'M', birthDate: '1994-02-12', height: 178, baseWeight: 82 },
+    { email: 'client2@fitmetrics.com', name: 'Мария Соколова', gender: 'F', birthDate: '1998-07-03', height: 165, baseWeight: 62 },
+    { email: 'client3@fitmetrics.com', name: 'Артем К.', gender: 'M', birthDate: '1991-11-24', height: 182, baseWeight: 88 },
   ]
 
   const today = new Date()
@@ -94,7 +94,7 @@ async function main() {
           create: {
             name: clientSeed.name,
             gender: clientSeed.gender,
-            age: clientSeed.age,
+            birthDate: clientSeed.birthDate ? new Date(`${clientSeed.birthDate}T00:00:00.000Z`) : null,
             height: clientSeed.height,
             avatarUrl: `https://placehold.co/200x200?text=${safeName}`,
             telegram: `@${safeName.toLowerCase()}`,

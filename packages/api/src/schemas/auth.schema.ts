@@ -4,6 +4,7 @@ export const registerTrainerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   name: z.string().min(2),
+  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Birth date must be in YYYY-MM-DD format'),
   phone: z.string().optional(),
   bio: z.string().optional(),
   specialization: z.string().optional(),
@@ -18,6 +19,7 @@ export const registerClientSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   name: z.string().min(2),
+  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Birth date must be in YYYY-MM-DD format'),
   phone: z.string().optional(),
   inviteCode: z.string().length(6),
 });

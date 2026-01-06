@@ -71,7 +71,7 @@ features/measurements/
 ## 4. Feature: Profile (Профиль)
 *Задачи:* Отображение данных пользователя, редактирование, смена пароля, управление связью с тренером (инвайты), выход.
 
-**Статус:** не начато.
+**Статус:** выполнено (выделены компоненты, логика вынесена в хуки).
 
 ### Проблемы для предотвращения
 1.  Смешивание режимов "Просмотр" и "Редактирование" в одном большом компоненте.
@@ -126,7 +126,7 @@ features/profile/
 2.  [x] **Diary Refactor:** Разбить `DiaryScreen` на компоненты (`MealItem`, `MacroCard`) и хуки.
 3.  [x] **Measurements:** Реализовать структуру с отделением логики фото (`usePhotoUpload`) и дожать структуру списка.
 4.  [x] **Profile:** Реализовать структуру с отделением логики тренера (`TrainerCard` + `useTrainerConnection`).
-5.  [~] **Testing:** Написать unit-тесты для вынесенных хуков (model) и утилит (lib).
+5.  [x] **Testing:** Написать unit-тесты для вынесенных хуков (model) и утилит (lib).
 
 ---
 
@@ -144,5 +144,11 @@ features/profile/
 2.  Привязка локальных данных к `user_id` (защита от смешивания пользователей).
 3.  Удаление экрана Analytics (графики теперь в основном экране замеров).
 
-## 9. Тесты (старт)
-Добавлены первые unit‑тесты: `shared/lib/date`, `buildLinePath`.
+## 9. Тесты (выполнено)
+Покрыты: `shared/lib/date`, `buildLinePath`, `useMeasurementsData`, `useDiarySync`, `useUserProfile`, `userSession`.
+
+## 10. Осталось по плану
+1.  **Shared UI kit** (`shared/ui`): `AppButton`, `AppInput`, `Card`, `Loader`, `ErrorMessage`.
+2.  **Media utils** (`shared/lib/media`): обертки над `expo-image-picker`.
+3.  **Public API** для фич (`index.ts`) — добавить там, где отсутствует.
+4.  **Актуализация структуры Measurements:** в плане `MeasurementsListScreen`/`AddMeasurementScreen`, сейчас один экран + модалка — либо обновить план, либо разнести экраны.

@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StatusBar, TextInput, Modal, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, Modal, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Check } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 
-import { COLORS } from '../../../constants/Colors';
+import { AppButton, AppInput, Card, colors, spacing } from '../../../shared/ui';
+import { normalizeBirthDateInput } from '../../../shared/lib/date';
 import { ProfileHeader } from '../components/ProfileHeader';
 import { TrainerCard } from '../components/TrainerCard';
 import { SettingsMenu } from '../components/SettingsMenu';
@@ -35,17 +36,15 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.screen}>
-      <View pointerEvents="none" style={styles.bgAccentPrimary} />
-      <View pointerEvents="none" style={styles.bgAccentSecondary} />
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <StatusBar barStyle="dark-content" />
 
-        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 120 }}>
+        <ScrollView contentContainerStyle={styles.content}>
           <ProfileHeader
             name={profile.name}
             email={profile.email}
             genderLabel={profile.genderLabel}
-            age={profile.age}
+            birthDate={profile.birthDate}
             height={profile.height}
             telegram={profile.telegram}
             avatarUri={profile.avatarUri}
@@ -72,10 +71,8 @@ export default function ProfileScreen() {
           />
 
           {__DEV__ && (
-            <View style={styles.devTools}>
-              <TouchableOpacity onPress={auth.handleSeedLocalData} style={styles.secondaryButton}>
-                <Text style={styles.secondaryButtonText}>Заполнить демо-данными</Text>
-              </TouchableOpacity>
+            <Card style={styles.devTools}>
+              <AppButton title="Заполнить демо-данными" onPress={auth.handleSeedLocalData} variant="secondary" size="md" />
               <View style={styles.quickSwitchRow}>
                 <TouchableOpacity onPress={() => auth.handleQuickSwitch('admin')} style={styles.quickSwitchButton}>
                   <Text style={styles.quickSwitchText}>Админ</Text>
@@ -87,37 +84,33 @@ export default function ProfileScreen() {
                   <Text style={styles.quickSwitchText}>Клиент</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </Card>
           )}
         </ScrollView>
 
         <Modal visible={trainer.isInviteOpen} transparent animationType="fade" onRequestClose={() => trainer.setInviteOpen(false)}>
           <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard}>
+            <Card style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Сменить тренера</Text>
                 <TouchableOpacity onPress={() => trainer.setInviteOpen(false)} style={styles.closeButton}>
                   <X size={16} color="#6B7280" />
                 </TouchableOpacity>
               </View>
-              <Text style={styles.modalLabel}>Инвайт-код</Text>
-              <TextInput
+              <AppInput
+                label="Инвайт-код"
                 value={trainer.inviteCode}
                 onChangeText={trainer.setInviteCode}
                 placeholder="Введите код"
-                style={styles.modalInput}
               />
-              <TouchableOpacity onPress={trainer.handleSaveInvite} style={styles.primaryButton}>
-                <Check size={18} color="white" />
-                <Text style={styles.primaryButtonText}>Подтвердить</Text>
-              </TouchableOpacity>
-            </View>
+              <AppButton title="Подтвердить" onPress={trainer.handleSaveInvite} />
+            </Card>
           </View>
         </Modal>
 
         <Modal visible={isEditOpen} transparent animationType="fade" onRequestClose={() => setEditOpen(false)}>
           <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard}>
+            <Card style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Редактировать профиль</Text>
                 <TouchableOpacity onPress={() => setEditOpen(false)} style={styles.closeButton}>
@@ -125,37 +118,29 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Имя</Text>
-                <TextInput
-                  value={profile.name}
-                  onChangeText={profile.setName}
-                  placeholder="Введите имя"
-                  style={styles.fieldInput}
-                />
-              </View>
+              <AppInput
+                label="Имя"
+                value={profile.name}
+                onChangeText={profile.setName}
+                placeholder="Введите имя"
+              />
 
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Telegram</Text>
-                <TextInput
-                  value={profile.telegram}
-                  onChangeText={profile.setTelegram}
-                  placeholder="@username"
-                  style={styles.fieldInput}
-                  autoCapitalize="none"
-                />
-              </View>
+              <AppInput
+                label="Telegram"
+                value={profile.telegram}
+                onChangeText={profile.setTelegram}
+                placeholder="@username"
+                autoCapitalize="none"
+              />
 
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Почта</Text>
-                <TextInput
-                  value={profile.email}
-                  placeholder="Введите почту"
-                  keyboardType="email-address"
-                  style={[styles.fieldInput, styles.fieldInputDisabled]}
-                  editable={false}
-                />
-              </View>
+              <AppInput
+                label="Почта"
+                value={profile.email}
+                placeholder="Введите почту"
+                keyboardType="email-address"
+                editable={false}
+                style={styles.fieldInputDisabled}
+              />
 
               <Text style={styles.fieldLabel}>Пол</Text>
               <View style={styles.genderRow}>
@@ -174,43 +159,37 @@ export default function ProfileScreen() {
 
               <View style={styles.row}>
                 <View style={styles.fieldHalf}>
-                  <Text style={styles.fieldLabel}>Возраст</Text>
-                  <TextInput
-                    value={profile.age}
-                    onChangeText={profile.setAge}
-                    placeholder="0"
+                  <AppInput
+                    label="Дата рождения"
+                    value={profile.birthDate}
+                    onChangeText={(value) => profile.setBirthDate(normalizeBirthDateInput(value))}
+                    placeholder="ДД.ММ.ГГГГ"
+                    autoCapitalize="none"
                     keyboardType="numeric"
-                    style={styles.fieldInput}
                   />
                 </View>
                 <View style={[styles.fieldHalf, styles.fieldHalfLast]}>
-                  <Text style={styles.fieldLabel}>Рост (см)</Text>
-                  <TextInput
+                  <AppInput
+                    label="Рост (см)"
                     value={profile.height}
                     onChangeText={profile.setHeight}
                     placeholder="0"
                     keyboardType="numeric"
-                    style={styles.fieldInput}
                   />
                 </View>
               </View>
 
               <View style={styles.actionRow}>
-                <TouchableOpacity onPress={() => setEditOpen(false)} style={styles.secondaryButtonInline}>
-                  <Text style={styles.secondaryButtonText}>Отмена</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleSaveProfile} style={styles.primaryButtonInline}>
-                  <Check size={18} color="white" />
-                  <Text style={styles.primaryButtonText}>Сохранить</Text>
-                </TouchableOpacity>
+                <AppButton title="Отмена" onPress={() => setEditOpen(false)} variant="secondary" size="md" />
+                <AppButton title="Сохранить" onPress={handleSaveProfile} size="md" />
               </View>
-            </View>
+            </Card>
           </View>
         </Modal>
 
         <Modal visible={auth.isPasswordOpen} transparent animationType="fade" onRequestClose={() => auth.setPasswordOpen(false)}>
           <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard}>
+            <Card style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Сменить пароль</Text>
                 <TouchableOpacity onPress={() => auth.setPasswordOpen(false)} style={styles.closeButton}>
@@ -218,38 +197,27 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Старый пароль</Text>
-                <TextInput
-                  value={auth.currentPassword}
-                  onChangeText={auth.setCurrentPassword}
-                  placeholder="Введите старый пароль"
-                  secureTextEntry
-                  style={styles.fieldInput}
-                />
-              </View>
+              <AppInput
+                label="Старый пароль"
+                value={auth.currentPassword}
+                onChangeText={auth.setCurrentPassword}
+                placeholder="Введите старый пароль"
+                secureTextEntry
+              />
 
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Новый пароль</Text>
-                <TextInput
-                  value={auth.newPassword}
-                  onChangeText={auth.setNewPassword}
-                  placeholder="Введите новый пароль"
-                  secureTextEntry
-                  style={styles.fieldInput}
-                />
-              </View>
+              <AppInput
+                label="Новый пароль"
+                value={auth.newPassword}
+                onChangeText={auth.setNewPassword}
+                placeholder="Введите новый пароль"
+                secureTextEntry
+              />
 
               <View style={styles.actionRow}>
-                <TouchableOpacity onPress={() => auth.setPasswordOpen(false)} style={styles.secondaryButtonInline}>
-                  <Text style={styles.secondaryButtonText}>Отмена</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={auth.handleSavePassword} style={styles.primaryButtonInline}>
-                  <Check size={18} color="white" />
-                  <Text style={styles.primaryButtonText}>Сохранить</Text>
-                </TouchableOpacity>
+                <AppButton title="Отмена" onPress={() => auth.setPasswordOpen(false)} variant="secondary" size="md" />
+                <AppButton title="Сохранить" onPress={auth.handleSavePassword} size="md" />
               </View>
-            </View>
+            </Card>
           </View>
         </Modal>
       </SafeAreaView>
@@ -260,74 +228,42 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F7FAF8',
+    backgroundColor: colors.background,
   },
   safe: {
     flex: 1,
   },
-  bgAccentPrimary: {
-    position: 'absolute',
-    top: -120,
-    right: -80,
-    width: 220,
-    height: 220,
-    borderRadius: 999,
-    backgroundColor: '#DCFCE7',
-    opacity: 0.7,
-  },
-  bgAccentSecondary: {
-    position: 'absolute',
-    top: 140,
-    left: -110,
-    width: 240,
-    height: 240,
-    borderRadius: 999,
-    backgroundColor: '#E0F2FE',
-    opacity: 0.5,
+  content: {
+    paddingBottom: 120,
   },
   sectionHeader: {
-    paddingHorizontal: 24,
-    marginTop: 20,
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.lg,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
-  },
-  secondaryButton: {
-    marginTop: 12,
-    marginHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   devTools: {
-    marginTop: 12,
+    marginHorizontal: spacing.xl,
+    marginTop: spacing.md,
+    gap: spacing.md,
   },
   quickSwitchRow: {
-    marginTop: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
   },
   quickSwitchButton: {
     flex: 1,
     marginRight: 8,
-    paddingVertical: 10,
+    paddingVertical: spacing.sm,
     borderRadius: 12,
-    backgroundColor: '#111827',
+    backgroundColor: colors.textPrimary,
     alignItems: 'center',
   },
   quickSwitchText: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -340,20 +276,17 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   modalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   closeButton: {
     width: 32,
@@ -361,91 +294,53 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
-  },
-  modalLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 6,
-  },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#111827',
-    marginBottom: 12,
-  },
-  primaryButton: {
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  primaryButtonText: {
-    marginLeft: 8,
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+    backgroundColor: colors.inputBg,
   },
   field: {
-    marginBottom: 14,
+    marginBottom: spacing.md,
   },
   fieldLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 6,
-  },
-  fieldInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#111827',
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
   fieldInputDisabled: {
-    color: '#9CA3AF',
+    color: colors.textTertiary,
   },
   genderRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   genderChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    marginRight: 8,
-    marginBottom: 8,
+    borderColor: colors.divider,
+    backgroundColor: colors.surface,
+    marginRight: spacing.sm,
+    marginBottom: spacing.sm,
   },
   genderChipActive: {
-    backgroundColor: '#ECFDF3',
-    borderColor: '#D1FAE5',
+    backgroundColor: `${colors.primary}18`,
+    borderColor: `${colors.primary}55`,
   },
   genderText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   genderTextActive: {
-    color: '#166534',
+    color: colors.primary,
   },
   row: {
     flexDirection: 'row',
   },
   fieldHalf: {
     flex: 1,
-    marginRight: 12,
+    marginRight: spacing.sm,
   },
   fieldHalfLast: {
     marginRight: 0,
@@ -453,25 +348,7 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-  },
-  primaryButtonInline: {
-    marginLeft: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  secondaryButtonInline: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
+    marginTop: spacing.sm,
+    gap: spacing.sm,
   },
 });

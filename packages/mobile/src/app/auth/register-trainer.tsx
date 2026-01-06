@@ -7,11 +7,13 @@ import { z } from 'zod';
 import { api } from '../../shared/api/client';
 import { router } from 'expo-router';
 import { COLORS } from '../../constants/Colors';
+import { normalizeBirthDateInput, parseBirthDateDisplay } from '../../shared/lib/date';
 import { Eye, EyeOff } from 'lucide-react-native';
 
 // Схема валидации (повторяет логику бэкенда)
 const registerSchema = z.object({
   name: z.string().min(2, 'Имя должно быть не короче 2 символов'),
+  birthDate: z.string().regex(/^\d{2}\.\d{2}\.\d{4}$/, 'Введите дату в формате ДД.ММ.ГГГГ'),
   email: z.string().email('Некорректный email'),
   password: z.string().min(6, 'Пароль должен быть не короче 6 символов'),
 });
@@ -30,7 +32,12 @@ export default function RegisterTrainerScreen() {
     setIsLoading(true);
     try {
       // Отправляем данные на бэкенд
-      await api.post('/auth/register-trainer', data);
+      const birthDate = parseBirthDateDisplay(data.birthDate);
+      if (!birthDate) {
+        Alert.alert('Ошибка', 'Дата рождения должна быть в формате ДД.ММ.ГГГГ');
+        return;
+      }
+      await api.post('/auth/register-trainer', { ...data, birthDate });
       
       Alert.alert('Успех', 'Аккаунт тренера создан! Теперь войдите в систему.', [
         { text: 'OK', onPress: () => router.replace('/auth/login') }
@@ -76,6 +83,24 @@ export default function RegisterTrainerScreen() {
                 )}
               />
               {errors.name && <Text style={styles.errorText}>{errors.name.message}</Text>}
+
+              <Text style={styles.label}>Дата рождения</Text>
+              <Controller
+                control={control}
+                name="birthDate"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    style={[styles.input, errors.birthDate && styles.inputError]}
+                    placeholder="ДД.ММ.ГГГГ"
+                    autoCapitalize="none"
+                    keyboardType="numeric"
+                    onBlur={onBlur}
+                    onChangeText={(text) => onChange(normalizeBirthDateInput(text))}
+                    value={value}
+                  />
+                )}
+              />
+              {errors.birthDate && <Text style={styles.errorText}>{errors.birthDate.message}</Text>}
 
               <Text style={styles.label}>Email</Text>
               <Controller

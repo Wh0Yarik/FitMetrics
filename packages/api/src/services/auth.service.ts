@@ -7,6 +7,20 @@ import { registerTrainerSchema, loginSchema, registerClientSchema } from '../sch
 import { AppError } from '../lib/AppError';
 
 export class AuthService {
+  private parseBirthDate(value: string) {
+    const [year, month, day] = value.split('-').map((part) => Number(part));
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    const valid =
+      !Number.isNaN(parsed.getTime()) &&
+      parsed.getUTCFullYear() === year &&
+      parsed.getUTCMonth() === month - 1 &&
+      parsed.getUTCDate() === day;
+    if (!valid) {
+      throw new AppError('Birth date must be in YYYY-MM-DD format', 400);
+    }
+    return parsed;
+  }
+
   async registerTrainer(data: z.infer<typeof registerTrainerSchema>) {
     const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
     if (existingUser) {
@@ -42,7 +56,7 @@ export class AuthService {
           userId: user.id,
           name: data.name,
           gender: null,
-          age: null,
+          birthDate: this.parseBirthDate(data.birthDate),
           height: null,
           currentTrainerId: trainer.id,
         },
@@ -109,6 +123,7 @@ export class AuthService {
         data: {
           userId: user.id,
           name: data.name,
+          birthDate: this.parseBirthDate(data.birthDate),
           currentTrainerId: invite.trainerId,
         },
       });

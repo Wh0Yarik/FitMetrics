@@ -80,7 +80,7 @@ userId String @unique
 user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 name String
 gender String? // M, F, other
-age Int?
+birthDate DateTime? @map("birth_date") @db.Date
 height Float? // cm
 avatarUrl String? @map("avatar_url")
 telegram String?

@@ -60,3 +60,47 @@ export const getRelativeLabel = (currentDate: string) => {
   if (current.getTime() === tomorrow.getTime()) return 'Завтра';
   return null;
 };
+
+export const formatBirthDateDisplay = (isoDate: string | null) => {
+  if (!isoDate) return '';
+  const [year, month, day] = isoDate.split('-');
+  if (!year || !month || !day) return '';
+  return `${day}.${month}.${year}`;
+};
+
+export const normalizeBirthDateInput = (input: string) => {
+  const cleaned = input.replace(/[^\d.]/g, '');
+  const digits = cleaned.replace(/\D/g, '').slice(0, 8);
+  let formatted = '';
+
+  if (digits.length <= 2) {
+    formatted = digits;
+  } else if (digits.length <= 4) {
+    formatted = `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  } else {
+    formatted = `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`;
+  }
+
+  if (cleaned.endsWith('.') && (digits.length === 2 || digits.length === 4)) {
+    formatted = `${formatted}.`;
+  }
+
+  return formatted;
+};
+
+export const parseBirthDateDisplay = (value: string) => {
+  const match = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(value.trim());
+  if (!match) return null;
+  const [, dayStr, monthStr, yearStr] = match;
+  const day = Number(dayStr);
+  const month = Number(monthStr);
+  const year = Number(yearStr);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  const valid =
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day;
+  if (!valid) return null;
+  return `${yearStr}-${monthStr}-${dayStr}`;
+};

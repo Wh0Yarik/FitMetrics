@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 
 import { api } from '../../../shared/api/client';
+import { formatBirthDateDisplay, parseBirthDateDisplay } from '../../../shared/lib/date';
 
 export type GenderKey = 'male' | 'female' | 'other';
 
@@ -14,7 +15,7 @@ type UseUserProfileParams = {
 export const useUserProfile = ({ onTrainerLoaded }: UseUserProfileParams = {}) => {
   const [name, setName] = useState('');
   const [gender, setGender] = useState<GenderKey | null>(null);
-  const [age, setAge] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [height, setHeight] = useState('');
   const [telegram, setTelegram] = useState('');
   const [email, setEmail] = useState('');
@@ -50,7 +51,7 @@ export const useUserProfile = ({ onTrainerLoaded }: UseUserProfileParams = {}) =
       setName(data.profile?.name ?? '');
       setEmail(data.email ?? '');
       applyGender(data.profile?.gender);
-      setAge(data.profile?.age != null ? String(data.profile.age) : '');
+      setBirthDate(formatBirthDateDisplay(data.profile?.birthDate ?? null));
       setHeight(data.profile?.height != null ? String(data.profile.height) : '');
       setTelegram(data.profile?.telegram ?? '');
       setAvatarUri(data.profile?.avatarUrl ?? null);
@@ -84,14 +85,14 @@ export const useUserProfile = ({ onTrainerLoaded }: UseUserProfileParams = {}) =
     const payload = {
       name: name.trim(),
       gender: gender ?? null,
-      age: age ? Number(age) : null,
+      birthDate: parseBirthDateDisplay(birthDate),
       height: height ? Number(height) : null,
       telegram: telegram.trim() || null,
       avatarUrl: avatarUri && avatarUri.startsWith('http') ? avatarUri : null,
     };
 
-    if (payload.age !== null && Number.isNaN(payload.age)) {
-      Alert.alert('Профиль', 'Возраст должен быть числом');
+    if (birthDate.trim() && payload.birthDate === null) {
+      Alert.alert('Профиль', 'Дата рождения должна быть в формате ДД.ММ.ГГГГ');
       return false;
     }
     if (payload.height !== null && Number.isNaN(payload.height)) {
@@ -104,17 +105,16 @@ export const useUserProfile = ({ onTrainerLoaded }: UseUserProfileParams = {}) =
       const data = response.data;
       setName(data.profile?.name ?? '');
       applyGender(data.profile?.gender);
-      setAge(data.profile?.age != null ? String(data.profile.age) : '');
+      setBirthDate(formatBirthDateDisplay(data.profile?.birthDate ?? null));
       setHeight(data.profile?.height != null ? String(data.profile.height) : '');
       setTelegram(data.profile?.telegram ?? '');
-      Alert.alert('Готово', 'Профиль обновлен');
       return true;
     } catch (error: any) {
       const message = error.response?.data?.message || 'Не удалось сохранить профиль';
       Alert.alert('Ошибка', message);
       return false;
     }
-  }, [age, applyGender, avatarUri, gender, height, name, telegram]);
+  }, [applyGender, avatarUri, birthDate, gender, height, name, telegram]);
 
   const pickAvatar = useCallback(async () => {
     if (isAvatarUploading) return;
@@ -153,7 +153,7 @@ export const useUserProfile = ({ onTrainerLoaded }: UseUserProfileParams = {}) =
       await api.put('/users/me/profile', {
         name: name.trim() || 'Пользователь',
         gender: gender ?? null,
-        age: age ? Number(age) : null,
+        birthDate: parseBirthDateDisplay(birthDate),
         height: height ? Number(height) : null,
         telegram: telegram.trim() || null,
         avatarUrl: publicUrl,
@@ -167,12 +167,12 @@ export const useUserProfile = ({ onTrainerLoaded }: UseUserProfileParams = {}) =
     } finally {
       setAvatarUploading(false);
     }
-  }, [age, gender, height, isAvatarUploading, name, telegram]);
+  }, [birthDate, gender, height, isAvatarUploading, name, telegram]);
 
   return {
     name,
     gender,
-    age,
+    birthDate,
     height,
     telegram,
     email,
@@ -182,7 +182,7 @@ export const useUserProfile = ({ onTrainerLoaded }: UseUserProfileParams = {}) =
     genderLabel,
     setName,
     setGender,
-    setAge,
+    setBirthDate,
     setHeight,
     setTelegram,
     setEmail,
