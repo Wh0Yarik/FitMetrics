@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { removeToken, removeUserId, setToken, setUserId } from '../../../shared/lib/storage';
+import { removeRefreshToken, removeToken, removeUserId, setRefreshToken, setToken, setUserId } from '../../../shared/lib/storage';
 import { setCurrentUserId } from '../../../shared/db/userSession';
 import { seedLocalData } from '../../../shared/db/seedLocalData';
 import { api } from '../../../shared/api/client';
@@ -18,6 +18,7 @@ export const useAuthActions = () => {
       { text: 'Отмена', style: 'cancel' },
       { text: 'Выйти', style: 'destructive', onPress: async () => {
         await removeToken();
+        await removeRefreshToken();
         await removeUserId();
         setCurrentUserId(null);
         await AsyncStorage.removeItem('userRole');
@@ -58,6 +59,9 @@ export const useAuthActions = () => {
       const response = await api.post('/auth/login', credentials[role]);
       if (response.data.accessToken) {
         await setToken(response.data.accessToken);
+        if (response.data.refreshToken) {
+          await setRefreshToken(response.data.refreshToken);
+        }
         const currentUserId = response.data.user?.id;
         if (currentUserId) {
           await setUserId(currentUserId);

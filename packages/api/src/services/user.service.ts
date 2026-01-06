@@ -58,7 +58,6 @@ export class UserService {
         status: trainer.moderationStatus,
         avatarUrl: trainer.avatarUrl ?? null,
         contacts,
-        email: trainer.user?.email ?? null,
       };
     };
 

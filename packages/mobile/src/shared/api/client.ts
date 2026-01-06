@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
-import { getToken } from '../lib/storage';
+import { getRefreshToken, getToken, removeRefreshToken, removeToken, setRefreshToken, setToken } from '../lib/storage';
 
 // Определяем URL API в зависимости от платформы
 // Android Emulator использует 10.0.2.2 для доступа к localhost хоста
@@ -27,6 +27,8 @@ export const api = axios.create({
   },
 });
 
+let refreshPromise: Promise<string | null> | null = null;
+
 // Добавляем токен к каждому запросу
 api.interceptors.request.use(async (config) => {
   const token = await getToken();
@@ -35,3 +37,59 @@ api.interceptors.request.use(async (config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    const status = error.response?.status;
+
+    if (!originalRequest || originalRequest._retry || status !== 401) {
+      return Promise.reject(error);
+    }
+
+    if (originalRequest.url?.includes('/auth/refresh')) {
+      return Promise.reject(error);
+    }
+
+    originalRequest._retry = true;
+
+    if (!refreshPromise) {
+      refreshPromise = (async () => {
+        const refreshToken = await getRefreshToken();
+        if (!refreshToken) {
+          return null;
+        }
+        try {
+          const response = await axios.post(`${getBaseUrl()}/auth/refresh`, { refreshToken });
+          const newAccessToken = response.data.accessToken as string | undefined;
+          const newRefreshToken = response.data.refreshToken as string | undefined;
+          if (newAccessToken) {
+            await setToken(newAccessToken);
+          }
+          if (newRefreshToken) {
+            await setRefreshToken(newRefreshToken);
+          }
+          return newAccessToken ?? null;
+        } catch (refreshError) {
+          await removeToken();
+          await removeRefreshToken();
+          return null;
+        } finally {
+          refreshPromise = null;
+        }
+      })();
+    }
+
+    const token = await refreshPromise;
+    if (!token) {
+      return Promise.reject(error);
+    }
+
+    originalRequest.headers = {
+      ...(originalRequest.headers || {}),
+      Authorization: `Bearer ${token}`,
+    };
+    return api(originalRequest);
+  }
+);

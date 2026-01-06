@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import prisma from '../lib/db';
-import { generateTokens } from '../lib/jwt';
+import { generateTokens, verifyRefreshToken } from '../lib/jwt';
 import { UserRole, UserStatus, TrainerStatus, InviteStatus } from '@prisma/client';
 import { z } from 'zod';
 import { registerTrainerSchema, loginSchema, registerClientSchema } from '../schemas/auth.schema';
@@ -146,5 +146,22 @@ export class AuthService {
 
     const tokens = generateTokens(result.user.id, result.user.role);
     return { user: result.user, client: result.client, ...tokens };
+  }
+
+  async refreshTokens(refreshToken: string) {
+    let payload: { userId: string; role: string };
+    try {
+      payload = verifyRefreshToken(refreshToken);
+    } catch {
+      throw new AppError('Invalid or expired refresh token', 401);
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    const tokens = generateTokens(user.id, user.role);
+    return { ...tokens };
   }
 }

@@ -1,9 +1,23 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StatusBar, Modal, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Pressable,
+  StatusBar,
+  Modal,
+  StyleSheet,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X } from 'lucide-react-native';
+import { ChevronDown, X } from 'lucide-react-native';
 
-import { AppButton, AppInput, Card, colors, spacing } from '../../../shared/ui';
+import { AppButton, AppInput, Card, colors, radii, spacing } from '../../../shared/ui';
 import { normalizeBirthDateInput } from '../../../shared/lib/date';
 import { ProfileHeader } from '../components/ProfileHeader';
 import { TrainerCard } from '../components/TrainerCard';
@@ -15,11 +29,14 @@ import { useAuthActions } from '../model/useAuthActions';
 const GENDERS = [
   { key: 'male', label: 'Мужской' },
   { key: 'female', label: 'Женский' },
-  { key: 'other', label: 'Другое' },
 ] as const;
 
 export default function ProfileScreen() {
   const [isEditOpen, setEditOpen] = useState(false);
+  const [isEditVisible, setEditVisible] = useState(false);
+  const [isTrainerOpen, setTrainerOpen] = useState(false);
+  const editBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const editSheetTranslate = useRef(new Animated.Value(420)).current;
 
   const trainer = useTrainerConnection();
   const profile = useUserProfile({ onTrainerLoaded: trainer.applyTrainerData });
@@ -34,6 +51,58 @@ export default function ProfileScreen() {
 
   const genderOptions = useMemo(() => GENDERS, []);
 
+  useEffect(() => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
+
+  const handleToggleTrainer = () => {
+    LayoutAnimation.configureNext(
+      LayoutAnimation.create(240, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity)
+    );
+    setTrainerOpen((prev) => !prev);
+  };
+
+  useEffect(() => {
+    if (isEditOpen) {
+      setEditVisible(true);
+      Animated.parallel([
+        Animated.timing(editBackdropOpacity, {
+          toValue: 1,
+          duration: 320,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(editSheetTranslate, {
+          toValue: 0,
+          duration: 360,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(editBackdropOpacity, {
+          toValue: 0,
+          duration: 200,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(editSheetTranslate, {
+          toValue: 420,
+          duration: 240,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) {
+          setEditVisible(false);
+        }
+      });
+    }
+  }, [editBackdropOpacity, editSheetTranslate, isEditOpen]);
+
   return (
     <View style={styles.screen}>
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -42,33 +111,51 @@ export default function ProfileScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <ProfileHeader
             name={profile.name}
-            email={profile.email}
-            genderLabel={profile.genderLabel}
-            birthDate={profile.birthDate}
-            height={profile.height}
-            telegram={profile.telegram}
             avatarUri={profile.avatarUri}
             isLoading={profile.isLoading}
             onPickAvatar={profile.pickAvatar}
             onEditProfile={() => setEditOpen(true)}
           />
 
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Тренер</Text>
-          </View>
+          <Card onPress={handleToggleTrainer} style={styles.accordionHeader}>
+            <View style={styles.accordionHeaderRow}>
+              <Text style={styles.accordionTitle}>Тренер</Text>
+              <ChevronDown
+                size={18}
+                color={colors.textSecondary}
+                style={[styles.accordionChevron, isTrainerOpen && styles.accordionChevronOpen]}
+              />
+            </View>
+          </Card>
 
-          <TrainerCard
-            trainerDisplayName={trainer.trainerDisplayName}
-            trainerDisplayStatus={trainer.trainerDisplayStatus}
-            trainerAvatar={trainer.trainerAvatar}
-            trainerContacts={trainer.trainerContacts}
-          />
+          {isTrainerOpen ? (
+            <View style={styles.accordionBody}>
+              <TrainerCard
+                trainerDisplayName={trainer.trainerDisplayName}
+                trainerDisplayStatus={trainer.trainerDisplayStatus}
+                trainerAvatar={trainer.trainerAvatar}
+                trainerContacts={trainer.trainerContacts}
+              />
+              <View style={styles.trainerAction}>
+                <AppButton
+                  title="Сменить тренера"
+                  onPress={() => trainer.setInviteOpen(true)}
+                  variant="secondary"
+                  size="md"
+                  style={styles.trainerActionButton}
+                />
+              </View>
+            </View>
+          ) : null}
 
-          <SettingsMenu
-            onInvite={() => trainer.setInviteOpen(true)}
-            onChangePassword={() => auth.setPasswordOpen(true)}
-            onLogout={auth.handleLogout}
-          />
+          <View style={styles.sectionDivider} />
+
+          <Card style={styles.settingsCard}>
+            <SettingsMenu
+              onChangePassword={() => auth.setPasswordOpen(true)}
+              onLogout={auth.handleLogout}
+            />
+          </Card>
 
           {__DEV__ && (
             <Card style={styles.devTools}>
@@ -108,14 +195,18 @@ export default function ProfileScreen() {
           </View>
         </Modal>
 
-        <Modal visible={isEditOpen} transparent animationType="fade" onRequestClose={() => setEditOpen(false)}>
-          <View style={styles.modalBackdrop}>
-            <Card style={styles.modalCard}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Редактировать профиль</Text>
-                <TouchableOpacity onPress={() => setEditOpen(false)} style={styles.closeButton}>
-                  <X size={16} color="#6B7280" />
-                </TouchableOpacity>
+        <Modal visible={isEditVisible} transparent animationType="none" onRequestClose={() => setEditOpen(false)}>
+          <View style={styles.sheetRoot}>
+            <Pressable onPress={() => setEditOpen(false)} style={StyleSheet.absoluteFillObject}>
+              <Animated.View style={[styles.sheetOverlay, { opacity: editBackdropOpacity }]} />
+            </Pressable>
+            <Animated.View style={[styles.sheetCardContainer, { transform: [{ translateY: editSheetTranslate }] }]}>
+              <Card style={styles.sheetCard}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Редактировать профиль</Text>
+                  <TouchableOpacity onPress={() => setEditOpen(false)} style={styles.closeButton}>
+                    <X size={16} color="#6B7280" />
+                  </TouchableOpacity>
               </View>
 
               <AppInput
@@ -123,6 +214,8 @@ export default function ProfileScreen() {
                 value={profile.name}
                 onChangeText={profile.setName}
                 placeholder="Введите имя"
+                containerStyle={styles.modalField}
+                style={styles.modalInput}
               />
 
               <AppInput
@@ -131,6 +224,8 @@ export default function ProfileScreen() {
                 onChangeText={profile.setTelegram}
                 placeholder="@username"
                 autoCapitalize="none"
+                containerStyle={styles.modalField}
+                style={styles.modalInput}
               />
 
               <AppInput
@@ -139,7 +234,8 @@ export default function ProfileScreen() {
                 placeholder="Введите почту"
                 keyboardType="email-address"
                 editable={false}
-                style={styles.fieldInputDisabled}
+                containerStyle={styles.modalField}
+                style={[styles.modalInput, styles.fieldInputDisabled]}
               />
 
               <Text style={styles.fieldLabel}>Пол</Text>
@@ -166,6 +262,8 @@ export default function ProfileScreen() {
                     placeholder="ДД.ММ.ГГГГ"
                     autoCapitalize="none"
                     keyboardType="numeric"
+                    containerStyle={styles.modalField}
+                    style={styles.modalInput}
                   />
                 </View>
                 <View style={[styles.fieldHalf, styles.fieldHalfLast]}>
@@ -175,6 +273,8 @@ export default function ProfileScreen() {
                     onChangeText={profile.setHeight}
                     placeholder="0"
                     keyboardType="numeric"
+                    containerStyle={styles.modalField}
+                    style={styles.modalInput}
                   />
                 </View>
               </View>
@@ -183,7 +283,8 @@ export default function ProfileScreen() {
                 <AppButton title="Отмена" onPress={() => setEditOpen(false)} variant="secondary" size="md" />
                 <AppButton title="Сохранить" onPress={handleSaveProfile} size="md" />
               </View>
-            </Card>
+              </Card>
+            </Animated.View>
           </View>
         </Modal>
 
@@ -236,14 +337,50 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: 120,
   },
-  sectionHeader: {
-    paddingHorizontal: spacing.xl,
+  accordionHeader: {
+    marginHorizontal: spacing.xl,
     marginTop: spacing.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.card,
   },
-  sectionTitle: {
-    fontSize: 18,
+  accordionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  accordionTitle: {
+    fontSize: 16,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  accordionChevron: {
+    transform: [{ rotate: '0deg' }],
+  },
+  accordionChevronOpen: {
+    transform: [{ rotate: '180deg' }],
+  },
+  accordionBody: {
+    marginTop: spacing.xs,
+  },
+  trainerAction: {
+    marginHorizontal: spacing.xl,
+    marginTop: spacing.sm,
+    alignItems: 'flex-start',
+  },
+  trainerActionButton: {
+    paddingHorizontal: spacing.md,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: colors.divider,
+    marginHorizontal: spacing.xl,
+    marginTop: spacing.lg,
+  },
+  settingsCard: {
+    marginHorizontal: spacing.xl,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
   },
   devTools: {
     marginHorizontal: spacing.xl,
@@ -277,6 +414,27 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
   },
+  sheetRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  sheetOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+  },
+  sheetCardContainer: {
+    width: '100%',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  sheetCard: {
+    width: '100%',
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    paddingBottom: spacing.xl,
+  },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -301,12 +459,19 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 12,
-    fontWeight: '600',
     color: colors.textSecondary,
     marginBottom: spacing.xs,
   },
   fieldInputDisabled: {
     color: colors.textTertiary,
+  },
+  modalField: {
+    marginBottom: spacing.md,
+  },
+  modalInput: {
+    height: 48,
+    fontSize: 15,
+    fontWeight: '500',
   },
   genderRow: {
     flexDirection: 'row',
@@ -337,6 +502,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+    marginBottom: spacing.md,
   },
   fieldHalf: {
     flex: 1,
@@ -350,5 +516,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.sm,
     gap: spacing.sm,
+    justifyContent: 'flex-end',
   },
 });

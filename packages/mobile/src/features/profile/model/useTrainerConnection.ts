@@ -9,7 +9,6 @@ type TrainerPayload = {
   status?: string | null;
   avatarUrl?: string | null;
   contacts?: TrainerContact[];
-  email?: string | null;
 };
 
 export const useTrainerConnection = () => {
@@ -30,9 +29,6 @@ export const useTrainerConnection = () => {
       setTrainerAvatar(trainer.avatarUrl ?? null);
 
       const contacts = Array.isArray(trainer.contacts) ? [...trainer.contacts] : [];
-      if (trainer.email && !contacts.some((c) => c.value === trainer.email)) {
-        contacts.push({ label: 'Email', value: trainer.email });
-      }
       setTrainerContacts(contacts);
     } else {
       setTrainerName('');

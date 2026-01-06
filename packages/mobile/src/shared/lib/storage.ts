@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 const TOKEN_KEY = 'user_access_token';
+const REFRESH_TOKEN_KEY = 'user_refresh_token';
 const USER_ID_KEY = 'user_id';
 
 /**
@@ -15,6 +16,18 @@ export const getToken = async (): Promise<string | null> => {
     return await SecureStore.getItemAsync(TOKEN_KEY);
   } catch (error) {
     console.error('Error getting token:', error);
+    return null;
+  }
+};
+
+export const getRefreshToken = async (): Promise<string | null> => {
+  try {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(REFRESH_TOKEN_KEY);
+    }
+    return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+  } catch (error) {
+    console.error('Error getting refresh token:', error);
     return null;
   }
 };
@@ -34,6 +47,18 @@ export const setToken = async (token: string): Promise<void> => {
   }
 };
 
+export const setRefreshToken = async (token: string): Promise<void> => {
+  try {
+    if (Platform.OS === 'web') {
+      localStorage.setItem(REFRESH_TOKEN_KEY, token);
+    } else {
+      await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
+    }
+  } catch (error) {
+    console.error('Error setting refresh token:', error);
+  }
+};
+
 /**
  * Удалить токен (Logout)
  */
@@ -46,6 +71,18 @@ export const removeToken = async (): Promise<void> => {
     }
   } catch (error) {
     console.error('Error removing token:', error);
+  }
+};
+
+export const removeRefreshToken = async (): Promise<void> => {
+  try {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+    } else {
+      await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+    }
+  } catch (error) {
+    console.error('Error removing refresh token:', error);
   }
 };
 

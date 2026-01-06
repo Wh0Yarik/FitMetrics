@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { api } from '../../shared/api/client';
 import { router } from 'expo-router';
-import { setToken, setUserId } from '../../shared/lib/storage';
+import { setRefreshToken, setToken, setUserId } from '../../shared/lib/storage';
 import { COLORS } from '../../constants/Colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Eye, EyeOff } from 'lucide-react-native';
@@ -34,6 +34,9 @@ export default function LoginScreen() {
       
       if (response.data.accessToken) {
         await setToken(response.data.accessToken);
+        if (response.data.refreshToken) {
+          await setRefreshToken(response.data.refreshToken);
+        }
         const currentUserId = response.data.user?.id;
         if (currentUserId) {
           await setUserId(currentUserId);

@@ -10,3 +10,7 @@ export const generateTokens = (userId: string, role: string) => {
   const refreshToken = jwt.sign({ userId, role }, REFRESH_SECRET, { expiresIn: REFRESH_EXPIRES_IN });
   return { accessToken, refreshToken };
 };
+
+export const verifyRefreshToken = (token: string) => {
+  return jwt.verify(token, REFRESH_SECRET) as { userId: string; role: string };
+};

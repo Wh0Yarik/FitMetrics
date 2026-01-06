@@ -2,17 +2,12 @@ import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 
 type SettingsMenuProps = {
-  onInvite: () => void;
   onChangePassword: () => void;
   onLogout: () => void;
 };
 
-export const SettingsMenu = ({ onInvite, onChangePassword, onLogout }: SettingsMenuProps) => (
+export const SettingsMenu = ({ onChangePassword, onLogout }: SettingsMenuProps) => (
   <>
-    <TouchableOpacity onPress={onInvite} style={styles.secondaryButton}>
-      <Text style={styles.secondaryButtonText}>Сменить тренера</Text>
-    </TouchableOpacity>
-
     <TouchableOpacity onPress={onChangePassword} style={styles.secondaryButton}>
       <Text style={styles.secondaryButtonText}>Сменить пароль</Text>
     </TouchableOpacity>

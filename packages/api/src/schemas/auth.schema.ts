@@ -23,3 +23,7 @@ export const registerClientSchema = z.object({
   phone: z.string().optional(),
   inviteCode: z.string().length(6),
 });
+
+export const refreshSchema = z.object({
+  refreshToken: z.string().min(1),
+});
