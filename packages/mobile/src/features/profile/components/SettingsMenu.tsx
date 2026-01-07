@@ -1,6 +1,8 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 
+import { colors, fonts } from '../../../shared/ui';
+
 type SettingsMenuProps = {
   onChangePassword: () => void;
   onLogout: () => void;
@@ -25,14 +27,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.divider,
+    backgroundColor: colors.surface,
     alignItems: 'center',
   },
   secondaryButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
+    fontFamily: fonts.medium,
+    color: colors.textPrimary,
   },
   logoutButton: {
     marginTop: 12,
@@ -44,7 +46,7 @@ const styles = StyleSheet.create({
   },
   logoutButtonText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: fonts.semibold,
     color: '#B91C1C',
   },
 });

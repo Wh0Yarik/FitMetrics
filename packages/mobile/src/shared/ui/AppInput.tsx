@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 
-import { colors, radii, spacing } from './theme';
+import { colors, fonts, radii, spacing } from './theme';
 
 type AppInputProps = TextInputProps & {
   label?: string;
@@ -31,6 +31,7 @@ const styles = StyleSheet.create({
   label: {
     color: colors.textSecondary,
     fontSize: 12,
+    fontFamily: fonts.medium,
     marginBottom: spacing.xs,
   },
   input: {
@@ -39,6 +40,7 @@ const styles = StyleSheet.create({
     height: 52,
     paddingHorizontal: spacing.md,
     fontSize: 16,
+    fontFamily: fonts.regular,
     color: colors.textPrimary,
   },
   inputError: {
@@ -49,5 +51,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     color: colors.danger,
     fontSize: 12,
+    fontFamily: fonts.medium,
   },
 });

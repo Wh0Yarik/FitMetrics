@@ -19,6 +19,7 @@ export const useUserProfile = ({ onTrainerLoaded }: UseUserProfileParams = {}) =
   const [height, setHeight] = useState('');
   const [telegram, setTelegram] = useState('');
   const [email, setEmail] = useState('');
+  const [currentWeight, setCurrentWeight] = useState<number | null>(null);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [isLoading, setLoading] = useState(false);
   const [isAvatarUploading, setAvatarUploading] = useState(false);
@@ -53,6 +54,7 @@ export const useUserProfile = ({ onTrainerLoaded }: UseUserProfileParams = {}) =
       applyGender(data.profile?.gender);
       setBirthDate(formatBirthDateDisplay(data.profile?.birthDate ?? null));
       setHeight(data.profile?.height != null ? String(data.profile.height) : '');
+      setCurrentWeight(data.profile?.currentWeight ?? null);
       setTelegram(data.profile?.telegram ?? '');
       setAvatarUri(data.profile?.avatarUrl ?? null);
       if (onTrainerLoaded) {
@@ -107,6 +109,7 @@ export const useUserProfile = ({ onTrainerLoaded }: UseUserProfileParams = {}) =
       applyGender(data.profile?.gender);
       setBirthDate(formatBirthDateDisplay(data.profile?.birthDate ?? null));
       setHeight(data.profile?.height != null ? String(data.profile.height) : '');
+      setCurrentWeight(data.profile?.currentWeight ?? null);
       setTelegram(data.profile?.telegram ?? '');
       return true;
     } catch (error: any) {
@@ -174,6 +177,7 @@ export const useUserProfile = ({ onTrainerLoaded }: UseUserProfileParams = {}) =
     gender,
     birthDate,
     height,
+    currentWeight,
     telegram,
     email,
     avatarUri,

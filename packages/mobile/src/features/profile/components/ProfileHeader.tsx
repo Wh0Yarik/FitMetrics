@@ -1,28 +1,60 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { Camera, Pencil } from 'lucide-react-native';
+import { Camera, LogOut } from 'lucide-react-native';
 
-import { Card, colors, radii, shadows, spacing } from '../../../shared/ui';
+import { colors, fonts, radii, spacing } from '../../../shared/ui';
 
 type ProfileHeaderProps = {
   name: string;
   avatarUri: string | null;
   isLoading: boolean;
+  birthDate: string;
+  height: string;
+  currentWeight: number | null;
   onPickAvatar: () => void;
-  onEditProfile: () => void;
+  onLogout: () => void;
 };
 
 export const ProfileHeader = ({
   name,
   avatarUri,
   isLoading,
+  birthDate,
+  height,
+  currentWeight,
   onPickAvatar,
-  onEditProfile,
-}: ProfileHeaderProps) => (
-  <View style={styles.headerWrap}>
-    <Card style={styles.headerCard}>
-      <TouchableOpacity onPress={onEditProfile} style={styles.editIconButton}>
-        <Pencil size={16} color={colors.textPrimary} />
+  onLogout,
+}: ProfileHeaderProps) => {
+  const normalizedBirthDate = birthDate.trim();
+  let ageText = '-- лет';
+  if (normalizedBirthDate.length === 10) {
+    const [day, month, year] = normalizedBirthDate.split('.').map((value) => Number(value));
+    if (!Number.isNaN(day) && !Number.isNaN(month) && !Number.isNaN(year)) {
+      const today = new Date();
+      const birth = new Date(year, month - 1, day);
+      let age = today.getFullYear() - birth.getFullYear();
+      const hasBirthdayPassed =
+        today.getMonth() > birth.getMonth() ||
+        (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate());
+      if (!hasBirthdayPassed) {
+        age -= 1;
+      }
+      if (age >= 0 && age < 130) {
+        ageText = `${age} лет`;
+      }
+    }
+  }
+
+  const heightText = height.trim() ? `${height.trim()} см` : '-- см';
+  const weightValue = currentWeight != null && Number.isFinite(currentWeight)
+    ? Math.round(currentWeight * 10) / 10
+    : null;
+  const weightText = weightValue != null ? `${weightValue} кг` : '-- кг';
+
+  return (
+    <View style={styles.headerWrap}>
+      <TouchableOpacity onPress={onLogout} style={styles.logOutIconButton}>
+        <LogOut size={24} color={colors.textPrimary} />
       </TouchableOpacity>
       <View style={styles.avatarRow}>
         <View style={styles.avatarWrap}>
@@ -35,33 +67,31 @@ export const ProfileHeader = ({
               </View>
             )}
           </TouchableOpacity>
-          <View style={styles.avatarBadge}>
-            <Camera size={14} color={colors.surface} />
-          </View>
         </View>
         <Text style={styles.avatarName}>{name || (isLoading ? 'Загрузка...' : 'Имя пользователя')}</Text>
+        <View style={styles.avatarMetaRow}>
+          <Text style={styles.avatarMeta}>{ageText}</Text>
+          <Text style={styles.avatarMeta}>{heightText}</Text>
+          <Text style={styles.avatarMeta}>{weightText}</Text>
+        </View>
       </View>
-    </Card>
-  </View>
-);
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   headerWrap: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.sm,
   },
-  headerCard: {
-    padding: spacing.md,
-    borderRadius: radii.card,
-    ...shadows.card,
-  },
-  editIconButton: {
+  logOutIconButton: {
     position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    top: 0,
+    right: spacing.xl,
+    width: 44,
+    height: 44,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.inputBg,
@@ -77,8 +107,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarButton: {
-    width: 112,
-    height: 112,
+    width: 160,
+    height: 160,
     borderRadius: 56,
     backgroundColor: colors.inputBg,
     borderWidth: 1,
@@ -112,9 +142,22 @@ const styles = StyleSheet.create({
   },
   avatarName: {
     marginTop: spacing.sm,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 32,
+    fontFamily: 'Comfortaa-Bold',
     color: colors.textPrimary,
     textAlign: 'center',
+  },
+  avatarMeta: {
+    fontSize: 14,
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  avatarMetaRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
   },
 });

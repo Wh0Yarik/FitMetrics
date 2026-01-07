@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
-import { colors, spacing } from './theme';
+import { colors, fonts, spacing } from './theme';
 
 type LoaderProps = {
   label?: string;
@@ -24,5 +24,6 @@ const styles = StyleSheet.create({
   label: {
     color: colors.textSecondary,
     fontSize: 12,
+    fontFamily: fonts.medium,
   },
 });

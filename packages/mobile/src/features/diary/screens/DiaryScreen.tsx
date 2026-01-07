@@ -367,7 +367,7 @@ export default function DiaryScreen() {
               label="Белки"
               current={todayStats.protein}
               target={activeGoal?.dailyProtein ?? 0}
-              accent="#06B6D4"
+              accent="#EF4444"
               showTarget={hasNutritionTargets}
             />
             <MacroCard

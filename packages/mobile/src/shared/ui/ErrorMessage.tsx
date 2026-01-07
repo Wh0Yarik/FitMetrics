@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 
-import { colors, spacing } from './theme';
+import { colors, fonts, spacing } from './theme';
 
 type ErrorMessageProps = {
   message: string;
@@ -24,5 +24,6 @@ const styles = StyleSheet.create({
   text: {
     color: colors.danger,
     fontSize: 12,
+    fontFamily: fonts.medium,
   },
 });

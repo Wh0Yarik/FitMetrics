@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 
+import { colors, fonts } from '../../../shared/ui';
 type TrainerContact = { label: string; value: string };
 
 type TrainerCardProps = {
@@ -68,8 +69,8 @@ const styles = StyleSheet.create({
   },
   trainerName: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
   },
   trainerAvatar: {
     width: 40,
@@ -89,8 +90,8 @@ const styles = StyleSheet.create({
   },
   trainerAvatarText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#6B7280',
+    fontFamily: fonts.semibold,
+    color: colors.textSecondary,
   },
   trainerContacts: {
     marginTop: 12,
@@ -100,19 +101,21 @@ const styles = StyleSheet.create({
   },
   trainerContactEmpty: {
     fontSize: 12,
-    color: '#6B7280',
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
   },
   trainerContactItem: {
     marginBottom: 8,
   },
   trainerContactLabel: {
     fontSize: 11,
-    color: '#6B7280',
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
   },
   trainerContactValue: {
     marginTop: 2,
     fontSize: 13,
-    fontWeight: '600',
-    color: '#111827',
+    fontFamily: fonts.medium,
+    color: colors.textPrimary,
   },
 });
