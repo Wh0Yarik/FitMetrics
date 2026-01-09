@@ -1,23 +1,46 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StatusBar, Alert, StyleSheet, Modal, Pressable, Animated } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, ChevronLeft } from 'lucide-react-native';
+import { Plus, ChevronLeft, Check, SlidersHorizontal } from 'lucide-react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { measurementsRepository, MeasurementEntry } from '../repositories/MeasurementsRepository';
 import { AddMeasurementModal } from '../components/AddMeasurementModal';
 import { MeasurementHistoryItem } from '../components/MeasurementHistoryItem';
+import { MeasurementProgressSheet } from '../components/MeasurementProgressSheet';
 import { MeasurementStatsGrid } from '../components/MeasurementStatsGrid';
+import { SharedBottomSheet } from '../../profile/components/SharedBottomSheet';
 import { useMeasurementsList } from '../model/useMeasurementsList';
-import { COLORS } from '../../../constants/Colors';
 import { api } from '../../../shared/api/client';
 import { dailySurveyRepository } from '../../diary/repositories/DailySurveyRepository';
 import { CalendarHeader, CalendarWeekDay } from '../../../shared/components/CalendarHeader';
 import { formatDateKey, getWeekDates, getHeaderTitle, getRelativeLabel, WEEKDAY_LABELS } from '../../../shared/lib/date';
 import { useWeekCalendar } from '../../../shared/lib/calendar/useWeekCalendar';
+import { colors, fonts, radii, shadows, spacing, useTabBarVisibility } from '../../../shared/ui';
+
+const FILTER_STORAGE_KEY = 'measurementsStatsFilter';
+const FILTER_OPTIONS = [
+  { key: 'weight', label: 'Вес' },
+  { key: 'waist', label: 'Талия' },
+  { key: 'hips', label: 'Бедра' },
+  { key: 'chest', label: 'Грудь' },
+  { key: 'arms', label: 'Руки' },
+  { key: 'legs', label: 'Ноги' },
+] as const;
 
 
 export default function MeasurementsScreen() {
+  const { setHidden: setTabBarHidden } = useTabBarVisibility();
   const [isModalOpen, setModalOpen] = useState(false);
+  const [isProgressOpen, setProgressOpen] = useState(false);
+  const [isFilterOpen, setFilterOpen] = useState(false);
+  const [selectedMetric, setSelectedMetric] = useState<'weight' | 'waist' | 'hips' | 'chest' | 'arms' | 'legs' | null>(null);
+  const [metricFilter, setMetricFilter] = useState<typeof FILTER_OPTIONS[number]['key'][]>(
+    FILTER_OPTIONS.map((option) => option.key)
+  );
+  const [draftFilter, setDraftFilter] = useState<typeof FILTER_OPTIONS[number]['key'][]>(
+    FILTER_OPTIONS.map((option) => option.key)
+  );
   const [editingMeasurement, setEditingMeasurement] = useState<MeasurementEntry | null>(null);
   const [currentDate, setCurrentDate] = useState(() => formatDateKey(new Date()));
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing'>('synced');
@@ -38,6 +61,7 @@ export default function MeasurementsScreen() {
   } = useWeekCalendar({ currentDate, setCurrentDate });
 
   const {
+    measurements,
     measurementsByDate,
     weeklyLatestInfo,
     currentMeasurement,
@@ -106,6 +130,26 @@ export default function MeasurementsScreen() {
     setSurveyPrefill(survey?.weight ?? null);
   }, [currentDate]);
 
+  useEffect(() => {
+    setTabBarHidden(isModalOpen || isProgressOpen || isFilterOpen);
+  }, [isModalOpen, isProgressOpen, isFilterOpen, setTabBarHidden]);
+
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(FILTER_STORAGE_KEY)
+      .then((value) => {
+        if (!mounted || !value) return;
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMetricFilter(parsed);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const handleSave = (data: Partial<MeasurementEntry>) => {
     const targetDate = editingMeasurement?.date ?? currentDate;
     measurementsRepository.saveMeasurement({
@@ -136,6 +180,31 @@ export default function MeasurementsScreen() {
     }
     setModalOpen(true);
   }, [currentDate, measurementsByDate]);
+
+  const handleOpenProgress = useCallback((card: { key: 'weight' | 'waist' | 'hips' | 'chest' | 'arms' | 'legs' }) => {
+    setSelectedMetric(card.key);
+    setProgressOpen(true);
+  }, []);
+
+  const toggleMetric = useCallback((key: typeof FILTER_OPTIONS[number]['key']) => {
+    setDraftFilter((prev) => {
+      const next = prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key];
+      if (next.length === 0) return prev;
+      return next;
+    });
+  }, []);
+
+  const applyFilter = useCallback(() => {
+    if (draftFilter.length === 0) return;
+    setMetricFilter(draftFilter);
+    AsyncStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(draftFilter)).catch(() => {});
+    setFilterOpen(false);
+  }, [draftFilter]);
+
+  const filteredStatsCards = useMemo(
+    () => statsCards.filter((card) => metricFilter.includes(card.key)),
+    [metricFilter, statsCards]
+  );
 
   const handleDelete = (id: string) => {
     Alert.alert('Удаление', 'Удалить этот замер?', [
@@ -183,16 +252,29 @@ export default function MeasurementsScreen() {
                     weeklyLatestInfo?.isRecent ? styles.weeklyStatusComplete : styles.weeklyStatusPending,
                   ]}
                 />
-                <Text style={styles.weeklyStripTitle}>Замеры</Text>
+                <View>
+                  <Text
+                    style={[
+                      styles.weeklyStripCta,
+                      weeklyLatestInfo?.isRecent ? styles.weeklyStripCtaComplete : styles.weeklyStripCtaPending,
+                    ]}
+                  >
+                    {weeklyLatestInfo ? `Заполнено • ${weeklyLatestInfo.label}` : 'Нет данных'}
+                  </Text>
+                </View>
               </View>
-              <Text
+              <View
                 style={[
-                  styles.weeklyStripCta,
-                  weeklyLatestInfo?.isRecent ? styles.weeklyStripCtaComplete : styles.weeklyStripCtaPending,
+                  styles.weeklyAddButton,
+                  weeklyLatestInfo?.isRecent ? styles.weeklyAddButtonCheck : styles.weeklyAddButtonIconOnly,
                 ]}
               >
-                {weeklyLatestInfo ? `Заполнено • ${weeklyLatestInfo.label}` : 'Нет данных'}
-              </Text>
+                {weeklyLatestInfo?.isRecent ? (
+                  <Check size={16} color={colors.primary} />
+                ) : (
+                  <Plus size={16} color={colors.primary} />
+                )}
+              </View>
             </View>
           </TouchableOpacity>
           {currentMeasurement ? (
@@ -203,21 +285,23 @@ export default function MeasurementsScreen() {
                 onDelete={handleDelete}
               />
             </View>
-          ) : (
-            <TouchableOpacity onPress={handleAddMeasurement} style={styles.addMeasurementInline}>
-              <View style={styles.addMeasurementInlineIcon}>
-                <Plus size={18} color={COLORS.primary} />
-              </View>
-              <Text style={styles.addMeasurementInlineText}>Добавить замеры</Text>
-            </TouchableOpacity>
-          )}
+          ) : null}
           <View style={styles.listHeader}>
             <View>
               <Text style={styles.sectionTitle}>Замеры</Text>
             </View>
+            <TouchableOpacity
+              style={styles.filterButton}
+              onPress={() => {
+                setDraftFilter(metricFilter);
+                setFilterOpen(true);
+              }}
+            >
+              <SlidersHorizontal size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
           </View>
 
-          <MeasurementStatsGrid statsCards={statsCards} />
+          <MeasurementStatsGrid statsCards={filteredStatsCards} onCardPress={handleOpenProgress} />
           
         </ScrollView>
 
@@ -226,11 +310,11 @@ export default function MeasurementsScreen() {
             <Pressable style={styles.calendarCard} onPress={() => {}}>
               <View style={styles.calendarHeader}>
                 <TouchableOpacity onPress={() => handleMonthShift(-1)} style={styles.calendarNavButton}>
-                  <ChevronLeft size={16} color="#6B7280" />
+                  <ChevronLeft size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
                 <Text style={styles.calendarTitle}>{monthLabel}</Text>
                 <TouchableOpacity onPress={() => handleMonthShift(1)} style={styles.calendarNavButton}>
-                  <ChevronLeft size={16} color="#6B7280" style={styles.calendarNavNextIcon} />
+                  <ChevronLeft size={16} color={colors.textSecondary} style={styles.calendarNavNextIcon} />
                 </TouchableOpacity>
               </View>
               <View style={styles.calendarWeekRow}>
@@ -289,6 +373,32 @@ export default function MeasurementsScreen() {
           </Pressable>
         </Modal>
 
+        <SharedBottomSheet
+          visible={isFilterOpen}
+          onClose={() => setFilterOpen(false)}
+          enableSwipeToDismiss
+        >
+          <View style={styles.filterSheet}>
+            <Text style={styles.filterTitle}>Фильтр замеров</Text>
+            {FILTER_OPTIONS.map((option) => {
+              const active = draftFilter.includes(option.key);
+              return (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[styles.filterRow, active ? styles.filterRowActive : null]}
+                  onPress={() => toggleMetric(option.key)}
+                >
+                  <Text style={styles.filterRowText}>{option.label}</Text>
+                  {active ? <Check size={18} color={colors.primary} /> : null}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity style={styles.filterApplyButton} onPress={applyFilter}>
+              <Text style={styles.filterApplyText}>Применить</Text>
+            </TouchableOpacity>
+          </View>
+        </SharedBottomSheet>
+
         <AddMeasurementModal
           visible={isModalOpen}
           onClose={() => {
@@ -298,6 +408,12 @@ export default function MeasurementsScreen() {
           onSave={handleSave}
           initialData={editingMeasurement ?? (surveyPrefill != null ? { weight: surveyPrefill } : null)}
         />
+        <MeasurementProgressSheet
+          visible={isProgressOpen}
+          onClose={() => setProgressOpen(false)}
+          metricKey={selectedMetric}
+          measurements={measurements}
+        />
       </SafeAreaView>
     </GestureHandlerRootView>
   );
@@ -306,7 +422,7 @@ export default function MeasurementsScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F7FAF8',
+    backgroundColor: colors.background,
   },
   safe: {
     flex: 1,
@@ -318,7 +434,7 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 999,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: `${colors.accentFiber}26`,
     opacity: 0.7,
   },
   bgAccentSecondary: {
@@ -328,92 +444,142 @@ const styles = StyleSheet.create({
     width: 240,
     height: 240,
     borderRadius: 999,
-    backgroundColor: '#E0F2FE',
+    backgroundColor: `${colors.accentCarbs}22`,
     opacity: 0.5,
   },
   sectionHeader: {
-    paddingHorizontal: 24,
-    marginTop: 20,
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
   },
   sectionChip: {
     alignSelf: 'flex-start',
-    backgroundColor: '#E5E7EB',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    marginTop: 6,
+    backgroundColor: colors.inputBg,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+    marginTop: spacing.xs,
   },
   sectionChipText: {
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: fonts.medium,
   },
   listHeader: {
-    paddingHorizontal: 24,
-    marginTop: 20,
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  filterButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    backgroundColor: colors.inputBg,
+  },
+  filterButtonText: {
+    fontSize: 12,
+    fontFamily: fonts.semibold,
+    color: colors.textSecondary,
+  },
+  filterSheet: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.lg,
+  },
+  filterTitle: {
+    fontSize: 18,
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+  },
+  filterRow: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  filterRowActive: {
+    borderColor: `${colors.primary}50`,
+    backgroundColor: `${colors.primary}12`,
+  },
+  filterRowText: {
+    fontSize: 15,
+    fontFamily: fonts.medium,
+    color: colors.textPrimary,
+  },
+  filterApplyButton: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.primary,
+    borderRadius: radii.pill,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    ...shadows.button,
+  },
+  filterApplyText: {
+    fontSize: 14,
+    fontFamily: fonts.semibold,
+    color: colors.surface,
+  },
   listWrap: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
   },
   addButton: {
-    marginTop: 16,
-    marginHorizontal: 24,
+    marginTop: spacing.md,
+    marginHorizontal: spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
     alignSelf: 'flex-start',
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
+    ...shadows.button,
   },
   addButtonText: {
-    marginLeft: 8,
-    color: '#FFFFFF',
+    marginLeft: spacing.xs,
+    color: colors.surface,
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: fonts.semibold,
   },
   emptyCard: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 28,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#E6ECEA',
+    paddingVertical: spacing.xl,
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    ...shadows.card,
   },
   emptyText: {
-    marginTop: 12,
-    color: '#9CA3AF',
+    marginTop: spacing.sm,
+    color: colors.textTertiary,
     textAlign: 'center',
+    fontFamily: fonts.medium,
   },
   calendarBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.35)',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xl,
   },
   calendarCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 24,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    padding: spacing.md,
+    ...shadows.card,
   },
   calendarHeader: {
     flexDirection: 'row',
@@ -422,14 +588,14 @@ const styles = StyleSheet.create({
   },
   calendarTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
   },
   calendarNavButton: {
     width: 32,
     height: 32,
-    borderRadius: 999,
-    backgroundColor: '#F3F4F6',
+    borderRadius: radii.pill,
+    backgroundColor: colors.inputBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -437,7 +603,7 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '180deg' }],
   },
   calendarWeekRow: {
-    marginTop: 16,
+    marginTop: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
@@ -445,11 +611,11 @@ const styles = StyleSheet.create({
     width: 32,
     textAlign: 'center',
     fontSize: 11,
-    color: '#9CA3AF',
-    fontWeight: '600',
+    color: colors.textTertiary,
+    fontFamily: fonts.medium,
   },
   calendarGrid: {
-    marginTop: 8,
+    marginTop: spacing.xs,
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
@@ -471,73 +637,64 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   calendarCellHasMeals: {
-    borderWidth: 1,
-    borderColor: '#D1FAE5',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${colors.accentFiber}40`,
   },
   calendarCellToday: {
-    borderWidth: 1,
-    borderColor: '#D1FAE5',
-    backgroundColor: '#ECFDF3',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${colors.accentFiber}40`,
+    backgroundColor: `${colors.accentFiber}40`,
   },
   calendarCellSelected: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   calendarCellText: {
     fontSize: 14,
-    color: '#111827',
-    fontWeight: '600',
+    color: colors.textPrimary,
+    fontFamily: fonts.medium,
   },
   calendarCellTextSelected: {
-    color: '#FFFFFF',
+    color: colors.surface,
   },
   calendarDot: {
     position: 'absolute',
     top: 2,
     width: 6,
     height: 6,
-    borderRadius: 999,
-    backgroundColor: '#86EFAC',
+    borderRadius: radii.pill,
+    backgroundColor: colors.accentFiber,
   },
   calendarDotHidden: {
     opacity: 0,
   },
   calendarDotSelected: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: colors.surface,
   },
   primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
+    backgroundColor: colors.primary,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    ...shadows.button,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 12,
-    fontWeight: '700',
-    marginLeft: 8,
+    fontFamily: fonts.semibold,
+    marginLeft: spacing.xs,
   },
   weeklyStrip: {
-    marginTop: 16,
-    marginHorizontal: 24,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: '#ECFDF3',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#D1FAE5',
+    marginTop: spacing.md,
+    marginHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
     flexDirection: 'column',
     alignItems: 'stretch',
     justifyContent: 'center',
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 6 },
   },
   weeklyStripRow: {
     flexDirection: 'row',
@@ -545,12 +702,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   weeklyStripComplete: {
-    backgroundColor: '#ECFDF3',
-    borderColor: '#D1FAE5',
+    backgroundColor: `${colors.accentFiber}18`,
   },
   weeklyStripPending: {
-    backgroundColor: '#FFF7ED',
-    borderColor: '#FED7AA',
+    backgroundColor: `${colors.accentFat}12`,
   },
   weeklyStripLeft: {
     flexDirection: 'row',
@@ -559,62 +714,58 @@ const styles = StyleSheet.create({
   weeklyStatusDot: {
     width: 10,
     height: 10,
-    borderRadius: 999,
-    marginRight: 10,
+    borderRadius: radii.pill,
+    marginRight: spacing.xs,
   },
   weeklyStatusComplete: {
-    backgroundColor: '#86EFAC',
+    backgroundColor: colors.accentFiber,
   },
   weeklyStatusPending: {
-    backgroundColor: '#FB923C',
+    backgroundColor: colors.accentFat,
   },
   weeklyStripTitle: {
-    color: '#111827',
+    color: colors.textPrimary,
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: fonts.semibold,
   },
   weeklyStripCta: {
+    marginTop: 2,
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: fonts.semibold,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
   weeklyStripCtaComplete: {
-    color: '#065F46',
+    color: colors.accentFiber,
   },
   weeklyStripCtaPending: {
-    color: '#C2410C',
+    color: '#9A5B00',
   },
-  weeklyCardWrap: {
-    marginTop: 12,
-    marginHorizontal: 24,
-  },
-  addMeasurementInline: {
-    marginTop: 12,
-    marginHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+  weeklyAddButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+  },
+  weeklyAddButtonIconOnly: {
+    width: 38,
+    height: 38,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
     justifyContent: 'center',
   },
-  addMeasurementInlineIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: '#D1FAE5',
-    backgroundColor: '#F0FDF4',
-    alignItems: 'center',
+  weeklyAddButtonCheck: {
+    width: 38,
+    height: 38,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
     justifyContent: 'center',
   },
-  addMeasurementInlineText: {
-    marginLeft: 8,
-    color: '#111827',
-    fontSize: 15,
-    fontWeight: '600',
+  weeklyCardWrap: {
+    marginTop: spacing.sm,
+    marginHorizontal: spacing.xl,
   },
 });

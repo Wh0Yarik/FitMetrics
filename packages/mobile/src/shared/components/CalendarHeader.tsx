@@ -5,6 +5,7 @@ import { ChevronDown, Cloud, CloudOff, RefreshCw } from 'lucide-react-native';
 import Svg, { Defs, LinearGradient, Stop, Path } from 'react-native-svg';
 
 import { COLORS } from '../../constants/Colors';
+import { fonts } from '../../shared/ui';
 
 export type CalendarMarkerState = 'complete' | 'partial' | 'none';
 
@@ -272,12 +273,12 @@ const styles = StyleSheet.create({
   relativePillText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: fonts.semibold,
   },
   dateText: {
     color: '#111827',
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: fonts.semibold,
     paddingVertical: 4,
   },
   syncStatus: {
@@ -334,7 +335,7 @@ const styles = StyleSheet.create({
   weekDayLabel: {
     fontSize: 10,
     color: '#9CA3AF',
-    fontWeight: '700',
+    fontFamily: fonts.semibold,
   },
   weekDayLabelSelected: {
     color: '#FFFFFF',
@@ -342,7 +343,7 @@ const styles = StyleSheet.create({
   weekDayNumber: {
     marginTop: 2,
     fontSize: 16,
-    fontWeight: '300',
+    fontFamily: fonts.light,
     color: '#111827',
   },
   weekDayDot: {
@@ -375,7 +376,7 @@ const styles = StyleSheet.create({
   },
   weekDayNumberSelected: {
     fontSize: 15,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
     color: COLORS.primary,
   },
 });

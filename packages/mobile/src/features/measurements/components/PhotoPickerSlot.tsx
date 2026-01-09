@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Camera, X } from 'lucide-react-native';
+import { colors, fonts, radii, shadows, spacing } from '../../../shared/ui';
 
 type PhotoPickerSlotProps = {
   label: string;
@@ -26,11 +27,11 @@ export const PhotoPickerSlot = ({ label, uri, onPick, onClear }: PhotoPickerSlot
             }}
             style={styles.photoClear}
           >
-            <X size={12} color="#FFFFFF" />
+            <X size={12} color={colors.surface} />
           </TouchableOpacity>
         </>
       ) : (
-        <Camera size={22} color="#9CA3AF" />
+        <Camera size={22} color={colors.textTertiary} />
       )}
     </TouchableOpacity>
   </View>
@@ -43,27 +44,25 @@ const styles = StyleSheet.create({
   },
   photoLabel: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 8,
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
   photoCard: {
     width: 88,
     height: 120,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderRadius: radii.card,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     position: 'relative',
+    ...shadows.card,
   },
   photoCardIdle: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.inputBg,
   },
   photoCardActive: {
-    borderColor: '#D1FAE5',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   photoImage: {
     width: '100%',
@@ -75,6 +74,6 @@ const styles = StyleSheet.create({
     right: 6,
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
     padding: 4,
-    borderRadius: 999,
+    borderRadius: radii.pill,
   },
 });

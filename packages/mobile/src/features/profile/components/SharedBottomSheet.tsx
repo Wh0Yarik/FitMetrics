@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  BackHandler,
   Dimensions,
   Easing,
   PanResponder,
@@ -84,6 +85,15 @@ export const SharedBottomSheet = ({
       }
     });
   }, [backdropOpacity, height, translateY, visible]);
+
+  useEffect(() => {
+    if (!visible) return undefined;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [onClose, visible]);
 
   const panResponder = useMemo(
     () =>
@@ -193,8 +203,8 @@ const styles = StyleSheet.create({
     ...shadows.sheet,
   },
   handleArea: {
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.sm,
+    paddingTop: 0,
+    paddingBottom: spacing.xl,
     alignItems: 'center',
   },
   grabber: {

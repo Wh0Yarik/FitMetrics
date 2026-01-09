@@ -9,7 +9,7 @@
     "api": "npm run -w packages/api",
     "mobile": "npm run -w packages/mobile",
     "dev": "npm run dev:api",
-    "postinstall": "npm run prisma:generate -w packages/api",
+  "postinstall": "npm run prisma:generate -w packages/api && patch-package",
     "dev:api": "npm run dev -w packages/api",
     "start:mobile": "npm run start -w packages/mobile",
     "android": "npm run android -w packages/mobile",
@@ -19,15 +19,20 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.2.0",
     "cors": "^2.8.5",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "expo": "~52.0.48",
+    "react": "18.3.1",
+    "react-native": "0.76.9"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
-    "@types/pg": "^8.16.0"
+    "@types/pg": "^8.16.0",
+    "patch-package": "^8.0.0"
   },
   "overrides": {
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-test-renderer": "18.3.1"
-  }
+  },
+  "version": "1.0.0"
 }

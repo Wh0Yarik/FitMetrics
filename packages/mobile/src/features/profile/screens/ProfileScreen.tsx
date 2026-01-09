@@ -404,6 +404,17 @@ export default function ProfileScreen() {
                 style={styles.sheetActionButton}
               />
             </View>
+            {__DEV__ ? (
+              <View style={styles.sheetActionRow}>
+                <AppButton
+                  title="Заполнить замеры (2 мес)"
+                  onPress={auth.handleSeedWeightHistory}
+                  variant="secondary"
+                  size="md"
+                  style={styles.sheetActionButton}
+                />
+              </View>
+            ) : null}
           </ScrollView>
         </SharedBottomSheet>
 

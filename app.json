@@ -2,5 +2,16 @@
   "plugins": [
     "expo-secure-store",
     "@react-native-community/datetimepicker"
-  ]
+  ],
+  "android": {
+    "package": "com.whoyarik.fitmetrics"
+  },
+  "ios": {
+    "bundleIdentifier": "com.whoyarik.fitmetrics"
+  },
+  "extra": {
+    "eas": {
+      "projectId": "361273e7-5354-4631-b4be-8cf688cafc07"
+    }
+  }
 }

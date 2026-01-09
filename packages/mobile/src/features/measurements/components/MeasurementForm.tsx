@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Check, X } from 'lucide-react-native';
 
-import { COLORS } from '../../../constants/Colors';
 import { PhotoPickerSlot } from './PhotoPickerSlot';
+import { colors, fonts, shadows, spacing } from '../../../shared/ui';
 
 type MeasurementFormProps = {
   weight: string;
@@ -34,6 +34,7 @@ type MeasurementFormProps = {
   onSubmit: () => void;
   onCancel: () => void;
   submitLabel: string;
+  isSubmitDisabled?: boolean;
 };
 
 const InputField = React.memo(({
@@ -58,7 +59,7 @@ const InputField = React.memo(({
         placeholder={placeholder}
         keyboardType="decimal-pad"
         style={styles.pillInputText}
-        placeholderTextColor="#9CA3AF"
+        placeholderTextColor={colors.textTertiary}
       />
       {unit ? <Text style={styles.pillUnit}>{unit}</Text> : null}
     </View>
@@ -94,6 +95,7 @@ export const MeasurementForm = ({
   onSubmit,
   onCancel,
   submitLabel,
+  isSubmitDisabled = false,
 }: MeasurementFormProps) => (
   <ScrollView
     className="flex-1 p-4"
@@ -117,19 +119,19 @@ export const MeasurementForm = ({
       <Text style={styles.subsectionTitle}>Объемы</Text>
       <View style={styles.row}>
         <InputField
-          label="Грудь"
+          label="Грудь *"
           value={chest}
           onChange={onChangeChest}
           unit="см"
         />
         <InputField
-          label="Талия"
+          label="Талия *"
           value={waist}
           onChange={onChangeWaist}
           unit="см"
         />
         <InputField
-          label="Бедра"
+          label="Бедра *"
           value={hips}
           onChange={onChangeHips}
           unit="см"
@@ -197,13 +199,17 @@ export const MeasurementForm = ({
       </View>
     </View>
 
-    <TouchableOpacity onPress={onSubmit} style={styles.primaryButton}>
-      <Check size={20} color="#FFFFFF" />
+    <TouchableOpacity
+      onPress={onSubmit}
+      style={[styles.primaryButton, isSubmitDisabled && styles.primaryButtonDisabled]}
+      disabled={isSubmitDisabled}
+    >
+      <Check size={20} color={colors.surface} />
       <Text style={styles.primaryButtonText}>{submitLabel}</Text>
     </TouchableOpacity>
 
     <TouchableOpacity onPress={onCancel} style={styles.secondaryButton}>
-      <X size={18} color="#EF4444" />
+      <X size={18} color={colors.danger} />
       <Text style={styles.secondaryButtonText}>Отмена</Text>
     </TouchableOpacity>
   </ScrollView>
@@ -212,99 +218,103 @@ export const MeasurementForm = ({
 const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 10,
-    marginTop: 6,
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+    marginTop: spacing.xs,
   },
   sectionBlock: {
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   subsectionTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 8,
-    marginTop: 6,
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+    marginTop: spacing.xs,
   },
   subsectionBlock: {
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   row: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   rowSpacer: {
     flex: 1,
   },
   inputField: {
     flex: 1,
-    marginRight: 12,
+    marginRight: spacing.sm,
   },
   inputLabel: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 6,
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
   pillInputRow: {
-    backgroundColor: '#F9FAFB',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: colors.inputBg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 52,
   },
   pillInputText: {
     flex: 1,
     fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
   },
   pillUnit: {
-    marginLeft: 8,
+    marginLeft: spacing.xs,
     fontSize: 14,
-    color: '#9CA3AF',
+    color: colors.textTertiary,
+    fontFamily: fonts.medium,
   },
   photoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   primaryButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 12,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm,
     borderRadius: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
-    marginBottom: 24,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+    ...shadows.button,
+  },
+  primaryButtonDisabled: {
+    backgroundColor: colors.textTertiary,
   },
   primaryButtonText: {
-    marginLeft: 8,
-    color: '#FFFFFF',
+    marginLeft: spacing.xs,
+    color: colors.surface,
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: fonts.semibold,
   },
   secondaryButton: {
     width: '100%',
-    paddingVertical: 12,
+    paddingVertical: spacing.sm,
     borderRadius: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    marginBottom: 16,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${colors.danger}66`,
+    marginBottom: spacing.md,
   },
   secondaryButtonText: {
-    marginLeft: 8,
-    color: '#EF4444',
+    marginLeft: spacing.xs,
+    color: colors.danger,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
 });

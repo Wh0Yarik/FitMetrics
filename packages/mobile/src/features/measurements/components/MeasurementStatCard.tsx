@@ -1,124 +1,222 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 
 import { StatsCard } from '../model/useMeasurementsData';
 import { MeasurementChart } from './MeasurementChart';
+import { colors, fonts, radii, shadows, spacing } from '../../../shared/ui';
 
 type MeasurementStatCardProps = {
   card: StatsCard;
+  onPress?: () => void;
 };
 
-const formatValue = (value: number | null, unit: string) => {
+const formatValue = (value: number | null) => {
   if (value == null) return '—';
-  const formatted = Number.isInteger(value) ? value : value.toFixed(1);
-  return `${formatted} ${unit}`;
+  return Number.isInteger(value) ? value.toString() : value.toFixed(1);
 };
 
-const formatDelta = (value: number | null, unit: string) => {
-  if (value == null) return 'нет данных';
-  const formatted = Number.isInteger(value) ? value : value.toFixed(1);
-  const sign = value > 0 ? '+' : '';
-  return `${sign}${formatted} ${unit}`;
+const formatPair = (pair?: { left: number | null; right: number | null }) => {
+  if (!pair) return null;
+  const left = formatValue(pair.left);
+  const right = formatValue(pair.right);
+  return `Л ${left} / П ${right}`;
 };
 
-export const MeasurementStatCard = ({ card }: MeasurementStatCardProps) => {
-  const deltaLabel = formatDelta(card.delta, card.unit);
+export const MeasurementStatCard = ({ card, onPress }: MeasurementStatCardProps) => {
+  const hasDelta = card.delta != null;
+  const isPositive = hasDelta && card.delta! > 0;
+  const isNegative = hasDelta && card.delta! < 0;
+
+  let deltaColor = colors.textTertiary;
+  let deltaBg = colors.inputBg;
+  let Icon = Minus;
+
+  if (isPositive) {
+    deltaColor = colors.accentFiber;
+    deltaBg = `${colors.accentFiber}18`;
+    Icon = TrendingUp;
+  } else if (isNegative) {
+    deltaColor = colors.danger;
+    deltaBg = colors.dangerLight;
+    Icon = TrendingDown;
+  }
+
+  const valueLabel = formatPair(card.latestPair) ?? formatValue(card.latestValue);
+
   return (
-    <TouchableOpacity style={styles.statsCard} activeOpacity={0.85}>
-      <View style={styles.statsCardHeader}>
-        <Text style={styles.statsCardTitle}>{card.label}</Text>
-        <Text style={styles.statsCardChevron}>›</Text>
-      </View>
-      <Text style={styles.statsCardSub}>
-        {card.key === 'weight' ? 'Последние 14 дней' : 'Последние 7 дней'}
-      </Text>
-      <View style={styles.statsCardBody}>
-        <View style={styles.statsCardValues}>
-          <Text style={styles.statsCardValue}>{formatValue(card.latestValue, card.unit)}</Text>
-          <Text
-            style={[
-              styles.statsCardDelta,
-              card.delta == null
-                ? styles.statsCardDeltaMuted
-                : card.delta >= 0
-                  ? styles.statsCardDeltaUp
-                  : styles.statsCardDeltaDown,
-            ]}
-          >
-            {deltaLabel}
-          </Text>
-        </View>
+    <TouchableOpacity style={styles.container} activeOpacity={0.9} onPress={onPress}>
+      <View style={styles.chartBackground} pointerEvents="none">
         <MeasurementChart
-          type={card.key === 'weight' ? 'line' : 'bars'}
+          type="line"
           color={card.color}
           linePath={card.linePath}
+          points={card.linePoints}
+          secondaryLinePath={card.secondaryLinePath}
+          secondaryPoints={card.secondaryLinePoints}
+          secondaryColor={card.secondaryColor}
           series={card.series}
           emptyLabel="Нет данных"
+          size="full"
         />
+      </View>
+      <View style={styles.leftOverlay} pointerEvents="none">
+        <View style={styles.leftOverlaySolid} />
+        <View style={styles.leftOverlayFadeStrong} />
+        <View style={styles.leftOverlayFadeLight} />
+      </View>
+      <View style={styles.contentPadding}>
+        <View style={styles.header}>
+          <Text style={styles.title}>{card.label}</Text>
+          <Text style={styles.subtitle}>
+            {card.key === 'weight' ? 'Последние 14 дней' : 'Последние 5 измерений'}
+          </Text>
+        </View>
+
+        {card.latestPair ? (
+          <View style={styles.valueRow}>
+            <View style={styles.valueWithUnit}>
+              <Text style={styles.valueLabel}>Л</Text>
+              <Text style={styles.valueSide}>{formatValue(card.latestPair.left)}</Text>
+              <Text style={styles.unit}>{card.unit}</Text>
+            </View>
+            <View style={styles.valueWithUnit}>
+              <Text style={styles.valueLabel}>П</Text>
+              <Text style={styles.valueSide}>{formatValue(card.latestPair.right)}</Text>
+              <Text style={styles.unit}>{card.unit}</Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.valueContainer}>
+            <Text style={styles.value}>{valueLabel}</Text>
+            <Text style={styles.unit}>{card.unit}</Text>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  statsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+  container: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    marginBottom: spacing.md,
+    ...shadows.card,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 14,
-    marginBottom: 12,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 6 },
+    borderColor: 'rgba(0,0,0,0.03)',
+    overflow: 'hidden',
   },
-  statsCardHeader: {
+  chartBackground: {
+    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: -50,
+    top: 20,
+    zIndex: 0,
+  },
+  leftOverlay: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: '33%',
+    zIndex: 1,
+  },
+  leftOverlaySolid: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+  },
+  leftOverlayFadeStrong: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: -16,
+    width: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+  },
+  leftOverlayFadeLight: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: -32,
+    width: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  contentPadding: {
+    padding: spacing.md,
+    paddingBottom: spacing.sm,
+    zIndex: 2,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.sm,
+  },
+  title: {
+    fontSize: 16,
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  subtitle: {
+    fontSize: 11,
+    fontFamily: fonts.medium,
+    color: colors.textTertiary,
+    marginTop: 2,
+  },
+  deltaBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
   },
-  statsCardTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#111827',
+  deltaIcon: {
+    marginRight: 4,
   },
-  statsCardChevron: {
-    fontSize: 18,
-    color: '#CBD5E1',
-  },
-  statsCardSub: {
-    marginTop: 4,
-    fontSize: 11,
-    color: '#9CA3AF',
-  },
-  statsCardBody: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-  },
-  statsCardValues: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  statsCardValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  statsCardDelta: {
-    marginTop: 6,
+  deltaText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.bold,
   },
-  statsCardDeltaMuted: {
-    color: '#9CA3AF',
+  valueContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
   },
-  statsCardDeltaUp: {
-    color: '#16A34A',
+  valueRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
   },
-  statsCardDeltaDown: {
-    color: '#DC2626',
+  valueWithUnit: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+  },
+  valueLabel: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
+  },
+  valueSide: {
+    fontSize: 32,
+    fontFamily: fonts.bold,
+    color: colors.textPrimary,
+    letterSpacing: -0.3,
+  },
+  value: {
+    fontSize: 32,
+    fontFamily: fonts.bold,
+    color: colors.textPrimary,
+    letterSpacing: -0.5,
+  },
+  unit: {
+    fontSize: 14,
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
+    marginLeft: 6,
+    marginBottom: 4,
   },
 });

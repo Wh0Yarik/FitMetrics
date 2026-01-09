@@ -2,20 +2,26 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 
 import { measurementsRepository, MeasurementEntry } from '../repositories/MeasurementsRepository';
+import { colors } from '../../../shared/ui';
 import { dailySurveyRepository } from '../../diary/repositories/DailySurveyRepository';
 import { api } from '../../../shared/api/client';
 import { formatDateKey, getDateObj } from '../../../shared/lib/date';
 import { buildLinePath } from '../lib/buildLinePath';
 
 export type StatsCard = {
-  key: 'weight' | 'waist' | 'hips' | 'chest';
+  key: 'weight' | 'waist' | 'hips' | 'chest' | 'arms' | 'legs';
   label: string;
   unit: string;
   color: string;
+  secondaryColor?: string;
   latestValue: number | null;
+  latestPair?: { left: number | null; right: number | null };
   delta: number | null;
   series: number[];
   linePath: string;
+  linePoints: { x: number; y: number }[];
+  secondaryLinePath?: string;
+  secondaryLinePoints?: { x: number; y: number }[];
 };
 
 type WeeklyLatestInfo = {
@@ -134,13 +140,13 @@ export const useMeasurementsData = ({
     [enrichedMeasurements]
   );
   const recentMeasurements = useMemo(
-    () => measurementsSorted.slice(-7),
+    () => measurementsSorted.slice(-5),
     [measurementsSorted]
   );
   const weightSeries = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return Array.from({ length: 14 }, (_, index) => {
+    const rawSeries = Array.from({ length: 14 }, (_, index) => {
       const day = new Date(today);
       day.setDate(today.getDate() - (13 - index));
       const dateStr = formatDateKey(day);
@@ -148,48 +154,138 @@ export const useMeasurementsData = ({
       if (entry?.weight != null) return entry.weight;
       return getSurveyWeight(dateStr);
     });
+    const filled = [...rawSeries];
+    let startIndex = 0;
+    while (startIndex < filled.length) {
+      if (filled[startIndex] != null) {
+        startIndex += 1;
+        continue;
+      }
+      let endIndex = startIndex;
+      while (endIndex < filled.length && filled[endIndex] == null) {
+        endIndex += 1;
+      }
+      const prevValue = startIndex > 0 ? filled[startIndex - 1] : null;
+      const nextValue = endIndex < filled.length ? filled[endIndex] : null;
+      if (prevValue != null && nextValue != null) {
+        const gap = endIndex - startIndex + 1;
+        for (let i = startIndex; i < endIndex; i += 1) {
+          const t = (i - startIndex + 1) / gap;
+          filled[i] = prevValue + (nextValue - prevValue) * t;
+        }
+      }
+      startIndex = endIndex + 1;
+    }
+    return filled;
   }, [measurementsByDate, getSurveyWeight]);
 
   const statsCards = useMemo<StatsCard[]>(() => {
     const configs = [
-      { key: 'weight', label: 'Вес', unit: 'кг', color: '#22C55E' },
-      { key: 'waist', label: 'Талия', unit: 'см', color: '#3B82F6' },
-      { key: 'hips', label: 'Бедра', unit: 'см', color: '#F59E0B' },
-      { key: 'chest', label: 'Грудь', unit: 'см', color: '#8B5CF6' },
+      { key: 'weight', label: 'Вес', unit: 'кг', color: colors.accentFiber },
+      { key: 'waist', label: 'Талия', unit: 'см', color: colors.accentCarbs },
+      { key: 'hips', label: 'Бедра', unit: 'см', color: colors.accentFat },
+      { key: 'chest', label: 'Грудь', unit: 'см', color: colors.accentProtein },
+      { key: 'arms', label: 'Руки', unit: 'см', color: colors.accentCarbs, secondaryColor: colors.accentProtein },
+      { key: 'legs', label: 'Ноги', unit: 'см', color: colors.accentFat, secondaryColor: colors.accentFiber },
     ] as const;
 
     return configs.map((config) => {
+      const isDual = config.key === 'arms' || config.key === 'legs';
       const valuesSource = config.key === 'weight'
         ? weightSeries
-        : measurementsSorted.map((item) => item[config.key] ?? null);
-      const values = valuesSource.filter((value): value is number => typeof value === 'number');
+        : config.key === 'arms'
+          ? measurementsSorted.map((item) => item.leftArm ?? null)
+          : config.key === 'legs'
+            ? measurementsSorted.map((item) => item.leftLeg ?? null)
+            : measurementsSorted.map((item) => item[config.key] ?? null);
+      const secondaryValuesSource = config.key === 'arms'
+        ? measurementsSorted.map((item) => item.rightArm ?? null)
+        : config.key === 'legs'
+          ? measurementsSorted.map((item) => item.rightLeg ?? null)
+          : null;
+
+      const avgSeries = isDual
+        ? valuesSource.map((value, index) => {
+            const secondary = secondaryValuesSource ? secondaryValuesSource[index] : null;
+            if (value == null && secondary == null) return null;
+            if (value == null) return secondary;
+            if (secondary == null) return value;
+            return (value + secondary) / 2;
+          })
+        : valuesSource;
+
+      const values = avgSeries.filter((value): value is number => typeof value === 'number');
       const latestValue = values.length > 0 ? values[values.length - 1] : null;
       const prevValue = values.length > 1 ? values[values.length - 2] : null;
       const delta = latestValue != null && prevValue != null ? latestValue - prevValue : null;
+      const latestPair = isDual
+        ? {
+            left: valuesSource[valuesSource.length - 1] ?? null,
+            right: secondaryValuesSource ? secondaryValuesSource[secondaryValuesSource.length - 1] ?? null : null,
+          }
+        : undefined;
 
       const seriesValues = config.key === 'weight'
         ? weightSeries
-        : [
-            ...Array(Math.max(0, 7 - recentMeasurements.length)).fill(null),
+        : config.key === 'arms'
+          ? [
+              ...Array(Math.max(0, 5 - recentMeasurements.length)).fill(null),
+              ...recentMeasurements.map((item) => {
+                const value = item.leftArm;
+                return typeof value === 'number' ? value : null;
+              }),
+            ]
+          : config.key === 'legs'
+            ? [
+                ...Array(Math.max(0, 5 - recentMeasurements.length)).fill(null),
+                ...recentMeasurements.map((item) => {
+                  const value = item.leftLeg;
+                  return typeof value === 'number' ? value : null;
+                }),
+              ]
+            : [
+                ...Array(Math.max(0, 5 - recentMeasurements.length)).fill(null),
+                ...recentMeasurements.map((item) => {
+                  const value = item[config.key];
+                  return typeof value === 'number' ? value : null;
+                }),
+              ];
+      const secondarySeriesValues = config.key === 'arms'
+        ? [
+            ...Array(Math.max(0, 5 - recentMeasurements.length)).fill(null),
             ...recentMeasurements.map((item) => {
-              const value = item[config.key];
+              const value = item.rightArm;
               return typeof value === 'number' ? value : null;
             }),
-          ];
+          ]
+        : config.key === 'legs'
+          ? [
+              ...Array(Math.max(0, 5 - recentMeasurements.length)).fill(null),
+              ...recentMeasurements.map((item) => {
+                const value = item.rightLeg;
+                return typeof value === 'number' ? value : null;
+              }),
+            ]
+          : null;
       const numericSeries = seriesValues.filter((value): value is number => value != null);
       const maxValue = numericSeries.length > 0 ? Math.max(...numericSeries) : 0;
       const series = seriesValues.map((value) => {
         if (value == null || maxValue === 0) return 0;
         return Math.max(0.12, value / maxValue);
       });
-      const linePath = config.key === 'weight' ? buildLinePath(seriesValues) : '';
+      const lineData = buildLinePath(seriesValues);
+      const secondaryLineData = secondarySeriesValues ? buildLinePath(secondarySeriesValues) : null;
 
       return {
         ...config,
         latestValue,
+        latestPair,
         delta,
         series,
-        linePath,
+        linePath: lineData.path,
+        linePoints: lineData.points,
+        secondaryLinePath: secondaryLineData?.path,
+        secondaryLinePoints: secondaryLineData?.points,
       };
     });
   }, [buildLinePath, measurementsSorted, recentMeasurements, weightSeries]);

@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { removeRefreshToken, removeToken, removeUserId, setRefreshToken, setToken, setUserId } from '../../../shared/lib/storage';
 import { setCurrentUserId } from '../../../shared/db/userSession';
-import { seedLocalData } from '../../../shared/db/seedLocalData';
+import { seedLocalData, seedWeightHistoryTwoMonths } from '../../../shared/db/seedLocalData';
 import { api } from '../../../shared/api/client';
 
 export const useAuthActions = () => {
@@ -71,6 +71,16 @@ export const useAuthActions = () => {
     ]);
   }, []);
 
+  const handleSeedWeightHistory = useCallback(() => {
+    Alert.alert('Замеры', 'Заполнить 2 месяца веса и замеров?', [
+      { text: 'Отмена', style: 'cancel' },
+      { text: 'Заполнить', style: 'default', onPress: () => {
+        const result = seedWeightHistoryTwoMonths();
+        Alert.alert('Готово', `Анкет: ${result.surveysSaved}\nЗамеров: ${result.measurementsSaved}`);
+      }},
+    ]);
+  }, []);
+
   const handleQuickSwitch = useCallback(async (role: 'admin' | 'trainer' | 'client') => {
     const credentials = {
       admin: { email: 'admin@fitmetrics.com', password: 'admin123' },
@@ -119,6 +129,7 @@ export const useAuthActions = () => {
     handleLogout,
     handleSavePassword,
     handleSeedLocalData,
+    handleSeedWeightHistory,
     handleQuickSwitch,
   };
 };

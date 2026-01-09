@@ -3,6 +3,8 @@ import { dailySurveyRepository } from '../../features/diary/repositories/DailySu
 import { measurementsRepository } from '../../features/measurements/repositories/MeasurementsRepository';
 
 const toDateString = (date: Date) => date.toISOString().split('T')[0];
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const round1 = (value: number) => Math.round(value * 10) / 10;
 
 export const seedLocalData = () => {
   const today = new Date();
@@ -74,4 +76,46 @@ export const seedLocalData = () => {
   });
 
   return { mealsAdded, surveysSaved };
+};
+
+export const seedWeightHistoryTwoMonths = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let surveysSaved = 0;
+  let measurementsSaved = 0;
+
+  for (let i = 0; i < 60; i += 1) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (59 - i));
+    const dateStr = toDateString(date);
+
+    const base = 89 - (8 * i) / 59;
+    const wobble = Math.sin(i * 0.7) * 0.3 + Math.cos(i * 0.3) * 0.2;
+    const weight = round1(clamp(base + wobble, 81, 89));
+
+    dailySurveyRepository.saveSurvey({
+      date: dateStr,
+      weight,
+    });
+    surveysSaved += 1;
+
+    if (i % 7 === 0) {
+      const t = i / 59;
+      measurementsRepository.saveMeasurement({
+        date: dateStr,
+        weight,
+        chest: round1(102 - t * 4),
+        waist: round1(92 - t * 6),
+        hips: round1(100 - t * 3),
+        leftArm: round1(32 - t * 1),
+        rightArm: round1(32 - t * 1),
+        leftLeg: round1(56 - t * 1),
+        rightLeg: round1(56 - t * 1),
+      });
+      measurementsSaved += 1;
+    }
+  }
+
+  return { surveysSaved, measurementsSaved };
 };
