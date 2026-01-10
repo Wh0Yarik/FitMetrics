@@ -16,10 +16,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronRight, Crown, Dumbbell, HelpCircle, Pencil, Settings, X } from 'lucide-react-native';
 import Constants from 'expo-constants';
-import * as Updates from 'expo-updates';
 import { useFocusEffect } from 'expo-router';
 
-import { AppButton, AppInput, Card, colors, fonts, radii, spacing, useTabBarVisibility } from '../../../shared/ui';
+import { AppButton, AppInput, Card, colors, fonts, radii, shadows, spacing, useTabBarVisibility } from '../../../shared/ui';
 import { ProfileHeader } from '../components/ProfileHeader';
 import { EditProfileSheet } from '../components/EditProfileSheet';
 import { SharedBottomSheet } from '../components/SharedBottomSheet';
@@ -30,6 +29,14 @@ import { useAuthActions } from '../model/useAuthActions';
 
 const PRIVACY_URL = 'https://fitmetrics.ru/privacy';
 const TERMS_URL = 'https://fitmetrics.ru/terms';
+
+let Updates: typeof import('expo-updates') | null = null;
+try {
+  // ExpoUpdates may be missing in some dev clients.
+  Updates = require('expo-updates');
+} catch {
+  Updates = null;
+}
 
 export default function ProfileScreen() {
   const { setHidden: setTabBarHidden } = useTabBarVisibility();
@@ -86,7 +93,7 @@ export default function ProfileScreen() {
     useCallback(() => {
       let mounted = true;
       const checkUpdates = async () => {
-        if (!Updates.isEnabled) return;
+        if (!Updates?.isEnabled) return;
         try {
           const update = await Updates.checkForUpdateAsync();
           if (!mounted) return;
@@ -473,7 +480,7 @@ export default function ProfileScreen() {
           </View>
           <TouchableOpacity
             style={styles.updateBannerButton}
-            onPress={() => Updates.reloadAsync()}
+            onPress={() => Updates?.reloadAsync()}
           >
             <Text style={styles.updateBannerButtonText}>Обновить</Text>
           </TouchableOpacity>
