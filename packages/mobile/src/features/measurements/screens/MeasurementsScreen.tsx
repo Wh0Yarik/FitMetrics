@@ -14,7 +14,7 @@ import { useMeasurementsList } from '../model/useMeasurementsList';
 import { api } from '../../../shared/api/client';
 import { dailySurveyRepository } from '../../diary/repositories/DailySurveyRepository';
 import { CalendarHeader, CalendarWeekDay } from '../../../shared/components/CalendarHeader';
-import { formatDateKey, getWeekDates, getHeaderTitle, getRelativeLabel, WEEKDAY_LABELS } from '../../../shared/lib/date';
+import { formatDateKey, getWeekDates, getHeaderTitle, getRelativeLabel, shiftDate, WEEKDAY_LABELS } from '../../../shared/lib/date';
 import { useWeekCalendar } from '../../../shared/lib/calendar/useWeekCalendar';
 import { colors, fonts, radii, shadows, spacing, useTabBarVisibility } from '../../../shared/ui';
 
@@ -50,6 +50,8 @@ export default function MeasurementsScreen() {
     selectDate,
     weekSwipeAnim,
     weekPanResponder,
+    weekWidth,
+    setWeekWidth,
     isCalendarOpen,
     openCalendar,
     closeCalendar,
@@ -97,10 +99,10 @@ export default function MeasurementsScreen() {
   }, []);
 
   const relativeLabel = useMemo(() => getRelativeLabel(currentDate), [currentDate]);
-  const weekDays = useMemo(() => {
+  const buildWeekDays = useCallback((baseDate: string) => {
     const today = new Date();
     const todayStr = formatDateKey(today);
-    return getWeekDates(visibleWeekDate).map((day, index) => {
+    return getWeekDates(baseDate).map((day, index) => {
       const dateStr = formatDateKey(day);
       const hasMeasurement = measurementsByDate.has(dateStr);
       return {
@@ -114,8 +116,13 @@ export default function MeasurementsScreen() {
         progress: hasMeasurement ? 1 : 0,
       };
     });
-  }, [currentDate, measurementsByDate, visibleWeekDate]);
-  const calendarWeekDays = useMemo<CalendarWeekDay[]>(() => weekDays.map((day) => ({
+  }, [currentDate, measurementsByDate]);
+
+  const weekSets = useMemo(() => ([-1, 0, 1] as const).map((offset) =>
+    buildWeekDays(shiftDate(visibleWeekDate, offset * 7))
+  ), [buildWeekDays, visibleWeekDate]);
+
+  const calendarWeekSets = useMemo<CalendarWeekDay[][]>(() => weekSets.map((week) => week.map((day) => ({
     dateStr: day.dateStr,
     label: day.label,
     day: day.day,
@@ -124,7 +131,7 @@ export default function MeasurementsScreen() {
     progress: day.progress,
     showProgress: day.hasMeasurement || day.isSelected,
     markerState: day.hasMeasurement ? 'complete' : 'none',
-  })), [weekDays]);
+  }))), [weekSets]);
   useEffect(() => {
     const survey = dailySurveyRepository.getSurveyByDate(currentDate);
     setSurveyPrefill(survey?.weight ?? null);
@@ -227,11 +234,13 @@ export default function MeasurementsScreen() {
           dateLabel={getHeaderTitle(currentDate)}
           relativeLabel={relativeLabel}
           syncStatus={syncStatus}
-          weekDays={calendarWeekDays}
+          weekSets={calendarWeekSets}
           onOpenCalendar={openCalendar}
           onSelectDay={selectDate}
           weekSwipeAnim={weekSwipeAnim}
           weekPanHandlers={weekPanResponder.panHandlers}
+          weekWidth={weekWidth}
+          onWeekLayout={setWeekWidth}
           useSafeArea={false}
         />
 

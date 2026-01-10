@@ -93,6 +93,7 @@ export const useWeekCalendar = ({ currentDate, setCurrentDate }: UseWeekCalendar
   }), [animateCalendar, calendarAnim, handleMonthShift]);
 
   const weekSwipeAnim = useRef(new Animated.Value(0)).current;
+  const [weekWidth, setWeekWidth] = useState(0);
   const handleWeekShift = useCallback((direction: number) => {
     setVisibleWeekDate((prev) => shiftDate(prev, direction * 7));
   }, []);
@@ -101,11 +102,18 @@ export const useWeekCalendar = ({ currentDate, setCurrentDate }: UseWeekCalendar
     onMoveShouldSetPanResponder: (_, gesture) =>
       Math.abs(gesture.dx) > 20 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
     onPanResponderMove: (_, gesture) => {
-      const clamped = Math.max(-28, Math.min(28, gesture.dx * 0.2));
+      if (!weekWidth) return;
+      const clamped = Math.max(-weekWidth, Math.min(weekWidth, gesture.dx));
       weekSwipeAnim.setValue(clamped);
     },
     onPanResponderRelease: (_, gesture) => {
-      if (Math.abs(gesture.dx) < 40) {
+      if (!weekWidth) {
+        const direction = gesture.dx > 0 ? -1 : 1;
+        handleWeekShift(direction);
+        weekSwipeAnim.setValue(0);
+        return;
+      }
+      if (Math.abs(gesture.dx) < weekWidth * 0.2) {
         Animated.timing(weekSwipeAnim, {
           toValue: 0,
           duration: 160,
@@ -114,20 +122,24 @@ export const useWeekCalendar = ({ currentDate, setCurrentDate }: UseWeekCalendar
         return;
       }
       const direction = gesture.dx > 0 ? -1 : 1;
-      handleWeekShift(direction);
       Animated.timing(weekSwipeAnim, {
-        toValue: 0,
-        duration: 200,
+        toValue: -direction * weekWidth,
+        duration: 180,
         useNativeDriver: true,
-      }).start();
+      }).start(() => {
+        weekSwipeAnim.setValue(0);
+        handleWeekShift(direction);
+      });
     },
-  }), [handleWeekShift, weekSwipeAnim]);
+  }), [handleWeekShift, weekSwipeAnim, weekWidth]);
 
   return {
     visibleWeekDate,
     selectDate,
     weekSwipeAnim,
     weekPanResponder,
+    weekWidth,
+    setWeekWidth,
     isCalendarOpen,
     openCalendar,
     closeCalendar,

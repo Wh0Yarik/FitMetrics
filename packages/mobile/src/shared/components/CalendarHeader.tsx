@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, PanResponderInstance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronDown, Cloud, CloudOff, RefreshCw } from 'lucide-react-native';
@@ -26,11 +26,13 @@ type CalendarHeaderProps = {
   dateLabel: string;
   relativeLabel?: string | null;
   syncStatus?: CalendarSyncStatus;
-  weekDays: CalendarWeekDay[];
+  weekSets: CalendarWeekDay[][];
   onOpenCalendar: () => void;
   onSelectDay: (dateStr: string) => void;
   weekSwipeAnim: Animated.Value;
   weekPanHandlers: PanResponderInstance['panHandlers'];
+  weekWidth: number;
+  onWeekLayout: (width: number) => void;
   useSafeArea?: boolean;
 };
 
@@ -123,13 +125,23 @@ export const CalendarHeader = ({
   dateLabel,
   relativeLabel,
   syncStatus,
-  weekDays,
+  weekSets,
   onOpenCalendar,
   onSelectDay,
   weekSwipeAnim,
   weekPanHandlers,
+  weekWidth,
+  onWeekLayout,
   useSafeArea = true,
 }: CalendarHeaderProps) => {
+  const baseOffset = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    baseOffset.setValue(-weekWidth);
+  }, [baseOffset, weekWidth]);
+  const translateX = useMemo(
+    () => Animated.add(weekSwipeAnim, baseOffset),
+    [baseOffset, weekSwipeAnim]
+  );
   const headerContent = (
     <View className="px-6 pb-0 pt-2">
       <View style={styles.headerCard}>
@@ -168,55 +180,65 @@ export const CalendarHeader = ({
           ) : null}
         </View>
 
-        <View style={styles.weekRow}>
+        <View
+          style={styles.weekRow}
+          onLayout={(event) => onWeekLayout(event.nativeEvent.layout.width)}
+        >
           <Animated.View
-            style={[styles.weekDays, { transform: [{ translateX: weekSwipeAnim }] }]}
+            style={[
+              styles.weekTrack,
+              { transform: [{ translateX }], width: weekWidth ? weekWidth * weekSets.length : undefined },
+            ]}
             {...weekPanHandlers}
           >
-            {weekDays.map((day) => {
-              const showProgress = day.showProgress ?? day.isSelected;
-              const markerState = day.markerState ?? 'none';
-              return (
-                <TouchableOpacity
-                  key={day.dateStr}
-                  onPress={() => onSelectDay(day.dateStr)}
-                  style={[
-                    styles.weekDayItem,
-                    day.isSelected && styles.weekDayItemSelected,
-                    day.isToday && !day.isSelected && styles.weekDayItemToday,
-                  ]}
-                >
-                  {showProgress && (
-                    <View pointerEvents="none" style={styles.weekDayProgress}>
-                      <WeekProgressBorder
-                        progress={day.progress ?? 0}
-                        accent={day.isSelected ? '#FFFFFF' : COLORS.primary}
-                        baseColor={day.isSelected ? 'rgba(255,255,255,0.35)' : '#E5E7EB'}
+            {weekSets.map((weekDays, index) => (
+              <View key={`week-${index}`} style={[styles.weekDays, { width: weekWidth || '100%' }]}>
+                {weekDays.map((day) => {
+                  const showProgress = day.showProgress ?? day.isSelected;
+                  const markerState = day.markerState ?? 'none';
+                  return (
+                    <TouchableOpacity
+                      key={day.dateStr}
+                      onPress={() => onSelectDay(day.dateStr)}
+                      style={[
+                        styles.weekDayItem,
+                        day.isSelected && styles.weekDayItemSelected,
+                        day.isToday && !day.isSelected && styles.weekDayItemToday,
+                      ]}
+                    >
+                      {showProgress && (
+                        <View pointerEvents="none" style={styles.weekDayProgress}>
+                          <WeekProgressBorder
+                            progress={day.progress ?? 0}
+                            accent={day.isSelected ? '#FFFFFF' : COLORS.primary}
+                            baseColor={day.isSelected ? 'rgba(255,255,255,0.35)' : '#E5E7EB'}
+                          />
+                        </View>
+                      )}
+                      <Text style={[styles.weekDayLabel, day.isSelected && styles.weekDayLabelSelected]}>
+                        {day.label}
+                      </Text>
+                      <View
+                        style={[
+                          styles.weekDayDot,
+                          markerState === 'partial' && styles.weekDayDotPartial,
+                          markerState === 'none' && styles.weekDayDotHidden,
+                          day.isSelected && markerState === 'complete' && styles.weekDayDotSelected,
+                          day.isSelected && markerState === 'partial' && styles.weekDayDotPartialSelected,
+                        ]}
                       />
-                    </View>
-                  )}
-                  <Text style={[styles.weekDayLabel, day.isSelected && styles.weekDayLabelSelected]}>
-                    {day.label}
-                  </Text>
-                  <View
-                    style={[
-                      styles.weekDayDot,
-                      markerState === 'partial' && styles.weekDayDotPartial,
-                      markerState === 'none' && styles.weekDayDotHidden,
-                      day.isSelected && markerState === 'complete' && styles.weekDayDotSelected,
-                      day.isSelected && markerState === 'partial' && styles.weekDayDotPartialSelected,
-                    ]}
-                  />
-                  {day.isSelected ? (
-                    <View style={styles.weekDayNumberPill}>
-                      <Text style={styles.weekDayNumberSelected}>{day.day}</Text>
-                    </View>
-                  ) : (
-                    <Text style={styles.weekDayNumber}>{day.day}</Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+                      {day.isSelected ? (
+                        <View style={styles.weekDayNumberPill}>
+                          <Text style={styles.weekDayNumberSelected}>{day.day}</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.weekDayNumber}>{day.day}</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))}
           </Animated.View>
         </View>
       </View>
@@ -301,6 +323,10 @@ const styles = StyleSheet.create({
   },
   weekRow: {
     marginTop: 12,
+    overflow: 'hidden',
+  },
+  weekTrack: {
+    flexDirection: 'row',
   },
   weekDays: {
     flexDirection: 'row',

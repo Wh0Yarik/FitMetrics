@@ -18,7 +18,7 @@ import { useWeekCalendar } from '../../../shared/lib/calendar/useWeekCalendar';
 import { COLORS } from '../../../constants/Colors';
 import { api } from '../../../shared/api/client';
 import { CalendarHeader, CalendarWeekDay } from '../../../shared/components/CalendarHeader';
-import { formatDateKey, getDateObj, getWeekDates, getHeaderTitle, getRelativeLabel, WEEKDAY_LABELS } from '../../../shared/lib/date';
+import { formatDateKey, getDateObj, getWeekDates, getHeaderTitle, getRelativeLabel, shiftDate, WEEKDAY_LABELS } from '../../../shared/lib/date';
 
 // --- Конфигурация и константы ---
 
@@ -70,6 +70,8 @@ export default function DiaryScreen() {
     selectDate,
     weekSwipeAnim,
     weekPanResponder,
+    weekWidth,
+    setWeekWidth,
     isCalendarOpen,
     openCalendar,
     closeCalendar,
@@ -150,8 +152,10 @@ export default function DiaryScreen() {
     });
   }, [currentDate, dailySurvey, meals, resolveNutritionGoalForDate]);
 
-  const weekDays = useMemo(() => buildWeekDays(visibleWeekDate), [buildWeekDays, visibleWeekDate]);
-  const calendarWeekDays = useMemo<CalendarWeekDay[]>(() => weekDays.map((day) => ({
+  const weekSets = useMemo(() => ([-1, 0, 1] as const).map((offset) =>
+    buildWeekDays(shiftDate(visibleWeekDate, offset * 7))
+  ), [buildWeekDays, visibleWeekDate]);
+  const calendarWeekSets = useMemo<CalendarWeekDay[][]>(() => weekSets.map((week) => week.map((day) => ({
     dateStr: day.dateStr,
     label: day.label,
     day: day.day,
@@ -160,7 +164,7 @@ export default function DiaryScreen() {
     progress: day.progress,
     showProgress: day.hasMeals || day.isSelected,
     markerState: day.hasSurvey ? (day.surveyStatus === 'partial' ? 'partial' : 'complete') : 'none',
-  })), [weekDays]);
+  }))), [weekSets]);
 
 
   // Обработка системной кнопки "Назад" (выход из приложения на главном экране)
@@ -318,21 +322,25 @@ export default function DiaryScreen() {
       dateLabel={getHeaderTitle(currentDate)}
       relativeLabel={relativeLabel}
       syncStatus={syncStatus}
-      weekDays={calendarWeekDays}
+      weekSets={calendarWeekSets}
       onOpenCalendar={openCalendar}
       onSelectDay={selectDate}
       weekSwipeAnim={weekSwipeAnim}
       weekPanHandlers={weekPanResponder.panHandlers}
+      weekWidth={weekWidth}
+      onWeekLayout={setWeekWidth}
     />
   ), [
     currentDate,
     relativeLabel,
     syncStatus,
-    calendarWeekDays,
+    calendarWeekSets,
     openCalendar,
     selectDate,
     weekPanResponder,
     weekSwipeAnim,
+    weekWidth,
+    setWeekWidth,
   ]);
 
   return (
