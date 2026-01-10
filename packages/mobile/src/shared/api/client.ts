@@ -6,15 +6,31 @@ import { getRefreshToken, getToken, removeRefreshToken, removeToken, setRefreshT
 // Android Emulator использует 10.0.2.2 для доступа к localhost хоста
 // iOS Simulator использует localhost
 // Для реального устройства нужно использовать IP вашего компьютера в локальной сети (например, 192.168.1.X)
+const PROD_API_URL = 'https://api.fitmetrics.ru/api';
+
+const isLocalUrl = (url: string) =>
+  url.startsWith('http://10.0.2.2')
+  || url.startsWith('http://localhost')
+  || url.startsWith('http://127.0.0.1')
+  || url.startsWith('http://192.168.');
+
 const getBaseUrl = () => {
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envUrl) {
+    if (!__DEV__ && isLocalUrl(envUrl)) {
+      return PROD_API_URL;
+    }
+    return envUrl;
   }
-  
+
+  if (!__DEV__) {
+    return PROD_API_URL;
+  }
+
   if (Platform.OS === 'android') {
     return 'http://10.0.2.2:3001/api';
   }
-  
+
   return 'http://localhost:3001/api';
 };
 
