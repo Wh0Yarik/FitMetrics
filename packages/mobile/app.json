@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "fitmetrics",
+    "slug": "fitmetrics",
     "scheme": "fitmetrics",
     "version": "1.0.0",
     "orientation": "portrait",
