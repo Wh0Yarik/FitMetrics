@@ -16,6 +16,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronRight, Crown, Dumbbell, HelpCircle, Pencil, Settings, X } from 'lucide-react-native';
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
+import { useFocusEffect } from 'expo-router';
 
 import { AppButton, AppInput, Card, colors, fonts, radii, spacing, useTabBarVisibility } from '../../../shared/ui';
 import { ProfileHeader } from '../components/ProfileHeader';
@@ -37,6 +39,8 @@ export default function ProfileScreen() {
   const [isSettingsSheetOpen, setSettingsSheetOpen] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [remindersEnabled, setRemindersEnabled] = useState(true);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
 
   const trainer = useTrainerConnection();
   const profile = useUserProfile({ onTrainerLoaded: trainer.applyTrainerData });
@@ -77,6 +81,34 @@ export default function ProfileScreen() {
   useEffect(() => {
     setTabBarHidden(isEditOpen || isTrainerSheetOpen || isPasswordSheetOpen || isSettingsSheetOpen);
   }, [isEditOpen, isPasswordSheetOpen, isSettingsSheetOpen, isTrainerSheetOpen, setTabBarHidden]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+      const checkUpdates = async () => {
+        if (!Updates.isEnabled) return;
+        try {
+          const update = await Updates.checkForUpdateAsync();
+          if (!mounted) return;
+          if (update.isAvailable) {
+            await Updates.fetchUpdateAsync();
+            if (mounted) {
+              setUpdateAvailable(true);
+              setUpdateDismissed(false);
+            }
+          } else {
+            setUpdateAvailable(false);
+          }
+        } catch {
+          // Ignore update errors to avoid blocking the screen.
+        }
+      };
+      checkUpdates();
+      return () => {
+        mounted = false;
+      };
+    }, [])
+  );
 
   const handleRemoveTrainer = useCallback(() => {
     Alert.alert('Расстаться с тренером', 'Вы уверены, что хотите расстаться с тренером?', [
@@ -432,6 +464,27 @@ export default function ProfileScreen() {
           />
         ) : null}
       </SafeAreaView>
+
+      {updateAvailable && !updateDismissed ? (
+        <View style={styles.updateBanner}>
+          <View style={styles.updateBannerContent}>
+            <Text style={styles.updateBannerTitle}>Доступно обновление</Text>
+            <Text style={styles.updateBannerSubtitle}>Перезапусти приложение, чтобы применить</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.updateBannerButton}
+            onPress={() => Updates.reloadAsync()}
+          >
+            <Text style={styles.updateBannerButtonText}>Обновить</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.updateBannerClose}
+            onPress={() => setUpdateDismissed(true)}
+          >
+            <X size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -535,6 +588,52 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.regular,
     color: colors.textTertiary,
+  },
+  updateBanner: {
+    position: 'absolute',
+    left: spacing.xl,
+    right: spacing.xl,
+    bottom: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    paddingVertical: spacing.sm,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    ...shadows.card,
+  },
+  updateBannerContent: {
+    flex: 1,
+    paddingRight: spacing.sm,
+  },
+  updateBannerTitle: {
+    fontSize: 14,
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
+  },
+  updateBannerSubtitle: {
+    fontSize: 11,
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  updateBannerButton: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  updateBannerButtonText: {
+    fontSize: 12,
+    fontFamily: fonts.semibold,
+    color: colors.surface,
+  },
+  updateBannerClose: {
+    marginLeft: spacing.xs,
+    padding: 6,
   },
   bentoDevRow: {
     flexDirection: 'row',
