@@ -19,6 +19,8 @@ logs/
 # Expo
 .expo/
 web-build/
+dist/
+app.apks
 
 # React Native (build artifacts)
 android/app/build/
