@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Minus, Plus, X } from 'lucide-react-native';
 import { AppButton, AppInput, colors, fonts, radii, spacing } from '../../../shared/ui';
 import { SharedBottomSheet } from '../../profile/components/SharedBottomSheet';
@@ -74,78 +74,86 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({
   };
 
   return (
-    <SharedBottomSheet visible={visible} onClose={onClose} headerSwipeHeight={56}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboard}
-      >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>
-            {mode === 'edit' ? 'Редактировать прием пищи' : 'Добавить прием пищи'}
-          </Text>
-        </View>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
+      <SharedBottomSheet visible={visible} onClose={onClose} headerSwipeHeight={56}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboard}
+        >
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>
+              {mode === 'edit' ? 'Редактировать прием пищи' : 'Добавить прием пищи'}
+            </Text>
+          </View>
 
-        <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentBody}>
-          <AppInput
-            label="Название"
-            value={name}
-            onChangeText={setName}
-            placeholder="Например: Завтрак, яблоко, перекус"
-            containerStyle={styles.inputGroup}
-          />
+          <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentBody}>
+            <AppInput
+              label="Название"
+              value={name}
+              onChangeText={setName}
+              placeholder="Например: Завтрак, яблоко, перекус"
+              containerStyle={styles.inputGroup}
+            />
 
-          <View style={styles.sectionBlock}>
-            <Text style={styles.sectionTitle}>Порции</Text>
-            <View style={styles.portionList}>
-              {PORTION_TYPES.map((type) => {
-                const count = portions[type.key as keyof PortionCount];
-                return (
-                  <View key={type.key} style={styles.portionRow}>
-                    <View style={styles.portionLabel}>
-                      <View style={[styles.portionDot, { backgroundColor: type.accent }]} />
-                      <Text style={styles.portionLabelText}>{type.label}</Text>
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionTitle}>Порции</Text>
+              <View style={styles.portionList}>
+                {PORTION_TYPES.map((type) => {
+                  const count = portions[type.key as keyof PortionCount];
+                  return (
+                    <View key={type.key} style={styles.portionRow}>
+                      <View style={styles.portionLabel}>
+                        <View style={[styles.portionDot, { backgroundColor: type.accent }]} />
+                        <Text style={styles.portionLabelText}>{type.label}</Text>
+                      </View>
+                      <View style={styles.stepperControls}>
+                        <TouchableOpacity
+                          onPress={() => handleDecrement(type.key as keyof PortionCount)}
+                          style={styles.stepperButton}
+                        >
+                          <Minus size={16} color={colors.textSecondary} />
+                        </TouchableOpacity>
+
+                        <Text style={styles.stepperCount}>{count}</Text>
+
+                        <TouchableOpacity
+                          onPress={() => handleIncrement(type.key as keyof PortionCount)}
+                          style={styles.stepperButtonPrimary}
+                        >
+                          <Plus size={16} color={colors.surface} />
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                    <View style={styles.stepperControls}>
-                      <TouchableOpacity
-                        onPress={() => handleDecrement(type.key as keyof PortionCount)}
-                        style={styles.stepperButton}
-                      >
-                        <Minus size={16} color={colors.textSecondary} />
-                      </TouchableOpacity>
-
-                      <Text style={styles.stepperCount}>{count}</Text>
-
-                      <TouchableOpacity
-                        onPress={() => handleIncrement(type.key as keyof PortionCount)}
-                        style={styles.stepperButtonPrimary}
-                      >
-                        <Plus size={16} color={colors.surface} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })}
+                  );
+                })}
+              </View>
             </View>
-          </View>
 
-          <View style={styles.actions}>
-            <AppButton
-              title={mode === 'edit' ? 'Сохранить' : 'Добавить'}
-              onPress={handleSubmit}
-              size="md"
-              style={styles.actionButton}
-            />
-            <AppButton
-              title="Отмена"
-              onPress={onClose}
-              variant="secondary"
-              size="md"
-              style={styles.actionButton}
-            />
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SharedBottomSheet>
+            <View style={styles.actions}>
+              <AppButton
+                title={mode === 'edit' ? 'Сохранить' : 'Добавить'}
+                onPress={handleSubmit}
+                size="md"
+                style={styles.actionButton}
+              />
+              <AppButton
+                title="Отмена"
+                onPress={onClose}
+                variant="secondary"
+                size="md"
+                style={styles.actionButton}
+              />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SharedBottomSheet>
+    </Modal>
   );
 };
 
