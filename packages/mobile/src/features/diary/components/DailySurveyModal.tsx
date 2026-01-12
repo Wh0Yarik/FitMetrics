@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppButton, AppInput, colors, fonts, radii, spacing } from '../../../shared/ui';
 import { X } from 'lucide-react-native';
 import { DailySurveyData } from '../repositories/DailySurveyRepository';
@@ -156,8 +156,7 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <SharedBottomSheet visible={visible} onClose={onClose} headerSwipeHeight={56}>
+    <SharedBottomSheet visible={visible} onClose={onClose} headerSwipeHeight={56}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboard}
@@ -254,8 +253,7 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-      </SharedBottomSheet>
-    </Modal>
+    </SharedBottomSheet>
   );
 };
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Minus, Plus, X } from 'lucide-react-native';
 import { AppButton, AppInput, colors, fonts, radii, spacing } from '../../../shared/ui';
 import { SharedBottomSheet } from '../../profile/components/SharedBottomSheet';
@@ -74,8 +74,7 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <SharedBottomSheet visible={visible} onClose={onClose} headerSwipeHeight={56}>
+    <SharedBottomSheet visible={visible} onClose={onClose} headerSwipeHeight={56}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboard}
@@ -146,8 +145,7 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-      </SharedBottomSheet>
-    </Modal>
+    </SharedBottomSheet>
   );
 };
 
