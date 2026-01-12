@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Circle } from 'react-native-svg';
 
+import { colors, fonts, radii, shadows, spacing } from '../../../shared/ui';
+
 type MacroCardProps = {
   label: string;
   current: number;
@@ -35,7 +37,7 @@ const MacroRing = ({ progress, accent }: { progress: number; accent: string }) =
         cx={size / 2}
         cy={size / 2}
         r={radius}
-        stroke="#E5E7EB"
+        stroke={colors.divider}
         strokeWidth={strokeWidth}
         fill="none"
         strokeDasharray={`${circumference}`}
@@ -80,7 +82,7 @@ export const MacroCard = React.memo(({
   const progress = target > 0 ? current / target : 0;
 
   return (
-    <View style={[styles.macroCard, { borderColor: `${accent}33` }]}>
+    <View style={styles.macroCard}>
       <View style={styles.macroRingWrap}>
         <MacroRing progress={showTarget ? progress : 1} accent={accent} />
         <View style={styles.macroRingCenter}>
@@ -102,19 +104,17 @@ export const MacroCard = React.memo(({
 const styles = StyleSheet.create({
   macroCard: {
     width: '48%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderWidth: 2,
-    shadowColor: '#111827',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    marginBottom: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.06)',
+    marginBottom: spacing.sm,
+    ...shadows.card,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
+    gap: spacing.sm,
   },
   macroRingWrap: {
     width: 56,
@@ -133,31 +133,30 @@ const styles = StyleSheet.create({
   },
   macroValue: {
     fontSize: 22,
-    fontWeight: '900',
+    fontFamily: fonts.bold,
+    fontVariant: ['tabular-nums'],
   },
   macroInfo: {
     flex: 1,
     justifyContent: 'space-between',
   },
   macroLabel: {
-    fontSize: 16,
-    fontWeight: '300',
-    color: '#6B7280',
-    textTransform: 'none',
-    letterSpacing: 0.4,
+    fontSize: 14,
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
     lineHeight: 18,
-    minHeight: 18,
   },
   macroPlanFact: {
-    marginTop: 0,
-    fontSize: 18,
-    color: '#9CA3AF',
-    fontWeight: '600',
+    marginTop: 2,
+    fontSize: 16,
+    color: colors.textTertiary,
+    fontFamily: fonts.semibold,
+    fontVariant: ['tabular-nums'],
   },
   macroPlanFactMuted: {
-    marginTop: 0,
-    fontSize: 15,
-    color: '#9CA3AF',
-    fontWeight: '800',
+    marginTop: 2,
+    fontSize: 12,
+    color: colors.textTertiary,
+    fontFamily: fonts.medium,
   },
 });

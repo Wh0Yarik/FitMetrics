@@ -657,11 +657,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: radii.pill,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
+    paddingVertical: spacing.sm,
+    ...shadows.button,
   },
   primaryButtonText: {
     color: colors.surface,
@@ -778,7 +775,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.divider,
+    borderColor: 'rgba(0,0,0,0.06)',
+    ...shadows.card,
   },
   addIcon: {
     width: 30,
@@ -803,8 +801,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     backgroundColor: colors.surface,
     borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.divider,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.06)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -812,11 +810,11 @@ const styles = StyleSheet.create({
   },
   surveyStripComplete: {
     backgroundColor: `${colors.accentFiber}14`,
-    borderColor: `${colors.accentFiber}55`,
+    borderColor: `${colors.accentFiber}40`,
   },
   surveyStripPending: {
     backgroundColor: `${colors.accentFat}12`,
-    borderColor: `${colors.accentFat}55`,
+    borderColor: `${colors.accentFat}40`,
   },
   surveyStripLeft: {
     flexDirection: 'row',
