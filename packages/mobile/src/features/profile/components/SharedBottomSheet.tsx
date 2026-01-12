@@ -31,6 +31,7 @@ type SharedBottomSheetProps = {
   cardStyle?: ViewStyle;
   disableBackdropPress?: boolean;
   enableSwipeToDismiss?: boolean;
+  headerSwipeHeight?: number;
 };
 
 export const SharedBottomSheet = ({
@@ -41,6 +42,7 @@ export const SharedBottomSheet = ({
   cardStyle,
   disableBackdropPress = false,
   enableSwipeToDismiss = true,
+  headerSwipeHeight = 0,
 }: SharedBottomSheetProps) => {
   const [isMounted, setMounted] = useState(visible);
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -159,6 +161,13 @@ export const SharedBottomSheet = ({
       </Pressable>
       <Animated.View style={[styles.container, { transform: [{ translateY }] }]}>
         <Card style={[styles.card, { height }, cardStyle]}>
+          {headerSwipeHeight > 0 ? (
+            <View
+              pointerEvents="box-only"
+              style={[styles.headerSwipeZone, { height: headerSwipeHeight }]}
+              {...panResponder.panHandlers}
+            />
+          ) : null}
           <View style={styles.handleArea} {...panResponder.panHandlers}>
             <View style={styles.grabber} />
           </View>
@@ -212,5 +221,12 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: radii.pill,
     backgroundColor: colors.divider,
+  },
+  headerSwipeZone: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 2,
   },
 });

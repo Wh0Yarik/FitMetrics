@@ -7,6 +7,7 @@ import { SharedBottomSheet } from '../../profile/components/SharedBottomSheet';
 import { colors, fonts, spacing } from '../../../shared/ui';
 import { getDateObj } from '../../../shared/lib/date';
 import { MeasurementChart } from './MeasurementChart';
+import { dailySurveyRepository } from '../../diary/repositories/DailySurveyRepository';
 
 type MetricKey = 'weight' | 'waist' | 'hips' | 'chest' | 'arms' | 'legs';
 
@@ -19,6 +20,7 @@ const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
   { key: '1y', label: '1 г' },
   { key: 'all', label: 'Все' },
 ];
+const PAGE_SIZE = 10;
 
 const METRIC_META: Record<MetricKey, { label: string; unit: string; color: string; secondaryColor?: string }> = {
   weight: { label: 'Вес', unit: 'кг', color: colors.accentFiber },
@@ -62,6 +64,7 @@ export const MeasurementProgressSheet = ({
   const [range, setRange] = useState<RangeKey>('all');
   const [hovered, setHovered] = useState<{ index: number; x: number; y: number } | null>(null);
   const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const metric = metricKey ? METRIC_META[metricKey] : null;
 
@@ -69,11 +72,52 @@ export const MeasurementProgressSheet = ({
     if (!metricKey) return;
     setRange(metricKey === 'weight' ? '1m' : '3m');
   }, [metricKey, visible]);
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [metricKey, range]);
 
-  const entries = useMemo(() => {
+  const mergedMeasurements = useMemo(() => {
+    if (metricKey !== 'weight') return measurements;
+    const base = new Map<string, MeasurementEntry>();
+    measurements.forEach((entry) => {
+      base.set(entry.date, entry);
+    });
+    const surveys = dailySurveyRepository.getSurveysWithWeight();
+    surveys.forEach((survey) => {
+      const existing = base.get(survey.date);
+      if (existing) {
+        if (existing.weight == null) {
+          base.set(survey.date, { ...existing, weight: survey.weight ?? null });
+        }
+        return;
+      }
+      base.set(survey.date, {
+        id: `survey-${survey.date}`,
+        date: survey.date,
+        weight: survey.weight ?? null,
+        chest: null,
+        waist: null,
+        hips: null,
+        leftArm: null,
+        rightArm: null,
+        leftLeg: null,
+        rightLeg: null,
+        photoFront: null,
+        photoSide: null,
+        photoBack: null,
+        synced: true,
+        createdAt: survey.date,
+      });
+    });
+    return Array.from(base.values());
+  }, [measurements, metricKey]);
+
+  const entriesAsc = useMemo(() => {
     if (!metricKey) return [];
-    const sorted = [...measurements].sort((a, b) => a.date.localeCompare(b.date));
+    const source = metricKey === 'weight' ? mergedMeasurements : measurements;
+    const sorted = [...source].sort((a, b) => a.date.localeCompare(b.date));
     const filtered = sorted.filter((entry) => {
+      if (metricKey === 'weight') return typeof entry.weight === 'number';
       if (metricKey === 'arms') return typeof entry.leftArm === 'number' && typeof entry.rightArm === 'number';
       if (metricKey === 'legs') return typeof entry.leftLeg === 'number' && typeof entry.rightLeg === 'number';
       return typeof entry[metricKey] === 'number';
@@ -81,59 +125,64 @@ export const MeasurementProgressSheet = ({
     const cutoff = getRangeCutoff(range);
     if (!cutoff) return filtered;
     return filtered.filter((entry) => getDateObj(entry.date) >= cutoff);
-  }, [measurements, metricKey, range]);
+  }, [measurements, mergedMeasurements, metricKey, range]);
+
+  const entriesDesc = useMemo(
+    () => [...entriesAsc].sort((a, b) => b.date.localeCompare(a.date)),
+    [entriesAsc]
+  );
 
   const seriesValues = useMemo(() => {
     if (!metricKey) return [];
     if (metricKey === 'arms') {
-      return entries.map((entry) => (typeof entry.leftArm === 'number' ? entry.leftArm : null));
+      return entriesAsc.map((entry) => (typeof entry.leftArm === 'number' ? entry.leftArm : null));
     }
     if (metricKey === 'legs') {
-      return entries.map((entry) => (typeof entry.leftLeg === 'number' ? entry.leftLeg : null));
+      return entriesAsc.map((entry) => (typeof entry.leftLeg === 'number' ? entry.leftLeg : null));
     }
-    return entries.map((entry) => entry[metricKey] as number);
-  }, [entries, metricKey]);
+    return entriesAsc.map((entry) => entry[metricKey] as number);
+  }, [entriesAsc, metricKey]);
   const secondarySeriesValues = useMemo(() => {
     if (!metricKey) return [];
     if (metricKey === 'arms') {
-      return entries.map((entry) => (typeof entry.rightArm === 'number' ? entry.rightArm : null));
+      return entriesAsc.map((entry) => (typeof entry.rightArm === 'number' ? entry.rightArm : null));
     }
     if (metricKey === 'legs') {
-      return entries.map((entry) => (typeof entry.rightLeg === 'number' ? entry.rightLeg : null));
+      return entriesAsc.map((entry) => (typeof entry.rightLeg === 'number' ? entry.rightLeg : null));
     }
     return [];
-  }, [entries, metricKey]);
+  }, [entriesAsc, metricKey]);
   const lineData = useMemo(() => buildLinePath(seriesValues), [seriesValues]);
   const secondaryLineData = useMemo(
     () => (secondarySeriesValues.length ? buildLinePath(secondarySeriesValues) : null),
     [secondarySeriesValues]
   );
-  const latestValue = entries.length
+  const latestValue = entriesAsc.length
     ? metricKey === 'arms'
-      ? entries[entries.length - 1].leftArm ?? null
+      ? entriesAsc[entriesAsc.length - 1].leftArm ?? null
       : metricKey === 'legs'
-        ? entries[entries.length - 1].leftLeg ?? null
-        : (entries[entries.length - 1][metricKey] as number)
+        ? entriesAsc[entriesAsc.length - 1].leftLeg ?? null
+        : (entriesAsc[entriesAsc.length - 1][metricKey] as number)
     : null;
-  const latestSecondaryValue = entries.length
+  const latestSecondaryValue = entriesAsc.length
     ? metricKey === 'arms'
-      ? entries[entries.length - 1].rightArm ?? null
+      ? entriesAsc[entriesAsc.length - 1].rightArm ?? null
       : metricKey === 'legs'
-        ? entries[entries.length - 1].rightLeg ?? null
+        ? entriesAsc[entriesAsc.length - 1].rightLeg ?? null
         : null
     : null;
-  const firstValue = entries.length > 1
+  const firstValue = entriesAsc.length > 1
     ? metricKey === 'arms'
-      ? entries[0].leftArm ?? null
+      ? entriesAsc[0].leftArm ?? null
       : metricKey === 'legs'
-        ? entries[0].leftLeg ?? null
-        : (entries[0][metricKey] as number)
+        ? entriesAsc[0].leftLeg ?? null
+        : (entriesAsc[0][metricKey] as number)
     : null;
-  const firstSecondaryValue = entries.length > 1
+  const firstSecondaryValue = entriesAsc.length > 1
     ? metricKey === 'arms'
-      ? entries[0].rightArm ?? null
+      ? entriesAsc[0].rightArm ?? null
       : metricKey === 'legs'
-        ? entries[0].rightLeg ?? null
+        ? entriesAsc[0].rightLeg ?? null
         : null
     : null;
   const averageLatest = latestValue != null && latestSecondaryValue != null
@@ -143,7 +192,7 @@ export const MeasurementProgressSheet = ({
     ? (firstValue + firstSecondaryValue) / 2
     : firstValue ?? firstSecondaryValue;
   const delta = averageLatest != null && averageFirst != null ? averageLatest - averageFirst : null;
-  const hoveredEntry = hovered ? entries[hovered.index] : null;
+  const hoveredEntry = hovered ? entriesAsc[hovered.index] : null;
   const isDual = metricKey === 'arms' || metricKey === 'legs';
   const summaryValueText = metric
     ? isDual
@@ -171,7 +220,12 @@ export const MeasurementProgressSheet = ({
     : 0;
 
   return (
-    <SharedBottomSheet visible={visible} onClose={onClose} enableSwipeToDismiss>
+    <SharedBottomSheet
+      visible={visible}
+      onClose={onClose}
+      enableSwipeToDismiss
+      headerSwipeHeight={56}
+    >
       <View style={styles.header}>
         <Text style={styles.title}>{metric ? `Прогресс — ${metric.label}` : 'Прогресс'}</Text>
       </View>
@@ -225,10 +279,10 @@ export const MeasurementProgressSheet = ({
             onPointHover={setHovered}
           />
         ) : null}
-        {entries.length > 0 ? (
+        {entriesAsc.length > 0 ? (
           <View style={styles.chartDates}>
-            <Text style={styles.chartDateText}>{formatDateLabel(entries[0].date)}</Text>
-            <Text style={styles.chartDateText}>{formatDateLabel(entries[entries.length - 1].date)}</Text>
+            <Text style={styles.chartDateText}>{formatDateLabel(entriesAsc[0].date)}</Text>
+            <Text style={styles.chartDateText}>{formatDateLabel(entriesAsc[entriesAsc.length - 1].date)}</Text>
           </View>
         ) : null}
         {metric && isDual ? (
@@ -255,7 +309,7 @@ export const MeasurementProgressSheet = ({
       </View>
 
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-        {entries.map((entry) => (
+        {entriesDesc.slice(0, visibleCount).map((entry) => (
           <View key={entry.id} style={styles.entryRow}>
             <Text style={styles.entryDate}>{formatDateLabel(entry.date)}</Text>
             <Text style={styles.entryValue}>
@@ -265,8 +319,16 @@ export const MeasurementProgressSheet = ({
             </Text>
           </View>
         ))}
-        {entries.length === 0 ? (
+        {entriesAsc.length === 0 ? (
           <Text style={styles.emptyText}>Нет данных для выбранного периода</Text>
+        ) : null}
+        {entriesDesc.length > visibleCount ? (
+          <TouchableOpacity
+            style={styles.loadMoreButton}
+            onPress={() => setVisibleCount((count) => Math.min(count + PAGE_SIZE, entriesDesc.length))}
+          >
+            <Text style={styles.loadMoreText}>Показать ещё</Text>
+          </TouchableOpacity>
         ) : null}
       </ScrollView>
     </SharedBottomSheet>
@@ -417,5 +479,20 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     color: colors.textTertiary,
     fontFamily: fonts.medium,
+  },
+  loadMoreButton: {
+    alignSelf: 'center',
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    backgroundColor: colors.surface,
+  },
+  loadMoreText: {
+    fontSize: 13,
+    fontFamily: fonts.semibold,
+    color: colors.textSecondary,
   },
 });
