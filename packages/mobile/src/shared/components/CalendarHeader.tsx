@@ -143,7 +143,7 @@ export const CalendarHeader = ({
     [baseOffset, weekSwipeAnim]
   );
   const headerContent = (
-    <View className="px-6 pb-0 pt-2">
+    <View style={styles.headerWrapper}>
       <View style={styles.headerCard}>
         <View style={styles.headerTopRow}>
           <View>
@@ -259,6 +259,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     zIndex: 10,
   },
+  headerWrapper: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 0,
+  },
   headerCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
@@ -332,6 +337,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 6,
+    paddingRight: 6,
   },
   weekDayItem: {
     width: 38,
