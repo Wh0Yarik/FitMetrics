@@ -139,8 +139,21 @@ export const useMeasurementsData = ({
     () => [...enrichedMeasurements].sort((a, b) => a.date.localeCompare(b.date)),
     [enrichedMeasurements]
   );
-  const recentMeasurements = useMemo(
-    () => measurementsSorted.slice(-5),
+  const entriesByMetric = useCallback(
+    (key: StatsCard['key']) => {
+      if (key === 'weight') {
+        return measurementsSorted;
+      }
+      return measurementsSorted.filter((item) => {
+        if (key === 'arms') {
+          return typeof item.leftArm === 'number' || typeof item.rightArm === 'number';
+        }
+        if (key === 'legs') {
+          return typeof item.leftLeg === 'number' || typeof item.rightLeg === 'number';
+        }
+        return typeof item[key] === 'number';
+      });
+    },
     [measurementsSorted]
   );
   const weightSeries = useMemo(() => {
@@ -191,17 +204,18 @@ export const useMeasurementsData = ({
 
     return configs.map((config) => {
       const isDual = config.key === 'arms' || config.key === 'legs';
+      const metricEntries = entriesByMetric(config.key);
       const valuesSource = config.key === 'weight'
         ? weightSeries
         : config.key === 'arms'
-          ? measurementsSorted.map((item) => item.leftArm ?? null)
+          ? metricEntries.map((item) => item.leftArm ?? null)
           : config.key === 'legs'
-            ? measurementsSorted.map((item) => item.leftLeg ?? null)
-            : measurementsSorted.map((item) => item[config.key] ?? null);
+            ? metricEntries.map((item) => item.leftLeg ?? null)
+            : metricEntries.map((item) => item[config.key] ?? null);
       const secondaryValuesSource = config.key === 'arms'
-        ? measurementsSorted.map((item) => item.rightArm ?? null)
+        ? metricEntries.map((item) => item.rightArm ?? null)
         : config.key === 'legs'
-          ? measurementsSorted.map((item) => item.rightLeg ?? null)
+          ? metricEntries.map((item) => item.rightLeg ?? null)
           : null;
 
       const avgSeries = isDual
@@ -225,47 +239,32 @@ export const useMeasurementsData = ({
           }
         : undefined;
 
+      const recentMetric = entriesByMetric(config.key).slice(-5);
       const seriesValues = config.key === 'weight'
         ? weightSeries
         : config.key === 'arms'
-          ? [
-              ...Array(Math.max(0, 5 - recentMeasurements.length)).fill(null),
-              ...recentMeasurements.map((item) => {
-                const value = item.leftArm;
-                return typeof value === 'number' ? value : null;
-              }),
-            ]
+          ? metricEntries.map((item) => {
+              const left = typeof item.leftArm === 'number' ? item.leftArm : null;
+              const right = typeof item.rightArm === 'number' ? item.rightArm : null;
+              if (left == null && right == null) return null;
+              if (left == null) return right;
+              if (right == null) return left;
+              return (left + right) / 2;
+            })
           : config.key === 'legs'
-            ? [
-                ...Array(Math.max(0, 5 - recentMeasurements.length)).fill(null),
-                ...recentMeasurements.map((item) => {
-                  const value = item.leftLeg;
-                  return typeof value === 'number' ? value : null;
-                }),
-              ]
-            : [
-                ...Array(Math.max(0, 5 - recentMeasurements.length)).fill(null),
-                ...recentMeasurements.map((item) => {
-                  const value = item[config.key];
-                  return typeof value === 'number' ? value : null;
-                }),
-              ];
+            ? metricEntries.map((item) => {
+                const left = typeof item.leftLeg === 'number' ? item.leftLeg : null;
+                const right = typeof item.rightLeg === 'number' ? item.rightLeg : null;
+                if (left == null && right == null) return null;
+                if (left == null) return right;
+                if (right == null) return left;
+                return (left + right) / 2;
+              })
+            : metricEntries.map((item) => item[config.key] ?? null);
       const secondarySeriesValues = config.key === 'arms'
-        ? [
-            ...Array(Math.max(0, 5 - recentMeasurements.length)).fill(null),
-            ...recentMeasurements.map((item) => {
-              const value = item.rightArm;
-              return typeof value === 'number' ? value : null;
-            }),
-          ]
+        ? metricEntries.map((item) => (typeof item.rightArm === 'number' ? item.rightArm : null))
         : config.key === 'legs'
-          ? [
-              ...Array(Math.max(0, 5 - recentMeasurements.length)).fill(null),
-              ...recentMeasurements.map((item) => {
-                const value = item.rightLeg;
-                return typeof value === 'number' ? value : null;
-              }),
-            ]
+          ? metricEntries.map((item) => (typeof item.rightLeg === 'number' ? item.rightLeg : null))
           : null;
       const numericSeries = seriesValues.filter((value): value is number => value != null);
       const maxValue = numericSeries.length > 0 ? Math.max(...numericSeries) : 0;
@@ -288,7 +287,7 @@ export const useMeasurementsData = ({
         secondaryLinePoints: secondaryLineData?.points,
       };
     });
-  }, [buildLinePath, measurementsSorted, recentMeasurements, weightSeries]);
+  }, [buildLinePath, entriesByMetric, measurementsSorted, weightSeries]);
 
   useFocusEffect(
     useCallback(() => {

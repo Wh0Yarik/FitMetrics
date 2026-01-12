@@ -19,6 +19,7 @@ type MeasurementChartProps = {
   interactive?: boolean;
   highlightIndex?: number | null;
   onPointHover?: (payload: { index: number; x: number; y: number } | null) => void;
+  layoutOverride?: { width: number; height: number };
 };
 
 const withAlpha = (hexColor: string, alpha: number) => {
@@ -44,6 +45,7 @@ export const MeasurementChart = ({
   interactive = false,
   highlightIndex = null,
   onPointHover,
+  layoutOverride,
 }: MeasurementChartProps) => {
   const chartStyle = size === 'full' ? styles.chartFull : styles.chartCompact;
   const [layout, setLayout] = useState({ width: 0, height: 0 });
@@ -74,18 +76,20 @@ export const MeasurementChart = ({
     return () => cancelAnimationFrame(frame);
   }, [linePath]);
 
+  const effectiveLayout = layoutOverride ?? layout;
+
   const scaledPaths = useMemo(() => {
-    if (!linePath || layout.width === 0 || layout.height === 0) return null;
+    if (!linePath || effectiveLayout.width === 0 || effectiveLayout.height === 0) return null;
     const rawLine = Skia.Path.MakeFromSVGString(linePath);
     if (!rawLine) return null;
     const rawSecondary = secondaryLinePath ? Skia.Path.MakeFromSVGString(secondaryLinePath) : null;
 
     const paddingY = size === 'full' ? 10 : 8;
-    const scaleX = layout.width / 100;
-    const scaleY = ((layout.height - paddingY * 2) / 200) * verticalScale;
+    const scaleX = effectiveLayout.width / 100;
+    const scaleY = ((effectiveLayout.height - paddingY * 2) / 200) * verticalScale;
     const yOffset = paddingY * 2;
     const chartTop = yOffset;
-    const chartBottom = yOffset + (layout.height - paddingY * 2);
+    const chartBottom = yOffset + (effectiveLayout.height - paddingY * 2);
 
     const matrix = Skia.Matrix();
     matrix.scale(scaleX, scaleY);
@@ -98,13 +102,13 @@ export const MeasurementChart = ({
 
     const lineBounds = rawLine.computeTightBounds();
     const extraDrop = size === 'full' ? 30 : 20;
-    const fillBaseY = Math.min(layout.height, lineBounds.y + lineBounds.height + extraDrop);
+    const fillBaseY = Math.min(effectiveLayout.height, lineBounds.y + lineBounds.height + extraDrop);
     const minGradientHeight = size === 'full' ? 120 : 90;
     const gradientHeight = Math.min(
-      layout.height - lineBounds.y,
+      effectiveLayout.height - lineBounds.y,
       Math.max(minGradientHeight, lineBounds.height + extraDrop * 2)
     );
-    const fillFadeY = Math.min(layout.height, lineBounds.y + gradientHeight);
+    const fillFadeY = Math.min(effectiveLayout.height, lineBounds.y + gradientHeight);
 
     const scaledPoints = points?.map((point) => ({
       x: point.x * scaleX,
@@ -134,7 +138,16 @@ export const MeasurementChart = ({
       fillFadeY,
       lineBounds,
     };
-  }, [linePath, secondaryLinePath, layout.height, layout.width, points, secondaryPoints, size, verticalScale]);
+  }, [
+    linePath,
+    secondaryLinePath,
+    effectiveLayout.height,
+    effectiveLayout.width,
+    points,
+    secondaryPoints,
+    size,
+    verticalScale,
+  ]);
 
   const panResponder = useMemo(
     () =>
@@ -225,19 +238,19 @@ export const MeasurementChart = ({
               <>
                 <Line
                   p1={vec(0, scaledPaths.chartTop + (scaledPaths.chartBottom - scaledPaths.chartTop) * 0)}
-                  p2={vec(layout.width, scaledPaths.chartTop + (scaledPaths.chartBottom - scaledPaths.chartTop) * 0)}
+                  p2={vec(effectiveLayout.width, scaledPaths.chartTop + (scaledPaths.chartBottom - scaledPaths.chartTop) * 0)}
                   color={gridColor}
                   strokeWidth={1}
                 />
                 <Line
                   p1={vec(0, scaledPaths.chartTop + (scaledPaths.chartBottom - scaledPaths.chartTop) * 0.25)}
-                  p2={vec(layout.width, scaledPaths.chartTop + (scaledPaths.chartBottom - scaledPaths.chartTop) * 0.25)}
+                  p2={vec(effectiveLayout.width, scaledPaths.chartTop + (scaledPaths.chartBottom - scaledPaths.chartTop) * 0.25)}
                   color={gridColor}
                   strokeWidth={1}
                 />
                 <Line
                   p1={vec(0, scaledPaths.chartTop + (scaledPaths.chartBottom - scaledPaths.chartTop) * 0.5)}
-                  p2={vec(layout.width, scaledPaths.chartTop + (scaledPaths.chartBottom - scaledPaths.chartTop) * 0.5)}
+                  p2={vec(effectiveLayout.width, scaledPaths.chartTop + (scaledPaths.chartBottom - scaledPaths.chartTop) * 0.5)}
                   color={gridColor}
                   strokeWidth={1}
                 />

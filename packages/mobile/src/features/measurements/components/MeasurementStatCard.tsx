@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { LayoutChangeEvent, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 
 import { StatsCard } from '../model/useMeasurementsData';
@@ -27,6 +27,12 @@ export const MeasurementStatCard = ({ card, onPress }: MeasurementStatCardProps)
   const hasDelta = card.delta != null;
   const isPositive = hasDelta && card.delta! > 0;
   const isNegative = hasDelta && card.delta! < 0;
+  const [chartLayout, setChartLayout] = useState({ width: 0, height: 0 });
+
+  const handleChartLayout = useCallback((event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    setChartLayout({ width, height });
+  }, []);
 
   let deltaColor = colors.textTertiary;
   let deltaBg = colors.inputBg;
@@ -46,7 +52,7 @@ export const MeasurementStatCard = ({ card, onPress }: MeasurementStatCardProps)
 
   return (
     <TouchableOpacity style={styles.container} activeOpacity={0.9} onPress={onPress}>
-      <View style={styles.chartBackground} pointerEvents="none">
+      <View style={styles.chartBackground} pointerEvents="none" onLayout={handleChartLayout}>
         <MeasurementChart
           type="line"
           color={card.color}
@@ -58,6 +64,7 @@ export const MeasurementStatCard = ({ card, onPress }: MeasurementStatCardProps)
           series={card.series}
           emptyLabel="Нет данных"
           size="full"
+          layoutOverride={chartLayout.width > 0 && chartLayout.height > 0 ? chartLayout : undefined}
         />
       </View>
       <View style={styles.leftOverlay} pointerEvents="none">
