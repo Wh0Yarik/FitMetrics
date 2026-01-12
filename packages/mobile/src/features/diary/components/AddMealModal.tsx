@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Animated, Dimensions, StyleSheet, Alert } from 'react-native';
-import { X, Check, Minus, Plus, ChevronDown } from 'lucide-react-native';
-import { COLORS } from '../../../constants/Colors';
+import React, { useEffect, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Minus, Plus, X } from 'lucide-react-native';
+import { AppButton, AppInput, colors, fonts, radii, spacing } from '../../../shared/ui';
+import { SharedBottomSheet } from '../../profile/components/SharedBottomSheet';
 
 // Типы порций (можно вынести в shared/types)
 export interface PortionCount {
@@ -22,10 +23,10 @@ interface AddMealModalProps {
 }
 
 const PORTION_TYPES = [
-  { key: 'protein', label: 'Белки', accent: '#EF4444' },
-  { key: 'fat', label: 'Жиры', accent: '#F59E0B' },
-  { key: 'carbs', label: 'Углеводы', accent: '#3B82F6' },
-  { key: 'fiber', label: 'Клетчатка', accent: '#50CA64' },
+  { key: 'protein', label: 'Белки', accent: colors.accentProtein },
+  { key: 'fat', label: 'Жиры', accent: colors.accentFat },
+  { key: 'carbs', label: 'Углеводы', accent: colors.accentCarbs },
+  { key: 'fiber', label: 'Клетчатка', accent: colors.accentFiber },
 ];
 
 export const AddMealModal: React.FC<AddMealModalProps> = ({
@@ -40,32 +41,13 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({
   const [name, setName] = useState('');
   const [portions, setPortions] = useState<PortionCount>({ protein: 0, fat: 0, carbs: 0, fiber: 0 });
 
-  // Animation refs
-  const screenHeight = Dimensions.get('window').height;
-  const slideAnim = useRef(new Animated.Value(screenHeight)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
   useEffect(() => {
     if (visible) {
       // Reset or prefill state
       setName(initialName ?? '');
       setPortions(initialPortions ?? { protein: 0, fat: 0, carbs: 0, fiber: 0 });
-
-      slideAnim.setValue(screenHeight);
-      fadeAnim.setValue(0);
-      Animated.parallel([
-        Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      ]).start();
     }
-  }, [visible, screenHeight, initialName, initialPortions]);
-
-  const handleClose = () => {
-    Animated.parallel([
-      Animated.timing(slideAnim, { toValue: screenHeight, duration: 400, useNativeDriver: true }),
-      Animated.timing(fadeAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
-    ]).start(() => onClose());
-  };
+  }, [visible, initialName, initialPortions]);
 
   const handleIncrement = (key: keyof PortionCount) => {
     setPortions(prev => ({ ...prev, [key]: prev[key] + 1 }));
@@ -88,200 +70,143 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({
     }
 
     onSave(finalName, portions);
-    handleClose();
+    onClose();
   };
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
-      {/* Backdrop */}
-      <Animated.View 
-        style={[
-          StyleSheet.absoluteFill, 
-          { backgroundColor: 'black', opacity: fadeAnim.interpolate({inputRange: [0, 1], outputRange: [0, 0.5]}) }
-        ]} 
+    <SharedBottomSheet visible={visible} onClose={onClose} headerSwipeHeight={56}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboard}
       >
-        <TouchableOpacity style={{flex:1}} onPress={handleClose} activeOpacity={1} />
-      </Animated.View>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>
+            {mode === 'edit' ? 'Редактировать прием пищи' : 'Добавить прием пищи'}
+          </Text>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <X size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
 
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1 justify-end"
-        pointerEvents="box-none"
-      >
-        <Animated.View style={{ height: '75%', transform: [{ translateY: slideAnim }] }}>
-          <View style={styles.sheet}>
-            <View style={styles.header}>
-              <Text style={styles.headerTitle}>
-                {mode === 'edit' ? 'Редактировать прием пищи' : 'Добавить прием пищи'}
-              </Text>
-              <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                <X size={18} color={COLORS.primary} />
-              </TouchableOpacity>
-            </View>
+        <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentBody}>
+          <AppInput
+            label="Название"
+            value={name}
+            onChangeText={setName}
+            placeholder="Например: Завтрак, яблоко, перекус"
+            containerStyle={styles.inputGroup}
+          />
 
-            <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 100 }}>
-              {/* Name Input */}
-              <View style={styles.inputGroup}>
-                <View style={styles.pillInputRow}>
-                  <TextInput
-                    value={name}
-                    onChangeText={setName}
-                    style={styles.pillInputText}
-                    placeholder="Например: Завтрак, яблоко, перекус"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                  <View style={styles.pillIcon}>
-                    <ChevronDown size={18} color={COLORS.primary} />
+          <View style={styles.sectionBlock}>
+            <Text style={styles.sectionTitle}>Порции</Text>
+            <View style={styles.portionList}>
+              {PORTION_TYPES.map((type) => {
+                const count = portions[type.key as keyof PortionCount];
+                return (
+                  <View key={type.key} style={styles.portionRow}>
+                    <View style={styles.portionLabel}>
+                      <View style={[styles.portionDot, { backgroundColor: type.accent }]} />
+                      <Text style={styles.portionLabelText}>{type.label}</Text>
+                    </View>
+                    <View style={styles.stepperControls}>
+                      <TouchableOpacity
+                        onPress={() => handleDecrement(type.key as keyof PortionCount)}
+                        style={styles.stepperButton}
+                      >
+                        <Minus size={16} color={colors.textSecondary} />
+                      </TouchableOpacity>
+
+                      <Text style={styles.stepperCount}>{count}</Text>
+
+                      <TouchableOpacity
+                        onPress={() => handleIncrement(type.key as keyof PortionCount)}
+                        style={styles.stepperButtonPrimary}
+                      >
+                        <Plus size={16} color={colors.surface} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
-              </View>
-
-              {/* Portions Steppers */}
-              <View style={styles.sectionBlock}>
-                <Text style={styles.sectionTitle}>Порции</Text>
-                <View style={styles.portionList}>
-                  {PORTION_TYPES.map((type) => {
-                    const count = portions[type.key as keyof PortionCount];
-                    return (
-                      <View key={type.key} style={styles.portionRow}>
-                        <View style={styles.portionLabel}>
-                          <View style={[styles.portionDot, { backgroundColor: type.accent }]} />
-                          <Text style={styles.portionLabelText}>{type.label}</Text>
-                        </View>
-                        <View style={styles.stepperControls}>
-                          <TouchableOpacity 
-                            onPress={() => handleDecrement(type.key as keyof PortionCount)}
-                            style={styles.stepperButton}
-                          >
-                            <Minus size={16} color="#6B7280" />
-                          </TouchableOpacity>
-                          
-                          <Text style={styles.stepperCount}>{count}</Text>
-                          
-                          <TouchableOpacity 
-                            onPress={() => handleIncrement(type.key as keyof PortionCount)}
-                            style={styles.stepperButtonPrimary}
-                          >
-                            <Plus size={16} color="#FFFFFF" />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-
-              {/* Save Button */}
-              <TouchableOpacity 
-                onPress={handleSubmit}
-                style={styles.primaryButton}
-              >
-                <Check size={20} color="#FFFFFF" />
-                <Text style={styles.primaryButtonText}>
-                  {mode === 'edit' ? 'Сохранить' : 'Добавить'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={handleClose} style={styles.secondaryButton}>
-                <X size={18} color="#EF4444" />
-                <Text style={styles.secondaryButtonText}>Отмена</Text>
-              </TouchableOpacity>
-            </ScrollView>
+                );
+              })}
+            </View>
           </View>
-        </Animated.View>
+
+          <View style={styles.actions}>
+            <AppButton
+              title={mode === 'edit' ? 'Сохранить' : 'Добавить'}
+              onPress={handleSubmit}
+              size="md"
+              style={styles.actionButton}
+            />
+            <AppButton
+              title="Отмена"
+              onPress={onClose}
+              variant="secondary"
+              size="md"
+              style={styles.actionButton}
+            />
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </Modal>
+    </SharedBottomSheet>
   );
 };
 
 const styles = StyleSheet.create({
-  sheet: {
-    backgroundColor: '#FFFFFF',
-    height: '100%',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
+  keyboard: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontSize: 16,
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
   },
   closeButton: {
     width: 32,
     height: 32,
-    borderRadius: 12,
-    backgroundColor: '#ECFDF3',
-    borderWidth: 1,
-    borderColor: '#D1FAE5',
+    borderRadius: radii.button,
+    backgroundColor: colors.inputBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalContent: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 4,
+    paddingHorizontal: spacing.lg,
+  },
+  modalContentBody: {
+    paddingBottom: spacing.xl,
   },
   inputGroup: {
-    marginBottom: 18,
-  },
-  pillInputRow: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 22,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  pillInputText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#111827',
-    lineHeight: 20,
-  },
-  pillIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 12,
-    backgroundColor: '#ECFDF3',
-    borderWidth: 1,
-    borderColor: '#D1FAE5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 12,
+    marginBottom: spacing.lg,
   },
   sectionBlock: {
-    marginBottom: 18,
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 10,
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
   },
   portionList: {
-    gap: 10,
+    gap: spacing.sm,
   },
   portionRow: {
     width: '100%',
-    borderRadius: 22,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderRadius: radii.input,
+    backgroundColor: colors.inputBg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   portionLabel: {
     flexDirection: 'row',
@@ -291,25 +216,25 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 999,
-    marginRight: 8,
+    marginRight: spacing.xs,
   },
   portionLabelText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    fontFamily: fonts.medium,
+    color: colors.textPrimary,
   },
   stepperControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.sm,
   },
   stepperButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.divider,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -317,49 +242,23 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepperCount: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
     minWidth: 24,
     textAlign: 'center',
   },
-  primaryButton: {
+  actions: {
+    marginTop: spacing.lg,
+    gap: spacing.sm,
+    paddingBottom: spacing.lg,
+  },
+  actionButton: {
     width: '100%',
-    paddingVertical: 12,
-    borderRadius: 22,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-    backgroundColor: COLORS.primary,
-  },
-  primaryButtonText: {
-    marginLeft: 8,
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  secondaryButton: {
-    width: '100%',
-    paddingVertical: 12,
-    borderRadius: 22,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    marginBottom: 16,
-  },
-  secondaryButtonText: {
-    marginLeft: 8,
-    color: '#EF4444',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

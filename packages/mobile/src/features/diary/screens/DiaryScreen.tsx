@@ -15,7 +15,7 @@ import { dailySurveyRepository, DailySurveyData } from '../repositories/DailySur
 import { isSurveyComplete, useDiaryData } from '../model/useDiaryData';
 import { useDiarySync } from '../model/useDiarySync';
 import { useWeekCalendar } from '../../../shared/lib/calendar/useWeekCalendar';
-import { COLORS } from '../../../constants/Colors';
+import { colors, fonts, radii, shadows, spacing } from '../../../shared/ui';
 import { api } from '../../../shared/api/client';
 import { CalendarHeader, CalendarWeekDay } from '../../../shared/components/CalendarHeader';
 import { formatDateKey, getDateObj, getWeekDates, getHeaderTitle, getRelativeLabel, shiftDate, WEEKDAY_LABELS } from '../../../shared/lib/date';
@@ -375,28 +375,28 @@ export default function DiaryScreen() {
               label="Белки"
               current={todayStats.protein}
               target={activeGoal?.dailyProtein ?? 0}
-              accent="#EF4444"
+              accent={colors.accentProtein}
               showTarget={hasNutritionTargets}
             />
             <MacroCard
               label="Жиры"
               current={todayStats.fat}
               target={activeGoal?.dailyFat ?? 0}
-              accent="#F59E0B"
+              accent={colors.accentFat}
               showTarget={hasNutritionTargets}
             />
             <MacroCard
               label="Углеводы"
               current={todayStats.carbs}
               target={activeGoal?.dailyCarbs ?? 0}
-              accent="#3B82F6"
+              accent={colors.accentCarbs}
               showTarget={hasNutritionTargets}
             />
             <MacroCard
               label="Клетчатка"
               current={todayStats.fiber}
               target={activeGoal?.dailyFiber ?? 0}
-              accent="#50CA64"
+              accent={colors.accentFiber}
               showTarget={hasNutritionTargets}
             />
           </View>
@@ -436,7 +436,7 @@ export default function DiaryScreen() {
               </View>
             </View>
             <TouchableOpacity onPress={handleOpenAddMeal} style={styles.primaryButton}>
-              <Plus size={16} color="white" />
+              <Plus size={16} color={colors.surface} />
               <Text style={styles.primaryButtonText}>Добавить</Text>
             </TouchableOpacity>
           </View>
@@ -461,7 +461,7 @@ export default function DiaryScreen() {
               style={styles.addCard}
             >
               <View style={styles.addIcon}>
-                <Plus size={20} color={COLORS.primary} />
+                <Plus size={20} color={colors.primary} />
               </View>
               <Text style={styles.addText}>Добавить прием пищи</Text>
             </TouchableOpacity>
@@ -578,7 +578,7 @@ export default function DiaryScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F7FAF8',
+    backgroundColor: colors.background,
   },
   bgAccentPrimary: {
     position: 'absolute',
@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 999,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: `${colors.accentFiber}26`,
     opacity: 0.7,
   },
   bgAccentSecondary: {
@@ -597,104 +597,104 @@ const styles = StyleSheet.create({
     width: 240,
     height: 240,
     borderRadius: 999,
-    backgroundColor: '#E0F2FE',
+    backgroundColor: `${colors.accentCarbs}22`,
     opacity: 0.5,
   },
   sectionHeader: {
-    paddingHorizontal: 24,
-    marginTop: 20,
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
   },
   macroGrid: {
-    paddingHorizontal: 24,
-    marginTop: 12,
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.sm,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
   sectionDivider: {
-    marginTop: 20,
-    marginHorizontal: 24,
+    marginTop: spacing.lg,
+    marginHorizontal: spacing.xl,
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.divider,
   },
   listHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   listTitleWrap: {
   },
   listTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
   },
   listCountChip: {
     alignSelf: 'flex-start',
-    backgroundColor: '#E5E7EB',
-    paddingHorizontal: 8,
+    backgroundColor: colors.divider,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    borderRadius: 999,
-    marginTop: 6,
+    borderRadius: radii.pill,
+    marginTop: spacing.xs,
   },
   listCountText: {
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: fonts.medium,
   },
   primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.25,
+    backgroundColor: colors.primary,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.18,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 12,
-    fontWeight: '700',
-    marginLeft: 8,
+    fontFamily: fonts.semibold,
+    marginLeft: spacing.xs,
   },
   calendarBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.35)',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xl,
   },
   calendarCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    padding: spacing.md,
   },
   calendarHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   calendarTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
   },
   calendarNavButton: {
-    padding: 6,
-    borderRadius: 999,
-    backgroundColor: '#F3F4F6',
+    padding: spacing.xs,
+    borderRadius: radii.pill,
+    backgroundColor: colors.inputBg,
   },
   calendarNavNextIcon: {
     transform: [{ rotate: '180deg' }],
@@ -708,8 +708,8 @@ const styles = StyleSheet.create({
     width: '14.285%',
     textAlign: 'center',
     fontSize: 11,
-    fontWeight: '600',
-    color: '#9CA3AF',
+    fontFamily: fonts.medium,
+    color: colors.textTertiary,
   },
   calendarGrid: {
     flexDirection: 'row',
@@ -735,23 +735,23 @@ const styles = StyleSheet.create({
   },
   calendarCellHasMeals: {
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
   },
   calendarCellToday: {
     borderWidth: 1,
-    borderColor: '#D1FAE5',
-    backgroundColor: '#ECFDF3',
+    borderColor: `${colors.accentFiber}55`,
+    backgroundColor: `${colors.accentFiber}22`,
   },
   calendarCellSelected: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   calendarCellText: {
     fontSize: 14,
-    color: '#111827',
-    fontWeight: '600',
+    color: colors.textPrimary,
+    fontFamily: fonts.medium,
   },
   calendarCellTextSelected: {
-    color: '#FFFFFF',
+    color: colors.surface,
   },
   calendarDot: {
     position: 'absolute',
@@ -759,67 +759,64 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 999,
-    backgroundColor: '#86EFAC',
+    backgroundColor: colors.accentFiber,
   },
   calendarDotPartial: {
-    backgroundColor: '#F97316',
+    backgroundColor: colors.accentFat,
   },
   calendarDotSelected: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: colors.surface,
   },
   calendarDotPartialSelected: {
-    backgroundColor: '#FDBA74',
+    backgroundColor: `${colors.accentFat}88`,
   },
   addCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.divider,
   },
   addIcon: {
     width: 30,
     height: 30,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: '#D1FAE5',
-    backgroundColor: '#F0FDF4',
+    borderColor: `${colors.primary}33`,
+    backgroundColor: `${colors.primary}14`,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addText: {
-    color: '#111827',
+    color: colors.textPrimary,
     fontSize: 15,
-    fontWeight: '600',
-    marginLeft: 10,
+    fontFamily: fonts.medium,
+    marginLeft: spacing.sm,
   },
   surveyStrip: {
-    marginTop: 16,
-    marginHorizontal: 24,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: '#ECFDF3',
-    borderRadius: 14,
+    marginTop: spacing.md,
+    marginHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: '#D1FAE5',
+    borderColor: colors.divider,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 6 },
+    ...shadows.card,
   },
   surveyStripComplete: {
-    backgroundColor: '#ECFDF3',
-    borderColor: '#D1FAE5',
+    backgroundColor: `${colors.accentFiber}14`,
+    borderColor: `${colors.accentFiber}55`,
   },
   surveyStripPending: {
-    backgroundColor: '#FFF7ED',
-    borderColor: '#FED7AA',
+    backgroundColor: `${colors.accentFat}12`,
+    borderColor: `${colors.accentFat}55`,
   },
   surveyStripLeft: {
     flexDirection: 'row',
@@ -829,27 +826,25 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 999,
-    marginRight: 10,
+    marginRight: spacing.sm,
   },
   surveyStatusComplete: {
-    backgroundColor: '#86EFAC',
+    backgroundColor: colors.accentFiber,
   },
   surveyStatusPartial: {
-    backgroundColor: '#FB923C',
+    backgroundColor: colors.accentFat,
   },
   surveyStatusEmpty: {
-    backgroundColor: '#F87171',
+    backgroundColor: colors.danger,
   },
   surveyStripTitle: {
-    color: '#111827',
+    color: colors.textPrimary,
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: fonts.semibold,
   },
   surveyStripCta: {
-    color: '#065F46',
+    color: colors.textSecondary,
     fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    fontFamily: fonts.semibold,
   },
 });
