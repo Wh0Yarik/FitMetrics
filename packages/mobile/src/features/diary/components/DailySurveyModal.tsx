@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppButton, AppInput, colors, fonts, radii, spacing } from '../../../shared/ui';
 import { X } from 'lucide-react-native';
 import { DailySurveyData } from '../repositories/DailySurveyRepository';
@@ -156,112 +156,104 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
-      <SharedBottomSheet visible={visible} onClose={onClose} headerSwipeHeight={56}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboard}
-        >
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Анкета</Text>
+    <SharedBottomSheet visible={visible} onClose={onClose} headerSwipeHeight={56}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboard}
+      >
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Анкета</Text>
+        </View>
+
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          <AppInput
+            label="Вес (кг)"
+            value={weight}
+            onChangeText={setWeight}
+            placeholder="0.0"
+            keyboardType="decimal-pad"
+            containerStyle={styles.weightInput}
+          />
+
+          <SelectionGroup
+            label="Мотивация"
+            options={MOTIVATION_OPTIONS}
+            labels={MOTIVATION_LABELS}
+            value={motivation}
+            onChange={setMotivation}
+          />
+
+          <SelectionGroup
+            label="Сон (часов)"
+            options={SLEEP_OPTIONS}
+            value={sleep}
+            onChange={setSleep}
+          />
+
+          <SelectionGroup
+            label="Уровень стресса"
+            options={STRESS_OPTIONS}
+            labels={STRESS_LABELS}
+            value={stress}
+            onChange={setStress}
+          />
+
+          <SelectionGroup
+            label="Пищеварение (стул)"
+            options={DIGESTION_OPTIONS}
+            labels={DIGESTION_LABELS}
+            value={digestion}
+            onChange={setDigestion}
+          />
+
+          <SelectionGroup
+            label="Вода (литров)"
+            options={WATER_OPTIONS}
+            value={water}
+            onChange={setWater}
+          />
+
+          <SelectionGroup
+            label="Чувство голода"
+            options={HUNGER_OPTIONS}
+            labels={HUNGER_LABELS}
+            value={hunger}
+            onChange={setHunger}
+          />
+
+          <SelectionGroup
+            label="Либидо"
+            options={LIBIDO_OPTIONS}
+            labels={LIBIDO_LABELS}
+            value={libido}
+            onChange={setLibido}
+          />
+
+          <AppInput
+            label="Комментарий тренеру (опционально)"
+            value={comment}
+            onChangeText={setComment}
+            placeholder="Напишите, если что-то беспокоит..."
+            multiline
+            numberOfLines={4}
+            containerStyle={styles.commentInput}
+            style={styles.commentField}
+            textAlignVertical="top"
+          />
+
+          <View style={styles.actions}>
+            <AppButton title="Сохранить" onPress={handleSubmit} size="md" style={styles.actionButton} />
+            <AppButton
+              title="Отмена"
+              onPress={onClose}
+              variant="secondary"
+              size="md"
+              style={styles.actionButton}
+            />
           </View>
-
-          <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-            <AppInput
-              label="Вес (кг)"
-              value={weight}
-              onChangeText={setWeight}
-              placeholder="0.0"
-              keyboardType="decimal-pad"
-              containerStyle={styles.weightInput}
-            />
-
-            <SelectionGroup
-              label="Мотивация"
-              options={MOTIVATION_OPTIONS}
-              labels={MOTIVATION_LABELS}
-              value={motivation}
-              onChange={setMotivation}
-            />
-
-            <SelectionGroup
-              label="Сон (часов)"
-              options={SLEEP_OPTIONS}
-              value={sleep}
-              onChange={setSleep}
-            />
-
-            <SelectionGroup
-              label="Уровень стресса"
-              options={STRESS_OPTIONS}
-              labels={STRESS_LABELS}
-              value={stress}
-              onChange={setStress}
-            />
-
-            <SelectionGroup
-              label="Пищеварение (стул)"
-              options={DIGESTION_OPTIONS}
-              labels={DIGESTION_LABELS}
-              value={digestion}
-              onChange={setDigestion}
-            />
-
-            <SelectionGroup
-              label="Вода (литров)"
-              options={WATER_OPTIONS}
-              value={water}
-              onChange={setWater}
-            />
-
-            <SelectionGroup
-              label="Чувство голода"
-              options={HUNGER_OPTIONS}
-              labels={HUNGER_LABELS}
-              value={hunger}
-              onChange={setHunger}
-            />
-
-            <SelectionGroup
-              label="Либидо"
-              options={LIBIDO_OPTIONS}
-              labels={LIBIDO_LABELS}
-              value={libido}
-              onChange={setLibido}
-            />
-
-            <AppInput
-              label="Комментарий тренеру (опционально)"
-              value={comment}
-              onChangeText={setComment}
-              placeholder="Напишите, если что-то беспокоит..."
-              multiline
-              numberOfLines={4}
-              containerStyle={styles.commentInput}
-              style={styles.commentField}
-              textAlignVertical="top"
-            />
-
-            <View style={styles.actions}>
-              <AppButton title="Сохранить" onPress={handleSubmit} size="md" style={styles.actionButton} />
-              <AppButton
-                title="Отмена"
-                onPress={onClose}
-                variant="secondary"
-                size="md"
-                style={styles.actionButton}
-              />
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SharedBottomSheet>
-    </Modal>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SharedBottomSheet>
   );
 };
 
