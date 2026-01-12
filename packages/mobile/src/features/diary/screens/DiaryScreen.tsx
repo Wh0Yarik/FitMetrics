@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StatusBar, Alert, BackHandler, StyleSheet, Modal, Pressable, Animated } from 'react-native';
-import { Plus, ChevronLeft } from 'lucide-react-native';
+import { Check, Plus, ChevronLeft } from 'lucide-react-native';
 import { useFocusEffect, Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import type { Swipeable } from 'react-native-gesture-handler';
@@ -402,27 +402,50 @@ export default function DiaryScreen() {
           </View>
           <TouchableOpacity
             onPress={() => setSurveyModalOpen(true)}
+            activeOpacity={0.85}
             style={[
               styles.surveyStrip,
               surveyStatus === 'complete' ? styles.surveyStripComplete : styles.surveyStripPending,
             ]}
           >
-            <View style={styles.surveyStripLeft}>
+            <View style={styles.surveyStripRow}>
+              <View style={styles.surveyStripLeft}>
+                <View
+                  style={[
+                    styles.surveyStatusDot,
+                    surveyStatus === 'complete'
+                      ? styles.surveyStatusComplete
+                      : surveyStatus === 'partial'
+                        ? styles.surveyStatusPartial
+                        : styles.surveyStatusEmpty,
+                  ]}
+                />
+                <View>
+                  <Text
+                    style={[
+                      styles.surveyStripCta,
+                      surveyStatus === 'complete' ? styles.surveyStripCtaComplete : styles.surveyStripCtaPending,
+                    ]}
+                  >
+                    {surveyStatus === 'complete'
+                      ? `Заполнено • ${relativeLabel ?? 'сегодня'}`
+                      : 'Заполнить'}
+                  </Text>
+                </View>
+              </View>
               <View
                 style={[
-                  styles.surveyStatusDot,
-                  surveyStatus === 'complete'
-                    ? styles.surveyStatusComplete
-                    : surveyStatus === 'partial'
-                      ? styles.surveyStatusPartial
-                      : styles.surveyStatusEmpty,
+                  styles.surveyAddButton,
+                  surveyStatus === 'complete' ? styles.surveyAddButtonCheck : styles.surveyAddButtonIconOnly,
                 ]}
-              />
-              <Text style={styles.surveyStripTitle}>Ежедневная анкета</Text>
+              >
+                {surveyStatus === 'complete' ? (
+                  <Check size={16} color={colors.primary} />
+                ) : (
+                  <Plus size={16} color={colors.primary} />
+                )}
+              </View>
             </View>
-            <Text style={styles.surveyStripCta}>
-              {surveyStatus === 'complete' ? 'Заполнено' : 'Заполнить'}
-            </Text>
           </TouchableOpacity>
           <View style={styles.sectionDivider} />
 
@@ -803,9 +826,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(0,0,0,0.06)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    justifyContent: 'center',
     ...shadows.card,
   },
   surveyStripComplete: {
@@ -815,6 +838,11 @@ const styles = StyleSheet.create({
   surveyStripPending: {
     backgroundColor: `${colors.accentFat}12`,
     borderColor: `${colors.accentFat}40`,
+  },
+  surveyStripRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   surveyStripLeft: {
     flexDirection: 'row',
@@ -833,16 +861,42 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentFat,
   },
   surveyStatusEmpty: {
-    backgroundColor: colors.danger,
-  },
-  surveyStripTitle: {
-    color: colors.textPrimary,
-    fontSize: 13,
-    fontFamily: fonts.semibold,
+    backgroundColor: colors.accentFat,
   },
   surveyStripCta: {
-    color: colors.textSecondary,
+    marginTop: 2,
     fontSize: 12,
     fontFamily: fonts.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  surveyStripCtaComplete: {
+    color: colors.accentFiber,
+  },
+  surveyStripCtaPending: {
+    color: '#9A5B00',
+  },
+  surveyAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+  },
+  surveyAddButtonIconOnly: {
+    width: 38,
+    height: 38,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    justifyContent: 'center',
+  },
+  surveyAddButtonCheck: {
+    width: 38,
+    height: 38,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    justifyContent: 'center',
   },
 });
