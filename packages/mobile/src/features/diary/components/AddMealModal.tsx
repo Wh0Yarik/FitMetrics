@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Minus, Plus, X } from 'lucide-react-native';
 import { AppButton, AppInput, colors, fonts, radii, spacing } from '../../../shared/ui';
 import { SharedBottomSheet } from '../../profile/components/SharedBottomSheet';
@@ -74,7 +74,8 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({
   };
 
   return (
-    <SharedBottomSheet visible={visible} onClose={onClose} headerSwipeHeight={56}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <SharedBottomSheet visible={visible} onClose={onClose} headerSwipeHeight={56}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboard}
@@ -83,9 +84,6 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({
           <Text style={styles.headerTitle}>
             {mode === 'edit' ? 'Редактировать прием пищи' : 'Добавить прием пищи'}
           </Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentBody}>
@@ -148,7 +146,8 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SharedBottomSheet>
+      </SharedBottomSheet>
+    </Modal>
   );
 };
 
@@ -167,14 +166,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fonts.semibold,
     color: colors.textPrimary,
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.button,
-    backgroundColor: colors.inputBg,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   modalContent: {
     flex: 1,

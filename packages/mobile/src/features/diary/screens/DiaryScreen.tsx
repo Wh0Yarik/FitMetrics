@@ -359,7 +359,7 @@ export default function DiaryScreen() {
       <ScrollView 
         // Основной скроллируемый контент
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 80 }}
+        contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: spacing.xl }}
         onTouchStart={closeAllSwipeables}
         onScrollBeginDrag={() => {
           closeAllSwipeables();
@@ -450,7 +450,7 @@ export default function DiaryScreen() {
           <View style={styles.sectionDivider} />
 
         {/* Список приемов пищи */}
-        <View className="px-6 py-6">
+        <View style={{ paddingHorizontal: spacing.xl, paddingVertical: spacing.lg }}>
           <View style={styles.listHeader}>
             <View style={styles.listTitleWrap}>
               <Text style={styles.listTitle}>Дневник питания</Text>
@@ -624,7 +624,6 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   sectionHeader: {
-    paddingHorizontal: spacing.xl,
     marginTop: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
@@ -636,7 +635,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   macroGrid: {
-    paddingHorizontal: spacing.xl,
     marginTop: spacing.sm,
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -644,7 +642,6 @@ const styles = StyleSheet.create({
   },
   sectionDivider: {
     marginTop: spacing.lg,
-    marginHorizontal: spacing.xl,
     height: 1,
     backgroundColor: colors.divider,
   },
@@ -822,14 +819,13 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: `${colors.surface}14`,
     borderRadius: radii.card,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(0,0,0,0.06)',
     flexDirection: 'column',
     alignItems: 'stretch',
     justifyContent: 'center',
-    ...shadows.card,
   },
   surveyStripComplete: {
     backgroundColor: `${colors.accentFiber}14`,
@@ -869,6 +865,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
+    
   },
   surveyStripCtaComplete: {
     color: colors.accentFiber,
@@ -883,7 +880,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
     borderRadius: radii.pill,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surface ,
   },
   surveyAddButtonIconOnly: {
     width: 38,

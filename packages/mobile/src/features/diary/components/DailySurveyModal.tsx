@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppButton, AppInput, colors, fonts, radii, spacing } from '../../../shared/ui';
 import { X } from 'lucide-react-native';
 import { DailySurveyData } from '../repositories/DailySurveyRepository';
@@ -156,16 +156,14 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
   };
 
   return (
-    <SharedBottomSheet visible={visible} onClose={onClose} headerSwipeHeight={56}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <SharedBottomSheet visible={visible} onClose={onClose} headerSwipeHeight={56}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboard}
       >
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Анкета</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
@@ -256,7 +254,8 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SharedBottomSheet>
+      </SharedBottomSheet>
+    </Modal>
   );
 };
 
@@ -275,14 +274,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fonts.semibold,
     color: colors.textPrimary,
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.button,
-    backgroundColor: colors.inputBg,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   scroll: {
     flex: 1,
