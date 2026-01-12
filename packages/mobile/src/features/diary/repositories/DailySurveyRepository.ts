@@ -89,6 +89,29 @@ export class DailySurveyRepository {
     };
   }
 
+  getSurveysWithWeight(): DailySurveyData[] {
+    const userId = getCurrentUserIdSync();
+    if (!userId) return [];
+    const rows = this.db.getAllSync<any>(
+      'SELECT * FROM daily_surveys WHERE user_id = ? AND weight IS NOT NULL ORDER BY date ASC',
+      [userId]
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      date: row.date,
+      weight: row.weight,
+      motivation: row.motivation,
+      sleep: row.sleep,
+      stress: row.stress,
+      digestion: row.digestion,
+      water: row.water,
+      hunger: row.hunger,
+      libido: row.libido,
+      comment: row.comment,
+      synced: !!row.synced,
+    }));
+  }
+
   // Сохранить анкету (Создать или Обновить)
   saveSurvey(data: DailySurveyData): void {
     const userId = getCurrentUserIdSync();

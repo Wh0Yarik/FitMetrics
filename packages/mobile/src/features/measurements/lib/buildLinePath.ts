@@ -28,19 +28,19 @@ const toCurvePath = (segment: ChartPoint[]) => {
 
 export const buildLinePath = (values: Array<number | null>) => {
   const numericValues = values.filter((value): value is number => typeof value === 'number');
-  if (numericValues.length < 2) {
+  if (numericValues.length === 0) {
     return { path: '', points: [] as ChartPoint[] };
   }
 
+  const maxIndex = Math.max(1, values.length - 1);
   const minValue = Math.min(...numericValues);
   const maxValue = Math.max(...numericValues);
   const range = maxValue - minValue || 1;
-  const maxIndex = Math.max(1, values.length - 1);
 
   const points = values.map((value, index) => {
     if (value == null) return null;
     const x = (index / maxIndex) * 100;
-    const normalized = (value - minValue) / range;
+    const normalized = numericValues.length === 1 ? 0.5 : (value - minValue) / range;
     const y = 100 - normalized * 100;
     return { x, y };
   });
@@ -61,7 +61,15 @@ export const buildLinePath = (values: Array<number | null>) => {
     segments.push(current);
   }
 
-  const path = segments.map(toCurvePath).filter(Boolean).join(' ');
+  let path = segments.map(toCurvePath).filter(Boolean).join(' ');
+  if (!path && numericValues.length === 1) {
+    const index = values.findIndex((value) => typeof value === 'number');
+    const x = (Math.max(0, index) / maxIndex) * 100;
+    const y = 50;
+    const startX = Math.max(0, x - 4);
+    const endX = Math.min(100, x + 4);
+    path = `M ${format(startX)} ${format(y)} L ${format(endX)} ${format(y)}`;
+  }
   const flatPoints = points.filter((point): point is ChartPoint => point != null);
 
   return { path, points: flatPoints };
