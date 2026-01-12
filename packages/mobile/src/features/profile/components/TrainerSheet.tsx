@@ -49,7 +49,7 @@ export const TrainerSheet = ({
   onContactPress,
   onRemoveTrainer,
 }: TrainerSheetProps) => (
-  <SharedBottomSheet visible={visible} onClose={onClose}>
+  <SharedBottomSheet visible={visible} onClose={onClose} headerSwipeHeight={56}>
     <View style={styles.header}>
       <Text style={styles.title}>Тренер</Text>
     </View>

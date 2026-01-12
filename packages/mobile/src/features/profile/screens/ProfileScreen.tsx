@@ -48,6 +48,9 @@ export default function ProfileScreen() {
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [updateDismissed, setUpdateDismissed] = useState(false);
+  const [updatesEnabled, setUpdatesEnabled] = useState<boolean | null>(null);
+  const [updatesStatus, setUpdatesStatus] = useState('idle');
+  const [updatesError, setUpdatesError] = useState<string | null>(null);
 
   const trainer = useTrainerConnection();
   const profile = useUserProfile({ onTrainerLoaded: trainer.applyTrainerData });
@@ -70,6 +73,16 @@ export default function ProfileScreen() {
       ?? Constants.expoConfig?.android?.versionCode?.toString();
     return `v${appVersion}${buildNumber ? ` (build ${buildNumber})` : ''}`;
   }, []);
+  const runtimeVersion = useMemo(() => {
+    const runtime = Constants.expoConfig?.runtimeVersion;
+    if (!runtime) return '—';
+    if (typeof runtime === 'string') return runtime;
+    if (typeof runtime === 'object' && 'policy' in runtime) {
+      return runtime.policy ?? '—';
+    }
+    return '—';
+  }, []);
+  const updateId = useMemo(() => Updates?.updateId ?? '—', []);
   const isDevUser = useMemo(() => {
     const allowedEmails = new Set([
       'client1@fitmetrics.com',
@@ -93,11 +106,14 @@ export default function ProfileScreen() {
     useCallback(() => {
       let mounted = true;
       const checkUpdates = async () => {
+        setUpdatesEnabled(Updates?.isEnabled ?? null);
         if (!Updates?.isEnabled) return;
         try {
+          setUpdatesStatus('checking');
           const update = await Updates.checkForUpdateAsync();
           if (!mounted) return;
           if (update.isAvailable) {
+            setUpdatesStatus('available');
             await Updates.fetchUpdateAsync();
             if (mounted) {
               setUpdateAvailable(true);
@@ -105,8 +121,12 @@ export default function ProfileScreen() {
             }
           } else {
             setUpdateAvailable(false);
+            setUpdatesStatus('none');
           }
-        } catch {
+        } catch (error: any) {
+          const message = typeof error?.message === 'string' ? error.message : 'unknown';
+          setUpdatesError(message);
+          setUpdatesStatus('error');
           // Ignore update errors to avoid blocking the screen.
         }
       };
@@ -285,6 +305,17 @@ export default function ProfileScreen() {
                 <Text style={styles.accountLinkText}>Условия использования</Text>
               </TouchableOpacity>
             </View>
+            <View style={styles.updateDebugRow}>
+              <Text style={styles.updateDebugText}>
+                Updates enabled: {updatesEnabled == null ? '—' : updatesEnabled ? 'yes' : 'no'}
+              </Text>
+              <Text style={styles.updateDebugText}>Status: {updatesStatus}</Text>
+              {updatesError ? (
+                <Text style={styles.updateDebugText}>Error: {updatesError}</Text>
+              ) : null}
+              <Text style={styles.updateDebugText}>Runtime: {runtimeVersion}</Text>
+              <Text style={styles.updateDebugText}>Update ID: {updateId}</Text>
+            </View>
             <Text style={styles.accountVersion}>{versionText}</Text>
           </View>
 
@@ -317,7 +348,11 @@ export default function ProfileScreen() {
           onSave={handleSaveProfile}
         />
 
-        <SharedBottomSheet visible={isPasswordSheetOpen} onClose={() => setPasswordSheetOpen(false)}>
+        <SharedBottomSheet
+          visible={isPasswordSheetOpen}
+          onClose={() => setPasswordSheetOpen(false)}
+          headerSwipeHeight={56}
+        >
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Сменить пароль</Text>
           </View>
@@ -397,7 +432,11 @@ export default function ProfileScreen() {
           </ScrollView>
         </SharedBottomSheet>
 
-        <SharedBottomSheet visible={isSettingsSheetOpen} onClose={() => setSettingsSheetOpen(false)}>
+        <SharedBottomSheet
+          visible={isSettingsSheetOpen}
+          onClose={() => setSettingsSheetOpen(false)}
+          headerSwipeHeight={56}
+        >
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Настройки</Text>
           </View>
@@ -596,11 +635,21 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: colors.textTertiary,
   },
+  updateDebugRow: {
+    marginTop: spacing.sm,
+    gap: 4,
+    alignItems: 'center',
+  },
+  updateDebugText: {
+    fontSize: 11,
+    fontFamily: fonts.medium,
+    color: colors.textTertiary,
+  },
   updateBanner: {
     position: 'absolute',
     left: spacing.xl,
     right: spacing.xl,
-    bottom: spacing.lg,
+    bottom: spacing.lg + 64 + spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,

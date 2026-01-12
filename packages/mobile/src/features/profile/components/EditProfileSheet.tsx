@@ -41,7 +41,7 @@ export const EditProfileSheet = ({ visible, onClose, profile, onSave }: EditProf
   const genderOptions = useMemo(() => GENDERS, []);
 
   return (
-    <SharedBottomSheet visible={visible} onClose={onClose}>
+    <SharedBottomSheet visible={visible} onClose={onClose} headerSwipeHeight={56}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboard}
