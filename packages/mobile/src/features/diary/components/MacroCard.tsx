@@ -23,6 +23,15 @@ export const MacroCard = React.memo(({
     if (!showTarget || target <= 0) return 0;
     return Math.max(0, Math.min(1, current / target));
   }, [current, showTarget, target]);
+  const overflowAmount = useMemo(() => {
+    if (!showTarget || target <= 0) return 0;
+    return Math.max(0, current - target);
+  }, [current, showTarget, target]);
+  const isOverTarget = overflowAmount > 0;
+  const formatNumber = (value: number) => (
+    Number.isInteger(value) ? value.toString() : value.toFixed(1)
+  );
+  const overflowLabel = isOverTarget ? `+${formatNumber(overflowAmount)}` : '';
 
   const Icon = useMemo(() => {
     if (label === 'Белки') return Beef;
@@ -30,28 +39,26 @@ export const MacroCard = React.memo(({
     if (label === 'Углеводы') return Wheat;
     return Leaf;
   }, [label]);
-  const progressLabel = showTarget && target > 0
-    ? `${Math.round(progress * 100)}%`
-    : 'Цель не задана';
-
   return (
-    <View style={styles.macroCard}>
-      <View style={styles.headerRow}>
+    <View style={[styles.macroCard, isOverTarget && styles.macroCardOver]}>
+      <View style={styles.topRow}>
+        <View style={styles.valuesRow}>
+          <Text style={[styles.macroValue, { color: accent }]}>{current}</Text>
+          {showTarget ? <Text style={styles.macroTarget}>/{target}</Text> : null}
+          {isOverTarget ? (
+            <View style={styles.overBadge}>
+              <Text style={styles.overBadgeText}>{overflowLabel}</Text>
+            </View>
+          ) : null}
+        </View>
         <View style={[styles.iconWrap, { backgroundColor: `${accent}22` }]}>
-          <Icon size={18} color={accent} strokeWidth={1.5} />
+          <Icon size={38} color={accent} strokeWidth={1.5} />
         </View>
-        <Text style={styles.macroLabel}>{label}</Text>
       </View>
-      <View style={styles.valuesRow}>
-        <Text style={styles.macroValue}>{current}</Text>
-        {showTarget ? <Text style={styles.macroTarget}>/{target}</Text> : null}
+      <View style={[styles.progressTrack, isOverTarget && styles.progressTrackOver]}>
+        <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: accent }]} />
       </View>
-      <View style={styles.progressRow}>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: accent }]} />
-        </View>
-        <Text style={styles.progressText}>{progressLabel}</Text>
-      </View>
+      <Text style={styles.macroLabel}>{label}</Text>
     </View>
   );
 });
@@ -68,24 +75,25 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     ...shadows.card,
     alignItems: 'stretch',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
-  headerRow: {
+  topRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
   },
   iconWrap: {
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   macroLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: fonts.medium,
     color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
   valuesRow: {
     flexDirection: 'row',
@@ -104,27 +112,34 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontVariant: ['tabular-nums'],
   },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+  overBadge: {
+    marginLeft: spacing.xs,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: '#FFF7ED',
+  },
+  overBadgeText: {
+    fontSize: 11,
+    fontFamily: fonts.semibold,
+    color: '#F97316',
   },
   progressTrack: {
-    flex: 1,
-    height: 6,
+    height: 8,
     borderRadius: radii.pill,
     backgroundColor: colors.divider,
     overflow: 'hidden',
+    marginTop: spacing.xs,
+  },
+  progressTrackOver: {
+    borderColor: '#F97316',
+    borderWidth: 1,
   },
   progressFill: {
     height: '100%',
     borderRadius: radii.pill,
   },
-  progressText: {
-    fontSize: 12,
-    fontFamily: fonts.medium,
-    color: colors.textTertiary,
-    minWidth: 40,
-    textAlign: 'right',
+  macroCardOver: {
+    borderColor: '#F97316',
   },
 });
