@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StatusBar, Alert, BackHandler, StyleSheet, Modal, Pressable, Animated } from 'react-native';
 import { Check, Plus, ChevronLeft } from 'lucide-react-native';
-import { useFocusEffect, Stack } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import type { Swipeable } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AddMealModal, PortionCount } from '../components/AddMealModal';
 import { DailySurveyModal } from '../components/DailySurveyModal';
@@ -15,7 +16,7 @@ import { dailySurveyRepository, DailySurveyData } from '../repositories/DailySur
 import { isSurveyComplete, useDiaryData } from '../model/useDiaryData';
 import { useDiarySync } from '../model/useDiarySync';
 import { useWeekCalendar } from '../../../shared/lib/calendar/useWeekCalendar';
-import { colors, fonts, radii, shadows, spacing } from '../../../shared/ui';
+import { colors, fonts, radii, shadows, spacing, useTabBarVisibility } from '../../../shared/ui';
 import { api } from '../../../shared/api/client';
 import { CalendarHeader, CalendarWeekDay } from '../../../shared/components/CalendarHeader';
 import { formatDateKey, getDateObj, getWeekDates, getHeaderTitle, getRelativeLabel, shiftDate, WEEKDAY_LABELS } from '../../../shared/lib/date';
@@ -60,6 +61,7 @@ export default function DiaryScreen() {
     }[]
   >([]);
   const [hasTrainer, setHasTrainer] = useState(false);
+  const { setHidden: setTabBarHidden } = useTabBarVisibility();
 
   // Подключение хуков логики
   const { meals, surveyStatus, dailySurvey, syncStatus, setSyncStatus, refreshData } = useDiaryData(currentDate);
@@ -317,55 +319,39 @@ export default function DiaryScreen() {
       (value) => typeof value === 'number' && value > 0
     );
 
-  const renderHeader = useCallback(() => (
-    <CalendarHeader
-      dateLabel={getHeaderTitle(currentDate)}
-      relativeLabel={relativeLabel}
-      syncStatus={syncStatus}
-      weekSets={calendarWeekSets}
-      onOpenCalendar={openCalendar}
-      onSelectDay={selectDate}
-      weekSwipeAnim={weekSwipeAnim}
-      weekPanHandlers={weekPanResponder.panHandlers}
-      weekWidth={weekWidth}
-      onWeekLayout={setWeekWidth}
-    />
-  ), [
-    currentDate,
-    relativeLabel,
-    syncStatus,
-    calendarWeekSets,
-    openCalendar,
-    selectDate,
-    weekPanResponder,
-    weekSwipeAnim,
-    weekWidth,
-    setWeekWidth,
-  ]);
+  useEffect(() => {
+    setTabBarHidden(isMealModalOpen || isSurveyModalOpen);
+  }, [isMealModalOpen, isSurveyModalOpen, setTabBarHidden]);
 
   return (
     <GestureHandlerRootView style={styles.screen}>
       <View pointerEvents="none" style={styles.bgAccentPrimary} />
       <View pointerEvents="none" style={styles.bgAccentSecondary} />
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          header: renderHeader,
-          headerShadowVisible: false,
-        }}
-      />
-      <StatusBar barStyle="dark-content" />
-      
-      <ScrollView 
-        // Основной скроллируемый контент
-        className="flex-1"
-        contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: spacing.xl }}
-        onTouchStart={closeAllSwipeables}
-        onScrollBeginDrag={() => {
-          closeAllSwipeables();
-        }}
-        scrollEventThrottle={16}
-      >
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+        <StatusBar barStyle="dark-content" />
+        <CalendarHeader
+          dateLabel={getHeaderTitle(currentDate)}
+          relativeLabel={relativeLabel}
+          syncStatus={syncStatus}
+          weekSets={calendarWeekSets}
+          onOpenCalendar={openCalendar}
+          onSelectDay={selectDate}
+          weekSwipeAnim={weekSwipeAnim}
+          weekPanHandlers={weekPanResponder.panHandlers}
+          weekWidth={weekWidth}
+          onWeekLayout={setWeekWidth}
+          useSafeArea={false}
+        />
+        <ScrollView 
+          // Основной скроллируемый контент
+          className="flex-1"
+          contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: spacing.xl }}
+          onTouchStart={closeAllSwipeables}
+          onScrollBeginDrag={() => {
+            closeAllSwipeables();
+          }}
+          scrollEventThrottle={16}
+        >
           {/* Сетка целей (План/Факт по нутриентам) */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Баланс дня</Text>
@@ -450,7 +436,7 @@ export default function DiaryScreen() {
           <View style={styles.sectionDivider} />
 
         {/* Список приемов пищи */}
-        <View style={{ paddingHorizontal: spacing.xl, paddingVertical: spacing.lg }}>
+        <View style={{  paddingVertical: spacing.lg }}>
           <View style={styles.listHeader}>
             <View style={styles.listTitleWrap}>
               <Text style={styles.listTitle}>Дневник питания</Text>
@@ -490,10 +476,8 @@ export default function DiaryScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
 
-      {/* Модальные окна */}
-      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 }} pointerEvents="box-none">
         <Modal
           visible={isCalendarOpen}
           transparent
@@ -586,14 +570,14 @@ export default function DiaryScreen() {
           initialPortions={editingMeal?.portions}
         />
 
-            <DailySurveyModal
-              visible={isSurveyModalOpen}
-              onClose={() => setSurveyModalOpen(false)}
-              onSave={handleSaveSurvey}
-              date={currentDate}
-              initialData={dailySurvey}
-            />
-      </View>
+        <DailySurveyModal
+          visible={isSurveyModalOpen}
+          onClose={() => setSurveyModalOpen(false)}
+          onSave={handleSaveSurvey}
+          date={currentDate}
+          initialData={dailySurvey}
+        />
+      </SafeAreaView>
     </GestureHandlerRootView>
   );
 }
@@ -602,6 +586,9 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  safe: {
+    flex: 1,
   },
   bgAccentPrimary: {
     position: 'absolute',
@@ -816,7 +803,7 @@ const styles = StyleSheet.create({
   },
   surveyStrip: {
     marginTop: spacing.md,
-    marginHorizontal: spacing.xl,
+    marginHorizontal: 0,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     backgroundColor: `${colors.surface}14`,
