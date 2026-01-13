@@ -353,9 +353,7 @@ export default function DiaryScreen() {
           scrollEventThrottle={16}
         >
           {/* Сетка целей (План/Факт по нутриентам) */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Баланс дня</Text>
-          </View>
+
           <View style={styles.macroGrid}>
             <MacroCard
               label="Белки"

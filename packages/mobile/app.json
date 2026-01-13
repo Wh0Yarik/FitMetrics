@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "fitmetrics",
-    "slug": "fitmetrics",
-    "scheme": "fitmetrics",
+    "name": "Fitmetrics",
+    "slug": "Fitmetrics",
+    "scheme": "Fitmetrics",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,6 +20,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundImage": "./assets/adaptive-icon-background.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.whoyarik.mobile"

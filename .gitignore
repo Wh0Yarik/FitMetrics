@@ -21,6 +21,7 @@ logs/
 web-build/
 dist/
 app.apks
+app-universal.apk
 
 # React Native (build artifacts)
 android/app/build/

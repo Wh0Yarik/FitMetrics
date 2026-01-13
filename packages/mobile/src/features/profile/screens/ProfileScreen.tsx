@@ -221,8 +221,8 @@ export default function ProfileScreen() {
           <View style={styles.bentoRow}>
             <Card onPress={handleTrainerCellPress} style={styles.bentoCell}>
               <View style={styles.bentoCellHeader}>
-               <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentCarbs}40` }]}>
-                  <Dumbbell size={44} color={colors.textPrimary} strokeWidth={1} />
+               <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentCarbs}22` }]}>
+                  <Dumbbell size={44} color={colors.accentCarbs} strokeWidth={1.5} />
                 </View>
               </View>
               <View style={styles.bentoCellFooter}>
@@ -232,8 +232,8 @@ export default function ProfileScreen() {
             </Card>
             <Card onPress={() => setEditOpen(true)} style={styles.bentoCell}>
               <View style={styles.bentoCellHeader}>
-                <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentFiber}40` }]}>
-                  <Pencil size={44} color={colors.textPrimary} strokeWidth={1} />
+                <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentFiber}22` }]}>
+                  <Pencil size={44} color={colors.accentFiber} strokeWidth={1.5} />
                 </View>
               </View>
               <View style={styles.bentoCellFooter}>
@@ -245,8 +245,8 @@ export default function ProfileScreen() {
           <View style={styles.bentoRowCompact}>
             <Card onPress={() => setSettingsSheetOpen(true)} style={styles.bentoCell}>
               <View style={styles.bentoCellHeader}>
-                <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentProtein}40` }]}>
-                  <Settings size={44} color={colors.textPrimary} strokeWidth={1} />
+                <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentProtein}22` }]}>
+                  <Settings size={44} color={colors.accentProtein} strokeWidth={1.5} />
                 </View>
               </View>
               <View style={styles.bentoCellFooter}>
@@ -256,8 +256,8 @@ export default function ProfileScreen() {
             </Card>
             <Card onPress={() => Alert.alert('Скоро', 'Подписка будет доступна позже')} style={styles.bentoCell}>
               <View style={styles.bentoCellHeader}>
-                <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentFat}40` }]}>
-                  <Crown size={44} color={colors.textPrimary} strokeWidth={1} />
+                <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentFat}22` }]}>
+                  <Crown size={44} color={colors.accentFat} strokeWidth={1.5} />
                 </View>
               </View>
               <View style={styles.bentoCellFooter}>
@@ -269,8 +269,8 @@ export default function ProfileScreen() {
           <View style={styles.bentoRowCompact}>
             <Card onPress={() => Alert.alert('Скоро', 'Раздел поддержки будет доступен позже')} style={styles.bentoCell}>
               <View style={styles.bentoCellHeader}>
-                <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentCarbs}40` }]}>
-                  <HelpCircle size={44} color={colors.textPrimary} strokeWidth={1} />
+                <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentCarbs}22` }]}>
+                  <HelpCircle size={44} color={colors.accentCarbs} strokeWidth={1.5} />
                 </View>
               </View>
               <View style={styles.bentoCellFooter}>
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
   bentoCellIcon: {
     width: 40,
     height: 40,
-    borderRadius: 14,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
