@@ -78,6 +78,26 @@ export class MeasurementsRepository {
     return row ? this.mapRowToEntry(row) : null;
   }
 
+  getUnsyncedMeasurements(): MeasurementEntry[] {
+    const userId = getCurrentUserIdSync();
+    if (!userId) return [];
+    const rows = this.db.getAllSync<any>(
+      'SELECT * FROM measurements WHERE user_id = ? AND synced = 0 ORDER BY date DESC',
+      [userId]
+    );
+    return rows.map(this.mapRowToEntry);
+  }
+
+  markMeasurementsAsSynced(ids: string[]): void {
+    const userId = getCurrentUserIdSync();
+    if (!userId || ids.length === 0) return;
+    const placeholders = ids.map(() => '?').join(', ');
+    this.db.runSync(
+      `UPDATE measurements SET synced = 1, updated_at = ? WHERE user_id = ? AND id IN (${placeholders})`,
+      [new Date().toISOString(), userId, ...ids]
+    );
+  }
+
   saveMeasurement(data: Omit<MeasurementEntry, 'id' | 'synced' | 'createdAt'> & { id?: string }): void {
     const userId = getCurrentUserIdSync();
     if (!userId) {

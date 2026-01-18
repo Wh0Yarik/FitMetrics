@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,10 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Plus, UserRound, ClipboardCopy, Filter, X } from 'lucide-react-native';
+import { Search, Plus, UserRound, ClipboardCopy, Filter, Ban } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 
@@ -20,6 +21,7 @@ import { trainerApi, TrainerClientSummary, TrainerInvite } from '../services/tra
 import { onClientsUpdated } from '../services/trainerEvents';
 import { api } from '../../../shared/api/client';
 import { SharedBottomSheet } from '../../profile/components/SharedBottomSheet';
+import { useTabBarVisibility } from '../../../shared/ui';
 
 type FilterKey = 'all' | 'attention' | 'unreviewed' | 'no-measurements' | 'archived';
 
@@ -77,7 +79,31 @@ const ClientCard = ({ client, onPress }: { client: TrainerClientSummary; onPress
   );
 };
 
+const ClientSkeleton = ({ shimmer }: { shimmer: Animated.Value }) => {
+  const shimmerColor = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#F3F4F6', '#E5E7EB'],
+  });
+  return (
+  <View style={styles.skeletonCard}>
+    <View style={styles.skeletonHeader}>
+      <Animated.View style={[styles.skeletonAvatar, { backgroundColor: shimmerColor }]} />
+      <View style={styles.skeletonTitleWrap}>
+        <Animated.View style={[styles.skeletonLineShort, { backgroundColor: shimmerColor }]} />
+        <Animated.View style={[styles.skeletonLine, { backgroundColor: shimmerColor }]} />
+      </View>
+    </View>
+    <View style={styles.skeletonChips}>
+      <Animated.View style={[styles.skeletonChip, { backgroundColor: shimmerColor }]} />
+      <Animated.View style={[styles.skeletonChip, { backgroundColor: shimmerColor }]} />
+    </View>
+  </View>
+  );
+};
+
 export default function TrainerDashboardScreen() {
+  const { setHidden: setTabBarHidden } = useTabBarVisibility();
+  const shimmer = useRef(new Animated.Value(0)).current;
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
   const [isAddOpen, setAddOpen] = useState(false);
@@ -127,7 +153,19 @@ export default function TrainerDashboardScreen() {
     if (isAddOpen) {
       loadInvites();
     }
-  }, [isAddOpen, loadInvites]);
+    setTabBarHidden(isAddOpen);
+  }, [isAddOpen, loadInvites, setTabBarHidden]);
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, { toValue: 1, duration: 900, useNativeDriver: false }),
+        Animated.timing(shimmer, { toValue: 0, duration: 900, useNativeDriver: false }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [shimmer]);
 
   const filteredClients = useMemo(() => {
     const searchLower = searchQuery.trim().toLowerCase();
@@ -234,37 +272,61 @@ export default function TrainerDashboardScreen() {
               <Text style={styles.headerKicker}>Тренер</Text>
             </View>
             <View style={styles.headerTitleRow}>
-              <Text style={styles.headerTitle}>Клиенты</Text>
+              <View style={styles.headerTitleBlock}>
+                <Text style={styles.headerTitle}>Клиенты</Text>
+                <Text style={styles.headerSubtitle}>Контролируйте питание, анкеты и замеры</Text>
+              </View>
               <TouchableOpacity onPress={() => setAddOpen(true)} style={styles.addButton}>
                 <Plus size={16} color="white" />
                 <Text style={styles.addButtonText}>Добавить</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.headerSubtitle}>Контролируйте питание, анкеты и замеры</Text>
             <View style={styles.headerStats}>
-              <View style={styles.headerStatCard}>
-                <Text style={styles.headerStatLabel}>Активные</Text>
-                <Text style={styles.headerStatValue}>{activeClientsCount}</Text>
-              </View>
-              <View style={[styles.headerStatCard, styles.headerStatCardAttention]}>
-                <Text style={styles.headerStatLabel}>Внимание</Text>
-                <Text style={styles.headerStatValue}>{attentionClientsCount}</Text>
-              </View>
-              <View style={styles.headerStatCard}>
-                <Text style={styles.headerStatLabel}>Архив</Text>
-                <Text style={styles.headerStatValue}>{archivedClientsCount}</Text>
-              </View>
+              <TouchableOpacity
+                onPress={() => setActiveFilter('all')}
+                style={[styles.headerStatCard, activeFilter === 'all' && styles.headerStatCardActive]}
+              >
+                <Text style={[styles.headerStatLabel, activeFilter === 'all' && styles.headerStatLabelActive]}>
+                  Активные
+                </Text>
+                <Text style={[styles.headerStatValue, activeFilter === 'all' && styles.headerStatValueActive]}>
+                  {activeClientsCount}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setActiveFilter('attention')}
+                style={[styles.headerStatCard, styles.headerStatCardAttention, activeFilter === 'attention' && styles.headerStatCardActive]}
+              >
+                <Text style={[styles.headerStatLabel, activeFilter === 'attention' && styles.headerStatLabelActive]}>
+                  Внимание
+                </Text>
+                <Text style={[styles.headerStatValue, activeFilter === 'attention' && styles.headerStatValueActive]}>
+                  {attentionClientsCount}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setActiveFilter('archived')}
+                style={[styles.headerStatCard, activeFilter === 'archived' && styles.headerStatCardActive]}
+              >
+                <Text style={[styles.headerStatLabel, activeFilter === 'archived' && styles.headerStatLabelActive]}>
+                  Архив
+                </Text>
+                <Text style={[styles.headerStatValue, activeFilter === 'archived' && styles.headerStatValueActive]}>
+                  {archivedClientsCount}
+                </Text>
+              </TouchableOpacity>
             </View>
-            <View style={styles.searchRow}>
-              <View style={styles.searchBox}>
-                <Search size={16} color="#9CA3AF" />
-                <TextInput
-                  placeholder="Поиск клиента"
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  style={styles.searchInput}
-                />
-              </View>
+          </View>
+
+          <View style={styles.searchRow}>
+            <View style={styles.searchBox}>
+              <Search size={16} color="#9CA3AF" />
+              <TextInput
+                placeholder="Поиск клиента"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={styles.searchInput}
+              />
             </View>
           </View>
 
@@ -299,9 +361,10 @@ export default function TrainerDashboardScreen() {
 
           <View style={styles.listWrap}>
             {isLoading ? (
-              <View style={styles.loadingCard}>
-                <ActivityIndicator size="small" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Загружаем клиентов...</Text>
+              <View>
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <ClientSkeleton key={`skeleton-${index}`} shimmer={shimmer} />
+                ))}
               </View>
             ) : (
               filteredClients.map((client) => (
@@ -310,8 +373,12 @@ export default function TrainerDashboardScreen() {
             )}
             {!isLoading && filteredClients.length === 0 && (
               <View style={styles.emptyCard}>
-                <Text style={styles.emptyTitle}>Клиенты не найдены</Text>
-                <Text style={styles.emptySubtitle}>Измените фильтры или добавьте нового клиента</Text>
+                <Text style={styles.emptyTitle}>Клиентов пока нет</Text>
+                <Text style={styles.emptySubtitle}>Создайте инвайт и отправьте его клиенту</Text>
+                <TouchableOpacity onPress={() => setAddOpen(true)} style={styles.emptyButton}>
+                  <Plus size={16} color="#FFFFFF" />
+                  <Text style={styles.emptyButtonText}>Создать инвайт</Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -377,36 +444,33 @@ export default function TrainerDashboardScreen() {
               ) : invites.length === 0 ? (
                 <Text style={styles.activeInvitesEmpty}>Активных инвайтов нет</Text>
               ) : (
-                invites.map((invite) => (
-                  <View key={invite.id} style={styles.activeInviteRow}>
-                    <View style={styles.activeInviteInfo}>
-                      <Text style={styles.activeInviteName}>{invite.clientName || 'Без имени'}</Text>
-                      <Text style={styles.activeInviteCode}>{invite.code}</Text>
+                <ScrollView style={styles.activeInvitesList} showsVerticalScrollIndicator={false}>
+                  {invites.map((invite) => (
+                    <View key={invite.id} style={styles.activeInviteRow}>
+                      <View style={styles.activeInviteInfo}>
+                        <Text style={styles.activeInviteName}>{invite.clientName || 'Без имени'}</Text>
+                        <Text style={styles.activeInviteCode}>{invite.code}</Text>
+                      </View>
+                      <View style={styles.activeInviteActions}>
+                        <TouchableOpacity
+                          onPress={() => Clipboard.setStringAsync(invite.code)}
+                          style={styles.inviteActionButton}
+                        >
+                          <ClipboardCopy size={16} color="#111827" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleDeactivateInvite(invite.id)}
+                          style={[styles.inviteActionButton, styles.inviteActionDanger]}
+                        >
+                          <Ban size={16} color="#DC2626" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                    <View style={styles.activeInviteActions}>
-                      <TouchableOpacity onPress={() => Clipboard.setStringAsync(invite.code)} style={styles.inviteMiniCopy}>
-                        <ClipboardCopy size={14} color="#111827" />
-                        <Text style={styles.inviteMiniCopyText}>Копировать</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleDeactivateInvite(invite.id)} style={styles.inviteDeactivate}>
-                        <X size={14} color="#DC2626" />
-                        <Text style={styles.inviteDeactivateText}>Деактивировать</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))
+                  ))}
+                </ScrollView>
               )}
             </View>
 
-            <TouchableOpacity
-              onPress={() => {
-                resetInviteForm();
-                setAddOpen(false);
-              }}
-              style={styles.secondaryButton}
-            >
-              <Text style={styles.secondaryButtonText}>Закрыть</Text>
-            </TouchableOpacity>
           </View>
         </SharedBottomSheet>
       </SafeAreaView>
@@ -469,10 +533,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     color: '#111827',
-    marginTop: 6,
+  },
+  headerTitleBlock: {
+    flex: 1,
   },
   headerTitleRow: {
     marginTop: 6,
@@ -493,17 +559,27 @@ const styles = StyleSheet.create({
   },
   headerStatCard: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 16,
-    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    paddingVertical: 12,
     paddingHorizontal: 12,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   headerStatCardAttention: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#FFF7ED',
+  },
+  headerStatCardActive: {
+    backgroundColor: '#E0F2FE',
   },
   headerStatLabel: {
     fontSize: 11,
     color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   headerStatValue: {
     marginTop: 4,
@@ -512,19 +588,27 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontVariant: ['tabular-nums'],
   },
+  headerStatLabelActive: {
+    color: '#0F172A',
+  },
+  headerStatValueActive: {
+    color: '#0F172A',
+  },
   searchRow: {
     marginTop: 16,
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   searchInput: {
     marginLeft: 8,
@@ -699,14 +783,17 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderRadius: 24,
     padding: 20,
     alignItems: 'center',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   emptyTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
     color: '#111827',
   },
@@ -716,18 +803,69 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
   },
-  loadingCard: {
+  emptyButton: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: COLORS.primary,
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  emptyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  skeletonCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderRadius: 24,
     padding: 20,
+    marginBottom: 16,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  skeletonHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 12,
-    color: '#6B7280',
+  skeletonAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    marginRight: 12,
+  },
+  skeletonTitleWrap: {
+    flex: 1,
+  },
+  skeletonLine: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: '#F3F4F6',
+    marginTop: 8,
+    width: '70%',
+  },
+  skeletonLineShort: {
+    height: 12,
+    borderRadius: 999,
+    backgroundColor: '#E5E7EB',
+    width: '45%',
+  },
+  skeletonChips: {
+    marginTop: 16,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  skeletonChip: {
+    height: 26,
+    borderRadius: 999,
+    backgroundColor: '#F3F4F6',
+    width: '32%',
   },
   modalBackdrop: {
     flex: 1,
@@ -827,15 +965,15 @@ const styles = StyleSheet.create({
   },
   activeInvites: {
     marginTop: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
   },
   activeInvitesTitle: {
     fontSize: 12,
     fontWeight: '700',
     color: '#111827',
     marginBottom: 8,
+  },
+  activeInvitesList: {
+    maxHeight: 220,
   },
   activeInvitesEmpty: {
     fontSize: 12,
@@ -845,18 +983,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+    marginBottom: 10,
   },
   activeInviteInfo: {
     flex: 1,
     marginRight: 12,
   },
   activeInviteName: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 13,
+    color: '#9CA3AF',
     marginBottom: 4,
+    fontWeight: '600',
   },
   activeInviteCode: {
     fontSize: 16,
@@ -866,33 +1011,18 @@ const styles = StyleSheet.create({
   },
   activeInviteActions: {
     alignItems: 'flex-end',
-    gap: 6,
+    gap: 8,
   },
-  inviteMiniCopy: {
-    flexDirection: 'row',
+  inviteActionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
   },
-  inviteMiniCopyText: {
-    fontSize: 11,
-    color: '#111827',
-    fontWeight: '600',
-  },
-  inviteDeactivate: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  inviteDeactivateText: {
-    fontSize: 11,
-    color: '#DC2626',
-    fontWeight: '600',
+  inviteActionDanger: {
+    backgroundColor: '#FEF2F2',
   },
   invitesLoading: {
     flexDirection: 'row',
@@ -902,18 +1032,5 @@ const styles = StyleSheet.create({
   invitesLoadingText: {
     fontSize: 12,
     color: '#6B7280',
-  },
-  secondaryButton: {
-    marginTop: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#111827',
   },
 });

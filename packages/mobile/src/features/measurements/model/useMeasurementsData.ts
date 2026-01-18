@@ -5,6 +5,7 @@ import { measurementsRepository, MeasurementEntry } from '../repositories/Measur
 import { colors } from '../../../shared/ui';
 import { dailySurveyRepository } from '../../diary/repositories/DailySurveyRepository';
 import { api } from '../../../shared/api/client';
+import { getToken } from '../../../shared/lib/storage';
 import { formatDateKey, getDateObj } from '../../../shared/lib/date';
 import { buildLinePath } from '../lib/buildLinePath';
 
@@ -63,6 +64,27 @@ export const useMeasurementsData = ({
   const syncMeasurements = useCallback(async () => {
     try {
       setSyncStatus('syncing');
+      const token = await getToken();
+      if (!token) {
+        setSyncStatus('synced');
+        return;
+      }
+
+      const pending = measurementsRepository.getUnsyncedMeasurements();
+      for (const entry of pending) {
+        await api.post('/measurements/entries', {
+          date: entry.date,
+          chest: entry.chest ?? null,
+          waist: entry.waist ?? null,
+          hips: entry.hips ?? null,
+          leftArm: entry.leftArm ?? null,
+          rightArm: entry.rightArm ?? null,
+          leftLeg: entry.leftLeg ?? null,
+          rightLeg: entry.rightLeg ?? null,
+        });
+      }
+      measurementsRepository.markMeasurementsAsSynced(pending.map((entry) => entry.id));
+
       const response = await api.get('/measurements/entries');
       const items = Array.isArray(response.data) ? response.data : [];
       items.forEach((item: any) => {
