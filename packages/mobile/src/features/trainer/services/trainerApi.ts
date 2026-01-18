@@ -7,6 +7,7 @@ export type TrainerClientSummary = {
   complianceScore: number;
   unreviewedSurveys: number;
   lastMeasurementDays: number | null;
+  lastMeasurementDate: string | null;
   archived: boolean;
 };
 

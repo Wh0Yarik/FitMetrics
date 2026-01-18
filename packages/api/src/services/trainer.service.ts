@@ -167,6 +167,7 @@ export class TrainerService {
         complianceScore,
         unreviewedSurveys,
         lastMeasurementDays,
+        lastMeasurementDate: lastMeasurement ? lastMeasurement.weekStartDate.toISOString() : null,
         archived: client.archivedAt !== null,
       });
     }

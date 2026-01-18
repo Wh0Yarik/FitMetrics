@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Modal,
   ActivityIndicator,
   Alert,
   Image,
@@ -23,20 +22,31 @@ import { onClientsUpdated } from '../services/trainerEvents';
 import { api } from '../../../shared/api/client';
 import { removeRefreshToken, removeToken, removeUserId } from '../../../shared/lib/storage';
 import { setCurrentUserId } from '../../../shared/db/userSession';
+import { SharedBottomSheet } from '../../profile/components/SharedBottomSheet';
 
-type FilterKey = 'all' | 'attention' | 'no-measurements' | 'archived';
+type FilterKey = 'all' | 'attention' | 'unreviewed' | 'no-measurements' | 'archived';
 
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all', label: 'Активные' },
   { key: 'attention', label: 'Требуют внимания' },
+  { key: 'unreviewed', label: 'Анкеты' },
   { key: 'no-measurements', label: 'Без замеров' },
   { key: 'archived', label: 'Архив' },
 ];
 
+const formatMeasurementDate = (value: string | null) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+};
+
 const ClientCard = ({ client, onPress }: { client: TrainerClientSummary; onPress: () => void }) => {
   const attention = client.unreviewedSurveys > 0 || client.lastMeasurementDays === null || client.lastMeasurementDays > 7;
-  const measurementLabel =
-    client.lastMeasurementDays === null ? 'нет' : `${client.lastMeasurementDays} дн.`;
+  const measurementLabel = client.lastMeasurementDays === null ? 'нет' : `${client.lastMeasurementDays} дн.`;
+  const measurementDate = formatMeasurementDate(client.lastMeasurementDate);
+  const measurementMeta =
+    measurementLabel === 'нет' || !measurementDate ? measurementLabel : `${measurementLabel} · ${measurementDate}`;
   return (
     <TouchableOpacity onPress={onPress} style={styles.clientCard}>
       <View style={styles.clientRow}>
@@ -80,7 +90,7 @@ const ClientCard = ({ client, onPress }: { client: TrainerClientSummary; onPress
         </View>
         <View style={styles.clientStat}>
           <Text style={styles.clientStatLabel}>Замеры</Text>
-          <Text style={styles.clientStatValue}>{measurementLabel}</Text>
+          <Text style={styles.clientStatValue}>{measurementMeta}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -128,9 +138,15 @@ export default function TrainerDashboardScreen() {
     return () => subscription.remove();
   }, [loadClients]);
 
+  useEffect(() => {
+    if (isAddOpen) {
+      loadInvites();
+    }
+  }, [isAddOpen, loadInvites]);
+
   const filteredClients = useMemo(() => {
     const searchLower = searchQuery.trim().toLowerCase();
-    return clients.filter((client) => {
+    const filtered = clients.filter((client) => {
       const matchesSearch = !searchLower || client.name.toLowerCase().includes(searchLower);
       if (!matchesSearch) return false;
 
@@ -145,10 +161,27 @@ export default function TrainerDashboardScreen() {
       if (activeFilter === 'attention') {
         return client.unreviewedSurveys > 0 || client.lastMeasurementDays === null || client.lastMeasurementDays > 7;
       }
+      if (activeFilter === 'unreviewed') {
+        return client.unreviewedSurveys > 0;
+      }
       if (activeFilter === 'no-measurements') {
         return client.lastMeasurementDays === null || client.lastMeasurementDays > 7;
       }
       return true;
+    });
+    if (activeFilter === 'archived') {
+      return filtered;
+    }
+    return [...filtered].sort((a, b) => {
+      const aNeedsAttention = a.unreviewedSurveys > 0 ? 1 : 0;
+      const bNeedsAttention = b.unreviewedSurveys > 0 ? 1 : 0;
+      if (aNeedsAttention !== bNeedsAttention) {
+        return bNeedsAttention - aNeedsAttention;
+      }
+      if (a.unreviewedSurveys !== b.unreviewedSurveys) {
+        return b.unreviewedSurveys - a.unreviewedSurveys;
+      }
+      return a.name.localeCompare(b.name, 'ru');
     });
   }, [searchQuery, activeFilter, clients]);
 
@@ -160,7 +193,7 @@ export default function TrainerDashboardScreen() {
     setInviteCode('');
   };
 
-  const loadInvites = async () => {
+  const loadInvites = useCallback(async () => {
     setInvitesLoading(true);
     try {
       const data = await trainerApi.getInvites();
@@ -171,7 +204,7 @@ export default function TrainerDashboardScreen() {
     } finally {
       setInvitesLoading(false);
     }
-  };
+  }, []);
 
   const handleGenerateInvite = async () => {
     setGenerating(true);
@@ -288,79 +321,78 @@ export default function TrainerDashboardScreen() {
           </View>
         </ScrollView>
 
-        <Modal
+        <SharedBottomSheet
           visible={isAddOpen}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setAddOpen(false)}
-          onShow={loadInvites}
+          onClose={() => {
+            resetInviteForm();
+            setAddOpen(false);
+          }}
+          headerSwipeHeight={56}
         >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>Новый клиент</Text>
-              <Text style={styles.modalSubtitle}>
-                Сгенерируйте инвайт-код и передайте его клиенту для регистрации.
-              </Text>
+          <View style={styles.sheetContent}>
+            <Text style={styles.modalTitle}>Новый клиент</Text>
+            <Text style={styles.modalSubtitle}>
+              Сгенерируйте инвайт-код и передайте его клиенту для регистрации.
+            </Text>
 
-              <TouchableOpacity
-                onPress={handleGenerateInvite}
-                style={[styles.primaryButton, isGenerating && styles.primaryButtonDisabled]}
-                disabled={isGenerating}
-              >
-                {isGenerating ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.primaryButtonText}>Сгенерировать инвайт-код</Text>
-                )}
-              </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleGenerateInvite}
+              style={[styles.primaryButton, isGenerating && styles.primaryButtonDisabled]}
+              disabled={isGenerating}
+            >
+              {isGenerating ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Сгенерировать инвайт-код</Text>
+              )}
+            </TouchableOpacity>
 
-              {inviteCode ? (
-                <View style={styles.inviteCard}>
-                  <Text style={styles.inviteLabel}>Инвайт-код</Text>
-                  <View style={styles.inviteRow}>
-                    <Text style={styles.inviteCode}>{inviteCode}</Text>
-                    <TouchableOpacity onPress={handleCopyInvite} style={styles.inviteCopyButton}>
-                      <ClipboardCopy size={16} color="#111827" />
-                      <Text style={styles.inviteCopyText}>Копировать</Text>
+            {inviteCode ? (
+              <View style={styles.inviteCard}>
+                <Text style={styles.inviteLabel}>Инвайт-код</Text>
+                <View style={styles.inviteRow}>
+                  <Text style={styles.inviteCode}>{inviteCode}</Text>
+                  <TouchableOpacity onPress={handleCopyInvite} style={styles.inviteCopyButton}>
+                    <ClipboardCopy size={16} color="#111827" />
+                    <Text style={styles.inviteCopyText}>Копировать</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+
+            <View style={styles.activeInvites}>
+              <Text style={styles.activeInvitesTitle}>Активные инвайты</Text>
+              {invitesLoading ? (
+                <View style={styles.invitesLoading}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <Text style={styles.invitesLoadingText}>Загружаем...</Text>
+                </View>
+              ) : invites.length === 0 ? (
+                <Text style={styles.activeInvitesEmpty}>Активных инвайтов нет</Text>
+              ) : (
+                invites.map((invite) => (
+                  <View key={invite.id} style={styles.activeInviteRow}>
+                    <Text style={styles.activeInviteCode}>{invite.code}</Text>
+                    <TouchableOpacity onPress={() => Clipboard.setStringAsync(invite.code)} style={styles.inviteMiniCopy}>
+                      <ClipboardCopy size={14} color="#111827" />
+                      <Text style={styles.inviteMiniCopyText}>Копировать</Text>
                     </TouchableOpacity>
                   </View>
-                </View>
-              ) : null}
-
-              <View style={styles.activeInvites}>
-                <Text style={styles.activeInvitesTitle}>Активные инвайты</Text>
-                {invitesLoading ? (
-                  <View style={styles.invitesLoading}>
-                    <ActivityIndicator size="small" color={COLORS.primary} />
-                    <Text style={styles.invitesLoadingText}>Загружаем...</Text>
-                  </View>
-                ) : invites.length === 0 ? (
-                  <Text style={styles.activeInvitesEmpty}>Активных инвайтов нет</Text>
-                ) : (
-                  invites.map((invite) => (
-                    <View key={invite.id} style={styles.activeInviteRow}>
-                      <Text style={styles.activeInviteCode}>{invite.code}</Text>
-                      <TouchableOpacity onPress={() => Clipboard.setStringAsync(invite.code)} style={styles.inviteMiniCopy}>
-                        <ClipboardCopy size={14} color="#111827" />
-                        <Text style={styles.inviteMiniCopyText}>Копировать</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))
-                )}
-              </View>
-
-              <TouchableOpacity
-                onPress={() => {
-                  resetInviteForm();
-                  setAddOpen(false);
-                }}
-                style={styles.secondaryButton}
-              >
-                <Text style={styles.secondaryButtonText}>Закрыть</Text>
-              </TouchableOpacity>
+                ))
+              )}
             </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                resetInviteForm();
+                setAddOpen(false);
+              }}
+              style={styles.secondaryButton}
+            >
+              <Text style={styles.secondaryButtonText}>Закрыть</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
+        </SharedBottomSheet>
       </SafeAreaView>
     </View>
   );
@@ -518,6 +550,10 @@ const styles = StyleSheet.create({
   },
   listWrap: {
     marginTop: 16,
+  },
+  sheetContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
   clientCard: {
     backgroundColor: '#FFFFFF',

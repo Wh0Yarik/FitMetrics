@@ -15,6 +15,13 @@ const parseNumber = (value: unknown, field: string) => {
   return numberValue;
 };
 
+const getParamId = (value: string | string[] | undefined) => {
+  if (Array.isArray(value)) {
+    return value[0] ?? '';
+  }
+  return value ?? '';
+};
+
 export const listClients = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.userId;
@@ -28,7 +35,7 @@ export const listClients = async (req: Request, res: Response, next: NextFunctio
 export const getClient = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.userId;
-    const clientId = req.params.id;
+    const clientId = getParamId(req.params.id);
     const result = await trainerService.getClientDetail(userId, clientId);
     res.json(result);
   } catch (error) {
@@ -39,7 +46,7 @@ export const getClient = async (req: Request, res: Response, next: NextFunction)
 export const updateGoals = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.userId;
-    const clientId = req.params.id;
+    const clientId = getParamId(req.params.id);
 
     const dailyProtein = parseNumber(req.body.dailyProtein, 'dailyProtein');
     const dailyFat = parseNumber(req.body.dailyFat, 'dailyFat');
@@ -76,7 +83,7 @@ export const listInvites = async (req: Request, res: Response, next: NextFunctio
 export const archiveClient = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.userId;
-    const clientId = req.params.id;
+    const clientId = getParamId(req.params.id);
     const result = await trainerService.archiveClient(userId, clientId);
     res.json(result);
   } catch (error) {
@@ -87,7 +94,7 @@ export const archiveClient = async (req: Request, res: Response, next: NextFunct
 export const unarchiveClient = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.userId;
-    const clientId = req.params.id;
+    const clientId = getParamId(req.params.id);
     const result = await trainerService.unarchiveClient(userId, clientId);
     res.json(result);
   } catch (error) {
