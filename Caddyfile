@@ -1,0 +1,15 @@
+{
+  email admin@fitmetrics.ru
+}
+
+api.fitmetrics.ru {
+  reverse_proxy fitmetrics_api:3001
+}
+
+s3.fitmetrics.ru {
+  reverse_proxy fitmetrics_minio:9000
+}
+
+console.fitmetrics.ru {
+  reverse_proxy fitmetrics_minio:9001
+}

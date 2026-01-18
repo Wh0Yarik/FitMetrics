@@ -7,22 +7,35 @@ import { z } from 'zod';
 import { api } from '../../shared/api/client';
 import { router } from 'expo-router';
 import { COLORS } from '../../constants/Colors';
-import { normalizeBirthDateInput, parseBirthDateDisplay } from '../../shared/lib/date';
 import { Eye, EyeOff } from 'lucide-react-native';
 
 // Схема валидации (повторяет логику бэкенда)
-const registerSchema = z.object({
-  name: z.string().min(2, 'Имя должно быть не короче 2 символов'),
-  birthDate: z.string().regex(/^\d{2}\.\d{2}\.\d{4}$/, 'Введите дату в формате ДД.ММ.ГГГГ'),
-  email: z.string().email('Некорректный email'),
-  password: z.string().min(6, 'Пароль должен быть не короче 6 символов'),
-});
+const registerSchema = z
+  .object({
+    name: z
+      .string({ required_error: 'Введите имя' })
+      .min(2, 'Имя должно быть не короче 2 символов'),
+    email: z
+      .string({ required_error: 'Введите email' })
+      .email('Некорректный email'),
+    password: z
+      .string({ required_error: 'Введите пароль' })
+      .min(6, 'Пароль должен быть не короче 6 символов'),
+    confirmPassword: z
+      .string({ required_error: 'Повторите пароль' })
+      .min(6, 'Пароль должен быть не короче 6 символов'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Пароли не совпадают',
+    path: ['confirmPassword'],
+  });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function RegisterTrainerScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { control, handleSubmit, formState: { errors } } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -32,19 +45,19 @@ export default function RegisterTrainerScreen() {
     setIsLoading(true);
     try {
       // Отправляем данные на бэкенд
-      const birthDate = parseBirthDateDisplay(data.birthDate);
-      if (!birthDate) {
-        Alert.alert('Ошибка', 'Дата рождения должна быть в формате ДД.ММ.ГГГГ');
-        return;
-      }
-      await api.post('/auth/register-trainer', { ...data, birthDate });
+      const { confirmPassword, ...rest } = data;
+      await api.post('/auth/register-trainer', { ...rest });
       
       Alert.alert('Успех', 'Аккаунт тренера создан! Теперь войдите в систему.', [
         { text: 'OK', onPress: () => router.replace('/auth/login') }
       ]);
     } catch (error: any) {
       console.error(error);
-      const message = error.response?.data?.message || 'Ошибка при регистрации';
+      const rawMessage = error.response?.data?.message;
+      const message =
+        rawMessage === 'User already exists'
+          ? 'Пользователь с таким email уже зарегистрирован'
+          : rawMessage || 'Ошибка при регистрации';
       Alert.alert('Ошибка', message);
     } finally {
       setIsLoading(false);
@@ -83,24 +96,6 @@ export default function RegisterTrainerScreen() {
                 )}
               />
               {errors.name && <Text style={styles.errorText}>{errors.name.message}</Text>}
-
-              <Text style={styles.label}>Дата рождения</Text>
-              <Controller
-                control={control}
-                name="birthDate"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    style={[styles.input, errors.birthDate && styles.inputError]}
-                    placeholder="ДД.ММ.ГГГГ"
-                    autoCapitalize="none"
-                    keyboardType="numeric"
-                    onBlur={onBlur}
-                    onChangeText={(text) => onChange(normalizeBirthDateInput(text))}
-                    value={value}
-                  />
-                )}
-              />
-              {errors.birthDate && <Text style={styles.errorText}>{errors.birthDate.message}</Text>}
 
               <Text style={styles.label}>Email</Text>
               <Controller
@@ -147,6 +142,34 @@ export default function RegisterTrainerScreen() {
                 )}
               />
               {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
+
+              <Text style={styles.label}>Подтверждение пароля</Text>
+              <Controller
+                control={control}
+                name="confirmPassword"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <View style={styles.passwordRow}>
+                    <TextInput
+                      style={[styles.input, styles.passwordInput, errors.confirmPassword && styles.inputError]}
+                      placeholder="******"
+                      secureTextEntry={!showConfirmPassword}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      value={value}
+                    />
+                    <TouchableOpacity
+                      style={styles.passwordToggle}
+                      onPressIn={() => setShowConfirmPassword(true)}
+                      onPressOut={() => setShowConfirmPassword(false)}
+                      accessibilityRole="button"
+                      accessibilityLabel={showConfirmPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                    >
+                      {showConfirmPassword ? <EyeOff size={18} color="#9CA3AF" /> : <Eye size={18} color="#9CA3AF" />}
+                    </TouchableOpacity>
+                  </View>
+                )}
+              />
+              {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword.message}</Text>}
 
               <TouchableOpacity 
                 style={[styles.button, isLoading && styles.buttonDisabled]} 
