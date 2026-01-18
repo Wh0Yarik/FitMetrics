@@ -110,6 +110,7 @@ updatedAt DateTime @updatedAt @map("updated_at")
 model InviteCode {
 id String @id @default(cuid())
 code String @unique
+clientName String? @map("client_name")
 trainerId String @map("trainer_id")
 trainer Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 clientId String? @map("client_id")

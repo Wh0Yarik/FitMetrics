@@ -11,17 +11,14 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Plus, UserRound, ClipboardCopy, LogOut, Filter } from 'lucide-react-native';
+import { Search, Plus, UserRound, ClipboardCopy, Filter, X } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
 
 import { COLORS } from '../../../constants/Colors';
 import { trainerApi, TrainerClientSummary, TrainerInvite } from '../services/trainerApi';
 import { onClientsUpdated } from '../services/trainerEvents';
 import { api } from '../../../shared/api/client';
-import { removeRefreshToken, removeToken, removeUserId } from '../../../shared/lib/storage';
-import { setCurrentUserId } from '../../../shared/db/userSession';
 import { SharedBottomSheet } from '../../profile/components/SharedBottomSheet';
 
 type FilterKey = 'all' | 'attention' | 'unreviewed' | 'no-measurements' | 'archived';
@@ -34,22 +31,15 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'archived', label: 'Архив' },
 ];
 
-const formatMeasurementDate = (value: string | null) => {
-  if (!value) return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-};
-
 const ClientCard = ({ client, onPress }: { client: TrainerClientSummary; onPress: () => void }) => {
   const attention = client.unreviewedSurveys > 0 || client.lastMeasurementDays === null || client.lastMeasurementDays > 7;
   const measurementLabel = client.lastMeasurementDays === null ? 'нет' : `${client.lastMeasurementDays} дн.`;
-  const measurementDate = formatMeasurementDate(client.lastMeasurementDate);
-  const measurementMeta =
-    measurementLabel === 'нет' || !measurementDate ? measurementLabel : `${measurementLabel} · ${measurementDate}`;
+  const measurementMeta = measurementLabel;
+  const measurementOverdue = client.lastMeasurementDays !== null && client.lastMeasurementDays >= 14;
+  const statusLabel = client.archived ? 'В архиве' : attention ? 'Нужно внимание' : 'Стабильно';
   return (
     <TouchableOpacity onPress={onPress} style={styles.clientCard}>
-      <View style={styles.clientRow}>
+      <View style={styles.clientHeader}>
         <View style={styles.clientAvatar}>
           {client.avatarUrl ? (
             <Image source={{ uri: client.avatarUrl }} style={styles.clientAvatarImage} />
@@ -60,37 +50,27 @@ const ClientCard = ({ client, onPress }: { client: TrainerClientSummary; onPress
         <View style={styles.clientInfo}>
           <Text style={styles.clientName}>{client.name}</Text>
           <Text style={styles.clientMeta}>
-            Приверженность: {client.complianceScore.toFixed(1)}/7
+            Приверженность <Text style={styles.clientScoreInline}>{client.complianceScore.toFixed(1)}/7</Text>
           </Text>
         </View>
-        <View
-          style={[
-            styles.clientBadge,
-            attention && styles.clientBadgeAttention,
-            client.archived && styles.clientBadgeArchived,
-          ]}
-        >
-          <Text
-            style={[
-              styles.clientBadgeText,
-              attention && styles.clientBadgeTextAttention,
-              client.archived && styles.clientBadgeTextArchived,
-            ]}
-          >
-            {client.archived ? 'В архиве' : attention ? 'Нужно внимание' : 'Стабильно'}
+        <View style={[styles.clientBadge, attention && styles.clientBadgeAttention, client.archived && styles.clientBadgeArchived]}>
+          <Text style={[styles.clientBadgeText, attention && styles.clientBadgeTextAttention, client.archived && styles.clientBadgeTextArchived]}>
+            {statusLabel}
           </Text>
         </View>
       </View>
-      <View style={styles.clientStats}>
-        <View style={styles.clientStat}>
-          <Text style={styles.clientStatLabel}>Анкеты</Text>
-          <Text style={styles.clientStatValue}>
+      <View style={styles.clientFooter}>
+        <View style={[styles.clientChip, client.unreviewedSurveys > 0 && styles.clientChipAttention]}>
+          <Text style={styles.clientChipLabel}>Анкеты</Text>
+          <Text style={[styles.clientChipValue, client.unreviewedSurveys > 0 && styles.clientChipValueAttention]}>
             {client.unreviewedSurveys > 0 ? `⚠️ ${client.unreviewedSurveys}` : '✓'}
           </Text>
         </View>
-        <View style={styles.clientStat}>
-          <Text style={styles.clientStatLabel}>Замеры</Text>
-          <Text style={styles.clientStatValue}>{measurementMeta}</Text>
+        <View style={[styles.clientChip, measurementOverdue && styles.clientChipAttention]}>
+          <Text style={styles.clientChipLabel}>Замеры</Text>
+          <Text style={[styles.clientChipValue, measurementOverdue && styles.clientChipValueAttention]}>
+            {measurementOverdue ? `⚠️ ${measurementMeta}` : measurementMeta}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -102,11 +82,16 @@ export default function TrainerDashboardScreen() {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
   const [isAddOpen, setAddOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
+  const [inviteClientName, setInviteClientName] = useState('');
   const [isGenerating, setGenerating] = useState(false);
   const [isLoading, setLoading] = useState(true);
   const [clients, setClients] = useState<TrainerClientSummary[]>([]);
   const [invites, setInvites] = useState<TrainerInvite[]>([]);
   const [invitesLoading, setInvitesLoading] = useState(false);
+
+  const activeClientsCount = clients.filter((client) => !client.archived).length;
+  const attentionClientsCount = clients.filter((client) => !client.archived && client.unreviewedSurveys > 0).length;
+  const archivedClientsCount = clients.filter((client) => client.archived).length;
 
   const loadClients = useCallback(async () => {
     try {
@@ -191,6 +176,7 @@ export default function TrainerDashboardScreen() {
 
   const resetInviteForm = () => {
     setInviteCode('');
+    setInviteClientName('');
   };
 
   const loadInvites = useCallback(async () => {
@@ -209,7 +195,8 @@ export default function TrainerDashboardScreen() {
   const handleGenerateInvite = async () => {
     setGenerating(true);
     try {
-      const response = await api.post('/invites');
+      const payload = inviteClientName.trim() ? { clientName: inviteClientName.trim() } : undefined;
+      const response = await api.post('/invites', payload);
       setInviteCode(response.data.code);
       await loadInvites();
     } catch (error: any) {
@@ -226,22 +213,14 @@ export default function TrainerDashboardScreen() {
     Alert.alert('Готово', 'Инвайт-код скопирован');
   };
 
-  const handleLogout = async () => {
-    Alert.alert('Выход', 'Выйти из аккаунта тренера?', [
-      { text: 'Отмена', style: 'cancel' },
-      {
-        text: 'Выйти',
-        style: 'destructive',
-        onPress: async () => {
-          await removeToken();
-          await removeRefreshToken();
-          await removeUserId();
-          setCurrentUserId(null);
-          await AsyncStorage.removeItem('userRole');
-          router.replace('/auth/login');
-        },
-      },
-    ]);
+  const handleDeactivateInvite = async (inviteId: string) => {
+    try {
+      await trainerApi.deactivateInvite(inviteId);
+      await loadInvites();
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Не удалось деактивировать инвайт';
+      Alert.alert('Ошибка', message);
+    }
   };
 
   return (
@@ -253,12 +232,29 @@ export default function TrainerDashboardScreen() {
           <View style={styles.headerCard}>
             <View style={styles.headerRow}>
               <Text style={styles.headerKicker}>Тренер</Text>
-              <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                <LogOut size={16} color="#6B7280" />
+            </View>
+            <View style={styles.headerTitleRow}>
+              <Text style={styles.headerTitle}>Клиенты</Text>
+              <TouchableOpacity onPress={() => setAddOpen(true)} style={styles.addButton}>
+                <Plus size={16} color="white" />
+                <Text style={styles.addButtonText}>Добавить</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.headerTitle}>Клиенты</Text>
             <Text style={styles.headerSubtitle}>Контролируйте питание, анкеты и замеры</Text>
+            <View style={styles.headerStats}>
+              <View style={styles.headerStatCard}>
+                <Text style={styles.headerStatLabel}>Активные</Text>
+                <Text style={styles.headerStatValue}>{activeClientsCount}</Text>
+              </View>
+              <View style={[styles.headerStatCard, styles.headerStatCardAttention]}>
+                <Text style={styles.headerStatLabel}>Внимание</Text>
+                <Text style={styles.headerStatValue}>{attentionClientsCount}</Text>
+              </View>
+              <View style={styles.headerStatCard}>
+                <Text style={styles.headerStatLabel}>Архив</Text>
+                <Text style={styles.headerStatValue}>{archivedClientsCount}</Text>
+              </View>
+            </View>
             <View style={styles.searchRow}>
               <View style={styles.searchBox}>
                 <Search size={16} color="#9CA3AF" />
@@ -269,10 +265,6 @@ export default function TrainerDashboardScreen() {
                   style={styles.searchInput}
                 />
               </View>
-              <TouchableOpacity onPress={() => setAddOpen(true)} style={styles.addButton}>
-                <Plus size={16} color="white" />
-                <Text style={styles.addButtonText}>Добавить</Text>
-              </TouchableOpacity>
             </View>
           </View>
 
@@ -281,7 +273,11 @@ export default function TrainerDashboardScreen() {
               <Filter size={14} color="#6B7280" />
               <Text style={styles.filterLabelText}>Фильтры</Text>
             </View>
-            <View style={styles.filterChips}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterChips}
+            >
               {FILTERS.map((filter) => (
                 <TouchableOpacity
                   key={filter.key}
@@ -298,7 +294,7 @@ export default function TrainerDashboardScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
           </View>
 
           <View style={styles.listWrap}>
@@ -334,6 +330,17 @@ export default function TrainerDashboardScreen() {
             <Text style={styles.modalSubtitle}>
               Сгенерируйте инвайт-код и передайте его клиенту для регистрации.
             </Text>
+
+            <View style={styles.inviteInputWrap}>
+              <Text style={styles.inviteInputLabel}>Имя клиента</Text>
+              <TextInput
+                value={inviteClientName}
+                onChangeText={setInviteClientName}
+                placeholder="Например: Мария К."
+                placeholderTextColor="#9CA3AF"
+                style={styles.inviteInput}
+              />
+            </View>
 
             <TouchableOpacity
               onPress={handleGenerateInvite}
@@ -372,11 +379,20 @@ export default function TrainerDashboardScreen() {
               ) : (
                 invites.map((invite) => (
                   <View key={invite.id} style={styles.activeInviteRow}>
-                    <Text style={styles.activeInviteCode}>{invite.code}</Text>
-                    <TouchableOpacity onPress={() => Clipboard.setStringAsync(invite.code)} style={styles.inviteMiniCopy}>
-                      <ClipboardCopy size={14} color="#111827" />
-                      <Text style={styles.inviteMiniCopyText}>Копировать</Text>
-                    </TouchableOpacity>
+                    <View style={styles.activeInviteInfo}>
+                      <Text style={styles.activeInviteName}>{invite.clientName || 'Без имени'}</Text>
+                      <Text style={styles.activeInviteCode}>{invite.code}</Text>
+                    </View>
+                    <View style={styles.activeInviteActions}>
+                      <TouchableOpacity onPress={() => Clipboard.setStringAsync(invite.code)} style={styles.inviteMiniCopy}>
+                        <ClipboardCopy size={14} color="#111827" />
+                        <Text style={styles.inviteMiniCopyText}>Копировать</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeactivateInvite(invite.id)} style={styles.inviteDeactivate}>
+                        <X size={14} color="#DC2626" />
+                        <Text style={styles.inviteDeactivateText}>Деактивировать</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ))
               )}
@@ -458,27 +474,48 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginTop: 6,
   },
+  headerTitleRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   headerSubtitle: {
     fontSize: 13,
     color: '#6B7280',
     marginTop: 6,
   },
-  logoutButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
+  headerStats: {
+    marginTop: 14,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  headerStatCard: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  headerStatCardAttention: {
+    backgroundColor: '#FEF3C7',
+  },
+  headerStatLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+  },
+  headerStatValue: {
+    marginTop: 4,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    fontVariant: ['tabular-nums'],
   },
   searchRow: {
     marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   searchBox: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
@@ -524,21 +561,23 @@ const styles = StyleSheet.create({
   },
   filterChips: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
-    marginTop: 8,
+    paddingVertical: 8,
+    paddingRight: 12,
   },
   filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   filterChipActive: {
-    borderColor: '#BBF7D0',
-    backgroundColor: '#ECFDF3',
+    backgroundColor: '#E0F2FE',
   },
   filterChipText: {
     fontSize: 12,
@@ -546,7 +585,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   filterChipTextActive: {
-    color: COLORS.primary,
+    color: '#0F172A',
   },
   listWrap: {
     marginTop: 16,
@@ -557,25 +596,24 @@ const styles = StyleSheet.create({
   },
   clientCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderRadius: 24,
+    padding: 20,
     shadowColor: '#0F172A',
     shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    marginBottom: 12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+    marginBottom: 16,
   },
-  clientRow: {
+  clientHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   clientAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: '#ECFDF3',
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: '#E0F2FE',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -589,23 +627,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   clientName: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '600',
     color: '#111827',
   },
   clientMeta: {
     fontSize: 12,
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: 6,
+    letterSpacing: 0.2,
+  },
+  clientScoreInline: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+    fontVariant: ['tabular-nums'],
   },
   clientBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#ECFDF3',
   },
   clientBadgeAttention: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: '#FEF3C7',
   },
   clientBadgeArchived: {
     backgroundColor: '#E5E7EB',
@@ -613,37 +658,44 @@ const styles = StyleSheet.create({
   clientBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#0F766E',
   },
   clientBadgeTextAttention: {
-    color: '#EF4444',
+    color: '#92400E',
   },
   clientBadgeTextArchived: {
     color: '#4B5563',
   },
-  clientStats: {
-    marginTop: 12,
+  clientFooter: {
+    marginTop: 14,
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  clientStat: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+  clientChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#F3F4F6',
   },
-  clientStatLabel: {
-    fontSize: 10,
+  clientChipAttention: {
+    backgroundColor: '#FEF3C7',
+  },
+  clientChipLabel: {
+    fontSize: 11,
     color: '#6B7280',
   },
-  clientStatValue: {
-    fontSize: 13,
+  clientChipValue: {
+    fontSize: 12,
     fontWeight: '700',
     color: '#111827',
-    marginTop: 4,
+    fontVariant: ['tabular-nums'],
+  },
+  clientChipValueAttention: {
+    color: '#92400E',
   },
   emptyCard: {
     backgroundColor: '#FFFFFF',
@@ -700,6 +752,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 12,
+  },
+  inviteInputWrap: {
+    marginTop: 4,
+  },
+  inviteInputLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 6,
+    fontWeight: '600',
+  },
+  inviteInput: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#111827',
   },
   primaryButton: {
     backgroundColor: COLORS.primary,
@@ -774,17 +843,30 @@ const styles = StyleSheet.create({
   },
   activeInviteRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
+  },
+  activeInviteInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  activeInviteName: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
   },
   activeInviteCode: {
     fontSize: 16,
     fontWeight: '700',
     color: '#111827',
     letterSpacing: 1.4,
+  },
+  activeInviteActions: {
+    alignItems: 'flex-end',
+    gap: 6,
   },
   inviteMiniCopy: {
     flexDirection: 'row',
@@ -800,6 +882,16 @@ const styles = StyleSheet.create({
   inviteMiniCopyText: {
     fontSize: 11,
     color: '#111827',
+    fontWeight: '600',
+  },
+  inviteDeactivate: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  inviteDeactivateText: {
+    fontSize: 11,
+    color: '#DC2626',
     fontWeight: '600',
   },
   invitesLoading: {

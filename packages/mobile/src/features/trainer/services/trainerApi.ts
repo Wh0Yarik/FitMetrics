@@ -54,6 +54,7 @@ export type TrainerClientDetail = {
 export type TrainerInvite = {
   id: string;
   code: string;
+  clientName: string | null;
   status: string;
   isActive: boolean;
   createdAt: string;
@@ -86,6 +87,11 @@ export const trainerApi = {
   async getInvites(): Promise<TrainerInvite[]> {
     const response = await api.get('/trainer/invites');
     return response.data.invites;
+  },
+
+  async deactivateInvite(inviteId: string) {
+    const response = await api.post(`/invites/${inviteId}/deactivate`);
+    return response.data;
   },
 
   async archiveClient(clientId: string) {

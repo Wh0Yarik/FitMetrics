@@ -78,6 +78,7 @@ export class TrainerService {
     return invites.map((invite) => ({
       id: invite.id,
       code: invite.code,
+      clientName: invite.clientName ?? null,
       status: invite.status,
       isActive: invite.status === 'NEW' && invite.expiresAt > now,
       createdAt: invite.createdAt,
