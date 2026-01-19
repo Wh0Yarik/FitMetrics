@@ -6,20 +6,34 @@ import { colors, radii, shadows, spacing } from './theme';
 type CardProps = {
   children: React.ReactNode;
   onPress?: () => void;
+  onLongPress?: () => void;
+  delayLongPress?: number;
   style?: ViewStyle;
   variant?: 'surface' | 'muted';
 };
 
-export const Card = ({ children, onPress, style, variant = 'surface' }: CardProps) => {
+export const Card = ({
+  children,
+  onPress,
+  onLongPress,
+  delayLongPress,
+  style,
+  variant = 'surface',
+}: CardProps) => {
   const containerStyle = [
     styles.base,
     variant === 'muted' ? styles.muted : styles.surface,
     style,
   ];
 
-  if (onPress) {
+  if (onPress || onLongPress) {
     return (
-      <Pressable style={({ pressed }) => [containerStyle, pressed && styles.pressed]} onPress={onPress}>
+      <Pressable
+        style={({ pressed }) => [containerStyle, pressed && styles.pressed]}
+        onPress={onPress}
+        onLongPress={onLongPress}
+        delayLongPress={delayLongPress}
+      >
         {children}
       </Pressable>
     );

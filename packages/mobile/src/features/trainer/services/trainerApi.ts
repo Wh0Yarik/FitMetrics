@@ -5,9 +5,13 @@ export type TrainerClientSummary = {
   name: string;
   avatarUrl: string | null;
   complianceScore: number;
+  complianceDays: number;
+  surveyAdherenceCount: number;
+  surveyAdherenceDays: number;
   unreviewedSurveys: number;
   lastMeasurementDays: number | null;
   lastMeasurementDate: string | null;
+  createdAt: string;
   archived: boolean;
 };
 
@@ -39,6 +43,7 @@ export type TrainerClientDetail = {
   id: string;
   name: string;
   avatarUrl: string | null;
+  createdAt: string;
   archived: boolean;
   goals: {
     protein: number;
@@ -46,6 +51,10 @@ export type TrainerClientDetail = {
     carbs: number;
     fiber: number;
   } | null;
+  complianceScore: number;
+  complianceDays: number;
+  surveyAdherenceCount: number;
+  surveyAdherenceDays: number;
   complianceHistory: { day: string; value: number }[];
   surveys: TrainerSurvey[];
   measurements: TrainerMeasurement[];

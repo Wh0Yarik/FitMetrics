@@ -44,10 +44,9 @@ export default function ProfileScreen() {
   const [isTrainerSheetOpen, setTrainerSheetOpen] = useState(false);
   const [isPasswordSheetOpen, setPasswordSheetOpen] = useState(false);
   const [isSettingsSheetOpen, setSettingsSheetOpen] = useState(false);
+  const [showUpdateDebug, setShowUpdateDebug] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [remindersEnabled, setRemindersEnabled] = useState(true);
-  const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [updateDismissed, setUpdateDismissed] = useState(false);
   const [updatesEnabled, setUpdatesEnabled] = useState<boolean | null>(null);
   const [updatesStatus, setUpdatesStatus] = useState('idle');
   const [updatesError, setUpdatesError] = useState<string | null>(null);
@@ -105,6 +104,14 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       let mounted = true;
+      if (__DEV__) {
+        setUpdatesStatus('available');
+        setUpdatesError(null);
+        setUpdatesEnabled(Updates?.isEnabled ?? null);
+        return () => {
+          mounted = false;
+        };
+      }
       const checkUpdates = async () => {
         setUpdatesEnabled(Updates?.isEnabled ?? null);
         if (!Updates?.isEnabled) return;
@@ -115,12 +122,7 @@ export default function ProfileScreen() {
             if (update.isAvailable) {
               setUpdatesStatus('available');
               await Updates.fetchUpdateAsync();
-              if (mounted) {
-                setUpdateAvailable(true);
-                setUpdateDismissed(false);
-              }
             } else {
-              setUpdateAvailable(false);
               setUpdatesStatus('none');
             }
         } catch (error: any) {
@@ -243,7 +245,12 @@ export default function ProfileScreen() {
             </Card>
           </View>
           <View style={styles.bentoRowCompact}>
-            <Card onPress={() => setSettingsSheetOpen(true)} style={styles.bentoCell}>
+            <Card
+              onPress={() => setSettingsSheetOpen(true)}
+              onLongPress={() => setShowUpdateDebug(true)}
+              delayLongPress={10000}
+              style={styles.bentoCell}
+            >
               <View style={styles.bentoCellHeader}>
                 <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentProtein}22` }]}>
                   <Settings size={44} color={colors.accentProtein} strokeWidth={1.5} />
@@ -305,17 +312,19 @@ export default function ProfileScreen() {
                 <Text style={styles.accountLinkText}>Условия использования</Text>
               </TouchableOpacity>
             </View>
-            <View style={styles.updateDebugRow}>
-              <Text style={styles.updateDebugText}>
-                Updates enabled: {updatesEnabled == null ? '—' : updatesEnabled ? 'yes' : 'no'}
-              </Text>
-              <Text style={styles.updateDebugText}>Status: {updatesStatus}</Text>
-              {updatesError ? (
-                <Text style={styles.updateDebugText}>Error: {updatesError}</Text>
-              ) : null}
-              <Text style={styles.updateDebugText}>Runtime: {runtimeVersion}</Text>
-              <Text style={styles.updateDebugText}>Update ID: {updateId}</Text>
-            </View>
+            {showUpdateDebug ? (
+              <View style={styles.updateDebugRow}>
+                <Text style={styles.updateDebugText}>
+                  Updates enabled: {updatesEnabled == null ? '—' : updatesEnabled ? 'yes' : 'no'}
+                </Text>
+                <Text style={styles.updateDebugText}>Status: {updatesStatus}</Text>
+                {updatesError ? (
+                  <Text style={styles.updateDebugText}>Error: {updatesError}</Text>
+                ) : null}
+                <Text style={styles.updateDebugText}>Runtime: {runtimeVersion}</Text>
+                <Text style={styles.updateDebugText}>Update ID: {updateId}</Text>
+              </View>
+            ) : null}
             <Text style={styles.accountVersion}>{versionText}</Text>
           </View>
 
@@ -511,26 +520,6 @@ export default function ProfileScreen() {
         ) : null}
       </SafeAreaView>
 
-      {updateAvailable && !updateDismissed ? (
-        <View style={styles.updateBanner}>
-          <View style={styles.updateBannerContent}>
-            <Text style={styles.updateBannerTitle}>Доступно обновление</Text>
-            <Text style={styles.updateBannerSubtitle}>Перезапусти приложение, чтобы применить</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.updateBannerButton}
-            onPress={() => Updates?.reloadAsync()}
-          >
-            <Text style={styles.updateBannerButtonText}>Обновить</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.updateBannerClose}
-            onPress={() => setUpdateDismissed(true)}
-          >
-            <X size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -644,52 +633,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: fonts.medium,
     color: colors.textTertiary,
-  },
-  updateBanner: {
-    position: 'absolute',
-    left: spacing.xl,
-    right: spacing.xl,
-    bottom: spacing.lg + 64 + spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    paddingVertical: spacing.sm,
-    paddingLeft: spacing.md,
-    paddingRight: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.divider,
-    ...shadows.card,
-  },
-  updateBannerContent: {
-    flex: 1,
-    paddingRight: spacing.sm,
-  },
-  updateBannerTitle: {
-    fontSize: 14,
-    fontFamily: fonts.semibold,
-    color: colors.textPrimary,
-  },
-  updateBannerSubtitle: {
-    fontSize: 11,
-    fontFamily: fonts.medium,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  updateBannerButton: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-  },
-  updateBannerButtonText: {
-    fontSize: 12,
-    fontFamily: fonts.semibold,
-    color: colors.surface,
-  },
-  updateBannerClose: {
-    marginLeft: spacing.xs,
-    padding: 6,
   },
   bentoDevRow: {
     flexDirection: 'row',

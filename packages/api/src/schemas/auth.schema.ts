@@ -1,10 +1,19 @@
 import { z } from 'zod';
 
+const birthDateSchema = z.preprocess(
+  (value) => {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value === 'string' && value.trim() === '') return undefined;
+    return value;
+  },
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Birth date must be in YYYY-MM-DD format').optional()
+);
+
 export const registerTrainerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   name: z.string().min(2),
-  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Birth date must be in YYYY-MM-DD format'),
+  birthDate: birthDateSchema,
   phone: z.string().optional(),
   bio: z.string().optional(),
   specialization: z.string().optional(),
@@ -19,7 +28,7 @@ export const registerClientSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   name: z.string().min(2),
-  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Birth date must be in YYYY-MM-DD format'),
+  birthDate: birthDateSchema,
   phone: z.string().optional(),
   inviteCode: z
     .string()

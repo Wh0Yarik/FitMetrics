@@ -7,7 +7,8 @@ import { registerTrainerSchema, loginSchema, registerClientSchema } from '../sch
 import { AppError } from '../lib/AppError';
 
 export class AuthService {
-  private parseBirthDate(value: string) {
+  private parseBirthDate(value?: string | null) {
+    if (!value) return null;
     const [year, month, day] = value.split('-').map((part) => Number(part));
     const parsed = new Date(Date.UTC(year, month - 1, day));
     const valid =

@@ -106,11 +106,16 @@ export class TrainerService {
     });
 
     const today = getStartOfDay(new Date());
-    const weekStart = getStartOfDay(new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000));
+    const dayMs = 24 * 60 * 60 * 1000;
 
     const summaries = [];
 
     for (const client of clients) {
+      const registrationStart = getStartOfDay(client.createdAt);
+      const daysSinceRegistration = Math.max(0, Math.floor((today.getTime() - registrationStart.getTime()) / dayMs));
+      const availableDays = Math.min(7, daysSinceRegistration + 1);
+      const weekStart = getStartOfDay(new Date(today.getTime() - (availableDays - 1) * dayMs));
+
       const goals = await prisma.nutritionGoal.findMany({
         where: {
           clientId: client.id,
@@ -124,34 +129,52 @@ export class TrainerService {
         where: { clientId: client.id, date: { gte: weekStart, lte: today } },
       });
 
+      const diaryMap = new Map(diaryEntries.map((entry) => [getDayKey(entry.date), entry]));
+
       const unreviewedSurveys = await prisma.dailySurvey.count({
         where: { clientId: client.id, viewedByTrainer: false },
       });
+
+      const surveysForRange = await prisma.dailySurvey.findMany({
+        where: { clientId: client.id, date: { gte: weekStart, lte: today } },
+        select: { date: true },
+      });
+      const surveyAdherenceCount = new Set(surveysForRange.map((survey) => getDayKey(survey.date))).size;
 
       const lastMeasurement = await prisma.measurement.findFirst({
         where: { clientId: client.id },
         orderBy: { weekStartDate: 'desc' },
       });
 
-      const dailyScores = diaryEntries.map((entry) => {
-        const goalForDate = getGoalForDate(goals, entry.date);
-        return calculateDailyScore(
-          {
-            totalProtein: entry.totalProtein,
-            totalFat: entry.totalFat,
-            totalCarbs: entry.totalCarbs,
-            totalFiber: entry.totalFiber,
-          },
+      const dailyScores = [];
+      for (let i = 0; i < availableDays; i += 1) {
+        const date = getStartOfDay(new Date(weekStart.getTime() + i * dayMs));
+        const entry = diaryMap.get(getDayKey(date));
+        const goalForDate = getGoalForDate(goals, date);
+        dailyScores.push(calculateDailyScore(
+          entry
+            ? {
+              totalProtein: entry.totalProtein,
+              totalFat: entry.totalFat,
+              totalCarbs: entry.totalCarbs,
+              totalFiber: entry.totalFiber,
+            }
+            : {
+              totalProtein: 0,
+              totalFat: 0,
+              totalCarbs: 0,
+              totalFiber: 0,
+            },
           goalForDate
             ? {
-                dailyProtein: goalForDate.dailyProtein,
-                dailyFat: goalForDate.dailyFat,
-                dailyCarbs: goalForDate.dailyCarbs,
-                dailyFiber: goalForDate.dailyFiber,
-              }
+              dailyProtein: goalForDate.dailyProtein,
+              dailyFat: goalForDate.dailyFat,
+              dailyCarbs: goalForDate.dailyCarbs,
+              dailyFiber: goalForDate.dailyFiber,
+            }
             : null
-        );
-      });
+        ));
+      }
 
       const complianceScore = dailyScores.length
         ? roundToOne(dailyScores.reduce((sum, value) => sum + value, 0) / dailyScores.length)
@@ -166,9 +189,13 @@ export class TrainerService {
         name: client.name,
         avatarUrl: client.avatarUrl ?? null,
         complianceScore,
+        complianceDays: availableDays,
+        surveyAdherenceCount,
+        surveyAdherenceDays: availableDays,
         unreviewedSurveys,
         lastMeasurementDays,
         lastMeasurementDate: lastMeasurement ? lastMeasurement.weekStartDate.toISOString() : null,
+        createdAt: client.createdAt,
         archived: client.archivedAt !== null,
       });
     }
@@ -198,8 +225,12 @@ export class TrainerService {
     }
 
     const today = getStartOfDay(new Date());
-    const weekStart = getStartOfDay(new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000));
-    const surveysStart = getStartOfDay(new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000));
+    const dayMs = 24 * 60 * 60 * 1000;
+    const registrationStart = getStartOfDay(client.createdAt);
+    const daysSinceRegistration = Math.max(0, Math.floor((today.getTime() - registrationStart.getTime()) / dayMs));
+    const availableDays = Math.min(7, daysSinceRegistration + 1);
+    const weekStart = getStartOfDay(new Date(today.getTime() - (availableDays - 1) * dayMs));
+    const surveysStart = getStartOfDay(new Date(today.getTime() - 29 * dayMs));
 
     const goals = await prisma.nutritionGoal.findMany({
       where: {
@@ -218,8 +249,9 @@ export class TrainerService {
     const diaryMap = new Map(diaryEntries.map((entry) => [getDayKey(entry.date), entry]));
 
     const complianceHistory = [];
-    for (let i = 6; i >= 0; i -= 1) {
-      const date = getStartOfDay(new Date(today.getTime() - i * 24 * 60 * 60 * 1000));
+    const dailyScores = [];
+    for (let i = availableDays - 1; i >= 0; i -= 1) {
+      const date = getStartOfDay(new Date(today.getTime() - i * dayMs));
       const entry = diaryMap.get(getDayKey(date));
       const goalForDate = getGoalForDate(goals, date);
       const dailyScore = entry
@@ -244,7 +276,18 @@ export class TrainerService {
         day: getWeekdayLabel(date),
         value: dailyScore,
       });
+      dailyScores.push(dailyScore);
     }
+
+    const complianceScore = dailyScores.length
+      ? roundToOne(dailyScores.reduce((sum, value) => sum + value, 0) / dailyScores.length)
+      : 0;
+
+    const adherenceSurveys = await prisma.dailySurvey.findMany({
+      where: { clientId: client.id, date: { gte: weekStart, lte: today } },
+      select: { date: true },
+    });
+    const surveyAdherenceCount = new Set(adherenceSurveys.map((survey) => getDayKey(survey.date))).size;
 
     const goal = getGoalForDate(goals, today);
 
@@ -295,6 +338,7 @@ export class TrainerService {
       id: client.id,
       name: client.name,
       avatarUrl: client.avatarUrl ?? null,
+      createdAt: client.createdAt,
       archived: client.archivedAt !== null,
       goals: goal
         ? {
@@ -304,6 +348,10 @@ export class TrainerService {
             fiber: goal.dailyFiber ?? 0,
           }
         : null,
+      complianceScore,
+      complianceDays: availableDays,
+      surveyAdherenceCount,
+      surveyAdherenceDays: availableDays,
       complianceHistory,
       surveys: surveyItems,
       measurements: measurementItems,

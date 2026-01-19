@@ -1,9 +1,8 @@
-import { Tabs } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { Tabs, usePathname } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { BookOpen, Ruler, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TabBarVisibilityProvider, useTabBarVisibility } from '../../shared/ui';
 
 let Updates: typeof import('expo-updates') | null = null;
@@ -16,53 +15,71 @@ try {
 const TabsContent = () => {
   const { translateY } = useTabBarVisibility();
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
+  const wasOnProfile = useRef(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [bannerVisible, setBannerVisible] = useState(false);
-  const [pendingUpdateId, setPendingUpdateId] = useState<string | null>(null);
+
+  const checkUpdates = async () => {
+    if (!Updates?.isEnabled) return false;
+    try {
+      const update = await Updates.checkForUpdateAsync();
+      if (update.isAvailable) {
+        setUpdateAvailable(true);
+        await Updates.fetchUpdateAsync();
+        return true;
+      }
+      setUpdateAvailable(false);
+      return false;
+    } catch {
+      return false;
+    }
+  };
 
   useEffect(() => {
+    if (__DEV__) {
+      setUpdateAvailable(true);
+      setBannerVisible(true);
+      return;
+    }
     let mounted = true;
-    const checkUpdates = async () => {
-      if (!Updates?.isEnabled) return;
-      try {
-        const update = await Updates.checkForUpdateAsync();
-        if (!mounted) return;
-        if (update.isAvailable) {
-          setUpdateAvailable(true);
-          await Updates.fetchUpdateAsync();
-          const updateId = (update.manifest as { id?: string; runtimeVersion?: string } | undefined)?.id
-            ?? (update.manifest as { runtimeVersion?: string } | undefined)?.runtimeVersion
-            ?? 'unknown';
-          setPendingUpdateId(updateId);
-          const seenKey = `updates:banner_seen:${updateId}`;
-          const seen = await AsyncStorage.getItem(seenKey);
-          if (!seen) {
-            setBannerVisible(true);
-          }
-        } else {
-          setUpdateAvailable(false);
-        }
-      } catch {
-        // Ignore update errors here; profile page will still show status.
+    checkUpdates().then((available) => {
+      if (available && mounted) {
+        setBannerVisible(true);
       }
-    };
-    checkUpdates();
+    }).catch(() => undefined);
     return () => {
       mounted = false;
     };
   }, []);
 
-  const handleDismissBanner = async () => {
-    if (pendingUpdateId) {
-      await AsyncStorage.setItem(`updates:banner_seen:${pendingUpdateId}`, '1');
+  useEffect(() => {
+    const isProfile = pathname?.includes('/profile');
+    if (!isProfile) {
+      wasOnProfile.current = false;
+      return;
     }
+    if (wasOnProfile.current) return;
+    wasOnProfile.current = true;
+    if (__DEV__) {
+      setUpdateAvailable(true);
+      setBannerVisible(true);
+      return;
+    }
+    if (updateAvailable) {
+      setBannerVisible(true);
+      return;
+    }
+    checkUpdates().then((available) => {
+      if (available) setBannerVisible(true);
+    });
+  }, [pathname, updateAvailable]);
+
+  const handleDismissBanner = () => {
     setBannerVisible(false);
   };
 
   const handleApplyUpdate = async () => {
-    if (pendingUpdateId) {
-      await AsyncStorage.setItem(`updates:banner_seen:${pendingUpdateId}`, '1');
-    }
     await Updates?.reloadAsync();
   };
 
@@ -123,7 +140,7 @@ const TabsContent = () => {
           name="profile"
           options={{
             tabBarIcon: ({ color, focused }) => (
-              <View className={`items-center justify-center w-12 h-12 rounded-2xl ${focused ? 'bg-gray-800' : ''}`}>
+              <View style={[styles.iconWrapper, focused && styles.iconWrapperActive]}>
                 <User size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
                 {updateAvailable ? <View style={styles.updateDot} /> : null}
               </View>
@@ -164,11 +181,13 @@ const styles = StyleSheet.create({
   },
   updateDot: {
     position: 'absolute',
-    top: 8,
-    right: 10,
+    top: 2,
+    right: 2,
     width: 8,
     height: 8,
     borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#111827',
     backgroundColor: '#86EFAC',
   },
   updateBanner: {
@@ -186,6 +205,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    zIndex: 10,
+  },
+  iconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  iconWrapperActive: {
+    backgroundColor: '#1F2937',
   },
   updateBannerContent: {
     flex: 1,

@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Modal,
   TextInput,
+  Image,
   ActivityIndicator,
   Alert,
 } from 'react-native';
@@ -140,10 +141,23 @@ export default function TrainerClientScreen() {
     loadClient();
   }, [id]);
 
-  const complianceAverage = useMemo(() => {
-    if (!client?.complianceHistory.length) return 0;
-    const sum = client.complianceHistory.reduce((acc, item) => acc + item.value, 0);
-    return sum / client.complianceHistory.length;
+  const lastMeasurementDays = useMemo(() => {
+    const latest = client?.measurements?.[0]?.date;
+    if (!latest) return '—';
+    const parsed = new Date(latest);
+    const date = Number.isNaN(parsed.getTime())
+      ? (() => {
+          const parts = latest.split('.');
+          if (parts.length !== 3) return null;
+          const [day, month, year] = parts.map((part) => Number(part));
+          const fallback = new Date(year, month - 1, day);
+          return Number.isNaN(fallback.getTime()) ? null : fallback;
+        })()
+      : parsed;
+    if (!date) return '—';
+    const diffMs = Date.now() - date.getTime();
+    const days = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+    return `${days} дн`;
   }, [client]);
 
   if (isLoading) {
@@ -181,19 +195,50 @@ export default function TrainerClientScreen() {
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.headerCard}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <ArrowLeft size={18} color="#111827" />
-            </TouchableOpacity>
-            <Text style={styles.headerKicker}>Клиент</Text>
-            <Text style={styles.headerTitle}>{client.name}</Text>
+            <View style={styles.headerTopRow}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <ArrowLeft size={18} color="#111827" />
+              </TouchableOpacity>
+              <View style={styles.headerIdentity}>
+                <View style={styles.avatar}>
+                  {client.avatarUrl ? (
+                    <Image source={{ uri: client.avatarUrl }} style={styles.avatarImage} />
+                  ) : (
+                    <Text style={styles.avatarInitials}>
+                      {client.name
+                        .split(' ')
+                        .map((part) => part.trim()[0])
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .join('')
+                        .toUpperCase()}
+                    </Text>
+                  )}
+                </View>
+                <Text style={styles.headerTitle}>{client.name}</Text>
+              </View>
+              {client.archived ? (
+                <View style={styles.statusPill}>
+                  <Text style={styles.statusPillText}>В архиве</Text>
+                </View>
+              ) : (
+                <View style={styles.headerGhost} />
+              )}
+            </View>
             <View style={styles.headerStatsRow}>
               <View style={styles.headerStat}>
-                <Text style={styles.headerStatLabel}>Средняя приверженность</Text>
-                <Text style={styles.headerStatValue}>{complianceAverage.toFixed(1)}/7</Text>
+                <Text style={styles.headerStatLabel}>Питание</Text>
+                <Text style={styles.headerStatValue}>{client.complianceScore.toFixed(1)}/7</Text>
+              </View>
+              <View style={styles.headerStat}>
+                <Text style={styles.headerStatLabel}>Анкеты</Text>
+                <Text style={styles.headerStatValue}>
+                  {client.surveyAdherenceCount}/{client.surveyAdherenceDays}
+                </Text>
               </View>
               <View style={styles.headerStat}>
                 <Text style={styles.headerStatLabel}>Последний замер</Text>
-                <Text style={styles.headerStatValue}>{client.measurements[0]?.date ?? '—'}</Text>
+                <Text style={styles.headerStatValue}>{lastMeasurementDays}</Text>
               </View>
             </View>
           </View>
@@ -431,51 +476,87 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
     shadowColor: '#0F172A',
     shadowOpacity: 0.08,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 8 },
   },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   backButton: {
     width: 36,
     height: 36,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    alignSelf: 'flex-start',
   },
-  headerKicker: {
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#F3F4F6',
+    alignSelf: 'flex-start',
+  },
+  headerGhost: {
+    width: 64,
+  },
+  statusPillText: {
+    fontSize: 11,
     color: '#6B7280',
-    fontSize: 12,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
+    fontWeight: '600',
+  },
+  headerIdentity: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 8,
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  avatarInitials: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#6B7280',
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
     color: '#111827',
-    marginTop: 6,
+    textAlign: 'center',
   },
   headerStatsRow: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 12,
+    marginTop: 16,
   },
   headerStat: {
     flex: 1,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
     padding: 12,
     backgroundColor: '#F9FAFB',
+    alignItems: 'center',
   },
   headerStatLabel: {
     fontSize: 11,
     color: '#6B7280',
+    textAlign: 'center',
   },
   headerStatValue: {
     fontSize: 14,
