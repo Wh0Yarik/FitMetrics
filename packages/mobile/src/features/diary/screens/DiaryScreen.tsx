@@ -395,14 +395,16 @@ export default function DiaryScreen() {
             activeOpacity={0.85}
             style={[
               styles.surveyStrip,
+              isCompact && styles.surveyStripCompact,
               surveyStatus === 'complete' ? styles.surveyStripComplete : styles.surveyStripPending,
             ]}
           >
-            <View style={styles.surveyStripRow}>
-              <View style={styles.surveyStripLeft}>
+            <View style={[styles.surveyStripRow, isCompact && styles.surveyStripRowCompact]}>
+              <View style={[styles.surveyStripLeft, isCompact && styles.surveyStripLeftCompact]}>
                 <View
                   style={[
                     styles.surveyStatusDot,
+                    isCompact && styles.surveyStatusDotCompact,
                     surveyStatus === 'complete'
                       ? styles.surveyStatusComplete
                       : surveyStatus === 'partial'
@@ -414,8 +416,11 @@ export default function DiaryScreen() {
                   <Text
                     style={[
                       styles.surveyStripCta,
+                      isCompact && styles.surveyStripCtaCompact,
                       surveyStatus === 'complete' ? styles.surveyStripCtaComplete : styles.surveyStripCtaPending,
                     ]}
+                    allowFontScaling={false}
+                    numberOfLines={1}
                   >
                     {surveyStatus === 'complete'
                       ? `Заполнено • ${relativeLabel ?? 'сегодня'}`
@@ -427,6 +432,7 @@ export default function DiaryScreen() {
                 style={[
                   styles.surveyAddButton,
                   surveyStatus === 'complete' ? styles.surveyAddButtonCheck : styles.surveyAddButtonIconOnly,
+                  isCompact && styles.surveyAddButtonCompact,
                 ]}
               >
                 {surveyStatus === 'complete' ? (
@@ -441,16 +447,25 @@ export default function DiaryScreen() {
 
         {/* Список приемов пищи */}
         <View style={{  paddingVertical: spacing.lg }}>
-          <View style={styles.listHeader}>
-            <View style={styles.listTitleWrap}>
-              <Text style={styles.listTitle}>Дневник питания</Text>
+          <View style={[styles.listHeader, isCompact && styles.listHeaderCompact]}>
+            <View style={[styles.listTitleWrap, isCompact && styles.listTitleWrapCompact]}>
+              <Text style={[styles.listTitle, isCompact && styles.listTitleCompact]} allowFontScaling={false}>
+                Дневник питания
+              </Text>
               <View style={styles.listCountChip}>
-                <Text style={styles.listCountText}>{meals.length} приемов</Text>
+                <Text style={[styles.listCountText, isCompact && styles.listCountTextCompact]} allowFontScaling={false}>
+                  {meals.length} приемов
+                </Text>
               </View>
             </View>
-            <TouchableOpacity onPress={handleOpenAddMeal} style={styles.primaryButton}>
+            <TouchableOpacity
+              onPress={handleOpenAddMeal}
+              style={[styles.primaryButton, isCompact && styles.primaryButtonCompact]}
+            >
               <Plus size={16} color={colors.surface} />
-              <Text style={styles.primaryButtonText}>Добавить</Text>
+              <Text style={[styles.primaryButtonText, isCompact && styles.primaryButtonTextCompact]} allowFontScaling={false}>
+                Добавить
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -476,7 +491,9 @@ export default function DiaryScreen() {
               <View style={styles.addIcon}>
                 <Plus size={20} color={colors.primary} />
               </View>
-              <Text style={styles.addText}>Добавить прием пищи</Text>
+              <Text style={[styles.addText, isCompact && styles.addTextCompact]} allowFontScaling={false}>
+                Добавить прием пищи
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -642,12 +659,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
+  listHeaderCompact: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: spacing.sm,
+  },
   listTitleWrap: {
+  },
+  listTitleWrapCompact: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   listTitle: {
     fontSize: 18,
     fontFamily: fonts.semibold,
     color: colors.textPrimary,
+  },
+  listTitleCompact: {
+    fontSize: 16,
   },
   listCountChip: {
     alignSelf: 'flex-start',
@@ -662,6 +693,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: fonts.medium,
   },
+  listCountTextCompact: {
+    fontSize: 10,
+  },
   primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -671,11 +705,19 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     ...shadows.button,
   },
+  primaryButtonCompact: {
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+  },
   primaryButtonText: {
     color: colors.surface,
     fontSize: 12,
     fontFamily: fonts.semibold,
     marginLeft: spacing.xs,
+  },
+  primaryButtonTextCompact: {
+    fontSize: 12,
   },
   calendarBackdrop: {
     flex: 1,
@@ -805,6 +847,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     marginLeft: spacing.sm,
   },
+  addTextCompact: {
+    fontSize: 13,
+  },
   surveyStrip: {
     marginTop: spacing.md,
     marginHorizontal: 0,
@@ -817,6 +862,10 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'stretch',
     justifyContent: 'center',
+  },
+  surveyStripCompact: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
   },
   surveyStripComplete: {
     backgroundColor: `${colors.accentFiber}14`,
@@ -831,15 +880,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  surveyStripRowCompact: {
+    alignItems: 'flex-start',
+  },
   surveyStripLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  surveyStripLeftCompact: {
+    flexShrink: 1,
   },
   surveyStatusDot: {
     width: 10,
     height: 10,
     borderRadius: 999,
     marginRight: spacing.sm,
+  },
+  surveyStatusDotCompact: {
+    width: 8,
+    height: 8,
+    marginRight: spacing.xs,
   },
   surveyStatusComplete: {
     backgroundColor: colors.accentFiber,
@@ -858,6 +918,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     
   },
+  surveyStripCtaCompact: {
+    fontSize: 11,
+    letterSpacing: 0.4,
+  },
   surveyStripCtaComplete: {
     color: colors.accentFiber,
   },
@@ -872,6 +936,13 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: radii.pill,
     backgroundColor: colors.surface ,
+  },
+  surveyAddButtonCompact: {
+    width: 34,
+    height: 34,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    justifyContent: 'center',
   },
   surveyAddButtonIconOnly: {
     width: 38,
