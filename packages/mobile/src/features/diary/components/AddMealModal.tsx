@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, PixelRatio, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { Minus, Plus, X } from 'lucide-react-native';
 import { AppButton, AppInput, colors, fonts, radii, spacing } from '../../../shared/ui';
 import { SharedBottomSheet } from '../../profile/components/SharedBottomSheet';
@@ -38,6 +38,9 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({
   initialName,
   initialPortions,
 }) => {
+  const { width } = useWindowDimensions();
+  const fontScale = PixelRatio.getFontScale();
+  const isCompact = width <= 360 || fontScale > 1.1;
   const [name, setName] = useState('');
   const [portions, setPortions] = useState<PortionCount>({ protein: 0, fat: 0, carbs: 0, fiber: 0 });
 
@@ -80,44 +83,57 @@ export const AddMealModal: React.FC<AddMealModalProps> = ({
         style={styles.keyboard}
       >
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>
+          <Text style={[styles.headerTitle, isCompact && styles.headerTitleCompact]} allowFontScaling={false}>
             {mode === 'edit' ? 'Редактировать прием пищи' : 'Добавить прием пищи'}
           </Text>
         </View>
 
-        <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentBody}>
+        <ScrollView
+          style={[styles.modalContent, isCompact && styles.modalContentCompact]}
+          contentContainerStyle={styles.modalContentBody}
+        >
           <AppInput
             label="Название"
             value={name}
             onChangeText={setName}
             placeholder="Например: Завтрак, яблоко, перекус"
             containerStyle={styles.inputGroup}
+            labelAllowFontScaling={false}
+            inputAllowFontScaling={false}
+            labelStyle={isCompact ? styles.inputLabelCompact : undefined}
+            style={isCompact ? styles.inputFieldCompact : undefined}
           />
 
           <View style={styles.sectionBlock}>
-            <Text style={styles.sectionTitle}>Порции</Text>
+            <Text style={[styles.sectionTitle, isCompact && styles.sectionTitleCompact]} allowFontScaling={false}>
+              Порции
+            </Text>
             <View style={styles.portionList}>
               {PORTION_TYPES.map((type) => {
                 const count = portions[type.key as keyof PortionCount];
                 return (
-                  <View key={type.key} style={styles.portionRow}>
+                  <View key={type.key} style={[styles.portionRow, isCompact && styles.portionRowCompact]}>
                     <View style={styles.portionLabel}>
                       <View style={[styles.portionDot, { backgroundColor: type.accent }]} />
-                      <Text style={styles.portionLabelText}>{type.label}</Text>
+                      <Text style={[styles.portionLabelText, isCompact && styles.portionLabelTextCompact]} allowFontScaling={false}>
+                        {type.label}
+                      </Text>
                     </View>
                     <View style={styles.stepperControls}>
                       <TouchableOpacity
                         onPress={() => handleDecrement(type.key as keyof PortionCount)}
-                        style={styles.stepperButton}
+                        style={[styles.stepperButton, isCompact && styles.stepperButtonCompact]}
                       >
                         <Minus size={16} color={colors.textSecondary} />
                       </TouchableOpacity>
 
-                      <Text style={styles.stepperCount}>{count}</Text>
+                      <Text style={[styles.stepperCount, isCompact && styles.stepperCountCompact]} allowFontScaling={false}>
+                        {count}
+                      </Text>
 
                       <TouchableOpacity
                         onPress={() => handleIncrement(type.key as keyof PortionCount)}
-                        style={styles.stepperButtonPrimary}
+                        style={[styles.stepperButtonPrimary, isCompact && styles.stepperButtonPrimaryCompact]}
                       >
                         <Plus size={16} color={colors.surface} />
                       </TouchableOpacity>
@@ -165,15 +181,28 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     color: colors.textPrimary,
   },
+  headerTitleCompact: {
+    fontSize: 14,
+  },
   modalContent: {
     flex: 1,
     paddingHorizontal: spacing.sm,
+  },
+  modalContentCompact: {
+    paddingHorizontal: spacing.xs,
   },
   modalContentBody: {
     paddingBottom: spacing.xl,
   },
   inputGroup: {
     marginBottom: spacing.lg,
+  },
+  inputLabelCompact: {
+    fontSize: 11,
+  },
+  inputFieldCompact: {
+    height: 46,
+    fontSize: 14,
   },
   sectionBlock: {
     marginBottom: spacing.lg,
@@ -183,6 +212,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     color: colors.textSecondary,
     marginBottom: spacing.sm,
+  },
+  sectionTitleCompact: {
+    fontSize: 11,
   },
   portionList: {
     gap: spacing.sm,
@@ -196,6 +228,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  portionRowCompact: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   portionLabel: {
     flexDirection: 'row',
@@ -212,6 +248,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     color: colors.textPrimary,
   },
+  portionLabelTextCompact: {
+    fontSize: 12,
+  },
   stepperControls: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -227,6 +266,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  stepperButtonCompact: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
   stepperButtonPrimary: {
     width: 36,
     height: 36,
@@ -235,12 +279,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  stepperButtonPrimaryCompact: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
   stepperCount: {
     fontSize: 16,
     fontFamily: fonts.semibold,
     color: colors.textPrimary,
     minWidth: 24,
     textAlign: 'center',
+  },
+  stepperCountCompact: {
+    fontSize: 14,
+    minWidth: 20,
   },
   actions: {
     marginTop: spacing.lg,

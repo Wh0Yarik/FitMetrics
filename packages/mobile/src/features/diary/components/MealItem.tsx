@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, PixelRatio, useWindowDimensions } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { ChevronLeft, Pencil, Trash2 } from 'lucide-react-native';
 
@@ -15,10 +15,14 @@ type MealItemProps = {
   onSwipeableClose: (ref: Swipeable | null) => void;
 };
 
-const MealPortionChip = React.memo(({ label, value, color }: { label: string; value: number; color: string }) => (
-  <View style={[styles.mealChip, { borderColor: `${color}33` }]}>
-    <View style={[styles.mealChipDot, { backgroundColor: color }]} />
-    <Text style={styles.mealChipText}>{label} {value > 0 ? value : '–'}</Text>
+const MealPortionChip = React.memo((
+  { label, value, color, isCompact }: { label: string; value: number; color: string; isCompact: boolean }
+) => (
+  <View style={[styles.mealChip, isCompact && styles.mealChipCompact, { borderColor: `${color}33` }]}>
+    <View style={[styles.mealChipDot, isCompact && styles.mealChipDotCompact, { backgroundColor: color }]} />
+    <Text style={[styles.mealChipText, isCompact && styles.mealChipTextCompact]} allowFontScaling={false}>
+      {label} {value > 0 ? value : '–'}
+    </Text>
   </View>
 ));
 
@@ -31,6 +35,9 @@ export const MealItem = React.memo(({
   onSwipeableOpen,
   onSwipeableClose,
 }: MealItemProps) => {
+  const { width } = useWindowDimensions();
+  const fontScale = PixelRatio.getFontScale();
+  const isCompact = width <= 360 || fontScale > 1.1;
   const swipeRef = useRef<Swipeable>(null);
   const isOpenRef = useRef(false);
 
@@ -73,7 +80,7 @@ export const MealItem = React.memo(({
       )}
     >
       <View
-        style={styles.mealCard}
+        style={[styles.mealCard, isCompact && styles.mealCardCompact]}
         onTouchStart={() => {
           if (isOpenRef.current) {
             swipeRef.current?.close();
@@ -81,26 +88,28 @@ export const MealItem = React.memo(({
         }}
       >
         <View style={styles.mealHeader}>
-          <View style={styles.mealTimePill}>
-            <Text style={styles.mealTimeText}>
+          <View style={[styles.mealTimePill, isCompact && styles.mealTimePillCompact]}>
+            <Text style={[styles.mealTimeText, isCompact && styles.mealTimeTextCompact]} allowFontScaling={false}>
               {new Date(meal.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Text>
           </View>
-          <Text style={styles.mealName} numberOfLines={1} ellipsizeMode="tail">
+          <Text style={[styles.mealName, isCompact && styles.mealNameCompact]} numberOfLines={1} ellipsizeMode="tail" allowFontScaling={false}>
             {meal.name}
           </Text>
         </View>
 
         <View style={styles.mealChipsRow}>
-          <MealPortionChip label="Б" value={meal.portions.protein} color="#06B6D4" />
-          <MealPortionChip label="Ж" value={meal.portions.fat} color="#F59E0B" />
-          <MealPortionChip label="У" value={meal.portions.carbs} color="#3B82F6" />
-          <MealPortionChip label="К" value={meal.portions.fiber} color="#50CA64" />
+          <MealPortionChip label="Б" value={meal.portions.protein} color="#06B6D4" isCompact={isCompact} />
+          <MealPortionChip label="Ж" value={meal.portions.fat} color="#F59E0B" isCompact={isCompact} />
+          <MealPortionChip label="У" value={meal.portions.carbs} color="#3B82F6" isCompact={isCompact} />
+          <MealPortionChip label="К" value={meal.portions.fiber} color="#50CA64" isCompact={isCompact} />
         </View>
 
         {showSwipeHint && (
           <View style={styles.swipeHint}>
-            <Text style={styles.swipeHintText}>Свайпните</Text>
+            <Text style={[styles.swipeHintText, isCompact && styles.swipeHintTextCompact]} allowFontScaling={false}>
+              Свайпните
+            </Text>
             <View style={styles.swipeHintChevrons}>
               <ChevronLeft size={14} color="#9CA3AF" />
               <ChevronLeft size={14} color="#9CA3AF" style={styles.swipeHintChevron} />
@@ -125,6 +134,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     marginBottom: 12,
   },
+  mealCardCompact: {
+    padding: 14,
+    borderRadius: 20,
+  },
   mealHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -139,10 +152,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
+  mealTimePillCompact: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginRight: 8,
+  },
   mealTimeText: {
     color: '#6B7280',
     fontSize: 12,
     fontWeight: '500',
+  },
+  mealTimeTextCompact: {
+    fontSize: 11,
   },
   mealName: {
     flex: 1,
@@ -150,6 +171,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     lineHeight: 20,
+  },
+  mealNameCompact: {
+    fontSize: 14,
+    lineHeight: 18,
   },
   mealChipsRow: {
     flexDirection: 'row',
@@ -166,16 +191,28 @@ const styles = StyleSheet.create({
     marginRight: 6,
     marginBottom: 6,
   },
+  mealChipCompact: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
   mealChipDot: {
     width: 6,
     height: 6,
     borderRadius: 999,
     marginRight: 6,
   },
+  mealChipDotCompact: {
+    width: 5,
+    height: 5,
+    marginRight: 5,
+  },
   mealChipText: {
     color: '#374151',
     fontSize: 12,
     fontWeight: '500',
+  },
+  mealChipTextCompact: {
+    fontSize: 11,
   },
   swipeHint: {
     marginTop: 0,
@@ -188,6 +225,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#9CA3AF',
+  },
+  swipeHintTextCompact: {
+    fontSize: 10,
   },
   swipeHintChevrons: {
     flexDirection: 'row',

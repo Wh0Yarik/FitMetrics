@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, PixelRatio, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { AppButton, AppInput, colors, fonts, radii, spacing } from '../../../shared/ui';
 import { X } from 'lucide-react-native';
 import { DailySurveyData } from '../repositories/DailySurveyRepository';
@@ -53,15 +53,19 @@ const SelectionGroup = memo(({
   value,
   onChange,
   labels,
+  isCompact,
 }: {
   label: string;
   options: readonly string[];
   value: string | null;
   onChange: (val: string) => void;
   labels?: Record<string, string>;
+  isCompact: boolean;
 }) => (
   <View style={styles.selectionBlock}>
-    <Text style={styles.sectionLabel}>{label}</Text>
+    <Text style={[styles.sectionLabel, isCompact && styles.sectionLabelCompact]} allowFontScaling={false}>
+      {label}
+    </Text>
     <View style={styles.selectionRow}>
       {options.map((opt) => {
         const isSelected = value === opt;
@@ -71,10 +75,18 @@ const SelectionGroup = memo(({
             onPress={() => onChange(opt)}
             style={[
               styles.selectionButton,
+              isCompact && styles.selectionButtonCompact,
               isSelected ? styles.selectionButtonActive : null,
             ]}
           >
-            <Text style={[styles.selectionText, isSelected ? styles.selectionTextActive : null]}>
+            <Text
+              style={[
+                styles.selectionText,
+                isCompact && styles.selectionTextCompact,
+                isSelected ? styles.selectionTextActive : null,
+              ]}
+              allowFontScaling={false}
+            >
               {labels ? labels[opt] : opt}
             </Text>
           </TouchableOpacity>
@@ -91,6 +103,9 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
   date,
   initialData,
 }) => {
+  const { width } = useWindowDimensions();
+  const fontScale = PixelRatio.getFontScale();
+  const isCompact = width <= 360 || fontScale > 1.1;
   // State
   const [weight, setWeight] = useState('');
   const [motivation, setMotivation] = useState<DailySurveyData['motivation'] | null>(null);
@@ -162,10 +177,12 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
         style={styles.keyboard}
       >
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Анкета</Text>
+          <Text style={[styles.headerTitle, isCompact && styles.headerTitleCompact]} allowFontScaling={false}>
+            Анкета
+          </Text>
         </View>
 
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, isCompact && styles.scrollContentCompact]}>
           <AppInput
             label="Вес (кг)"
             value={weight}
@@ -173,6 +190,10 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
             placeholder="0.0"
             keyboardType="decimal-pad"
             containerStyle={styles.weightInput}
+            labelAllowFontScaling={false}
+            inputAllowFontScaling={false}
+            labelStyle={isCompact ? styles.inputLabelCompact : undefined}
+            style={isCompact ? styles.inputFieldCompact : undefined}
           />
 
           <SelectionGroup
@@ -181,6 +202,7 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
             labels={MOTIVATION_LABELS}
             value={motivation}
             onChange={setMotivation}
+            isCompact={isCompact}
           />
 
           <SelectionGroup
@@ -188,6 +210,7 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
             options={SLEEP_OPTIONS}
             value={sleep}
             onChange={setSleep}
+            isCompact={isCompact}
           />
 
           <SelectionGroup
@@ -196,6 +219,7 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
             labels={STRESS_LABELS}
             value={stress}
             onChange={setStress}
+            isCompact={isCompact}
           />
 
           <SelectionGroup
@@ -204,6 +228,7 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
             labels={DIGESTION_LABELS}
             value={digestion}
             onChange={setDigestion}
+            isCompact={isCompact}
           />
 
           <SelectionGroup
@@ -211,6 +236,7 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
             options={WATER_OPTIONS}
             value={water}
             onChange={setWater}
+            isCompact={isCompact}
           />
 
           <SelectionGroup
@@ -219,6 +245,7 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
             labels={HUNGER_LABELS}
             value={hunger}
             onChange={setHunger}
+            isCompact={isCompact}
           />
 
           <SelectionGroup
@@ -227,6 +254,7 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
             labels={LIBIDO_LABELS}
             value={libido}
             onChange={setLibido}
+            isCompact={isCompact}
           />
 
           <AppInput
@@ -237,8 +265,11 @@ export const DailySurveyModal: React.FC<DailySurveyModalProps> = ({
             multiline
             numberOfLines={4}
             containerStyle={styles.commentInput}
-            style={styles.commentField}
+            style={[styles.commentField, isCompact && styles.commentFieldCompact, isCompact && styles.inputFieldCompact]}
             textAlignVertical="top"
+            labelAllowFontScaling={false}
+            inputAllowFontScaling={false}
+            labelStyle={isCompact ? styles.inputLabelCompact : undefined}
           />
 
           <View style={styles.actions}>
@@ -273,6 +304,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     color: colors.textPrimary,
   },
+  headerTitleCompact: {
+    fontSize: 14,
+  },
   scroll: {
     flex: 1,
     paddingHorizontal: spacing.sm,
@@ -280,14 +314,27 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: spacing.xl,
   },
+  scrollContentCompact: {
+    paddingBottom: spacing.lg,
+  },
   weightInput: {
     marginBottom: spacing.lg,
+  },
+  inputLabelCompact: {
+    fontSize: 11,
+  },
+  inputFieldCompact: {
+    height: 46,
+    fontSize: 14,
   },
   sectionLabel: {
     fontSize: 12,
     fontFamily: fonts.medium,
     color: colors.textSecondary,
     marginBottom: spacing.sm,
+  },
+  sectionLabelCompact: {
+    fontSize: 11,
   },
   selectionRow: {
     flexDirection: 'row',
@@ -304,6 +351,12 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
     marginBottom: spacing.sm,
   },
+  selectionButtonCompact: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    marginRight: spacing.xs,
+    marginBottom: spacing.xs,
+  },
   selectionButtonActive: {
     backgroundColor: `${colors.primary}14`,
     borderColor: `${colors.primary}55`,
@@ -312,6 +365,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.medium,
     color: colors.textPrimary,
+  },
+  selectionTextCompact: {
+    fontSize: 12,
   },
   selectionTextActive: {
     color: colors.textPrimary,
@@ -325,6 +381,9 @@ const styles = StyleSheet.create({
   commentField: {
     height: 120,
     paddingTop: spacing.sm,
+  },
+  commentFieldCompact: {
+    height: 96,
   },
   actions: {
     gap: spacing.sm,

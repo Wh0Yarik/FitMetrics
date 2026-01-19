@@ -452,21 +452,31 @@ export default function DiaryScreen() {
               <Text style={[styles.listTitle, isCompact && styles.listTitleCompact]} allowFontScaling={false}>
                 Дневник питания
               </Text>
-              <View style={styles.listCountChip}>
+              {isCompact ? (
+                <TouchableOpacity
+                  onPress={handleOpenAddMeal}
+                  style={styles.listAddCircle}
+                >
+                  <Plus size={16} color={colors.primary} />
+                </TouchableOpacity>
+              ) : null}
+              <View style={[styles.listCountChip, isCompact && styles.listCountChipCompact]}>
                 <Text style={[styles.listCountText, isCompact && styles.listCountTextCompact]} allowFontScaling={false}>
                   {meals.length} приемов
                 </Text>
               </View>
             </View>
-            <TouchableOpacity
-              onPress={handleOpenAddMeal}
-              style={[styles.primaryButton, isCompact && styles.primaryButtonCompact]}
-            >
-              <Plus size={16} color={colors.surface} />
-              <Text style={[styles.primaryButtonText, isCompact && styles.primaryButtonTextCompact]} allowFontScaling={false}>
-                Добавить
-              </Text>
-            </TouchableOpacity>
+            {!isCompact ? (
+              <TouchableOpacity
+                onPress={handleOpenAddMeal}
+                style={styles.primaryButton}
+              >
+                <Plus size={16} color={colors.surface} />
+                <Text style={styles.primaryButtonText} allowFontScaling={false}>
+                  Добавить
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
 
           <View className="gap-2">
@@ -660,9 +670,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   listHeaderCompact: {
-    flexDirection: 'column',
     alignItems: 'stretch',
-    gap: spacing.sm,
   },
   listTitleWrap: {
   },
@@ -670,7 +678,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: spacing.sm,
+    justifyContent: 'space-between',
+    gap: spacing.xs,
   },
   listTitle: {
     fontSize: 18,
@@ -687,6 +696,10 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: radii.pill,
     marginTop: spacing.xs,
+  },
+  listCountChipCompact: {
+    width: '100%',
+    alignSelf: 'stretch',
   },
   listCountText: {
     color: colors.textSecondary,
@@ -705,19 +718,21 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     ...shadows.button,
   },
-  primaryButtonCompact: {
-    alignSelf: 'stretch',
-    justifyContent: 'center',
-    paddingVertical: spacing.sm,
-  },
   primaryButtonText: {
     color: colors.surface,
     fontSize: 12,
     fontFamily: fonts.semibold,
     marginLeft: spacing.xs,
   },
-  primaryButtonTextCompact: {
-    fontSize: 12,
+  listAddCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${colors.primary}14`,
+    borderWidth: 1,
+    borderColor: `${colors.primary}33`,
   },
   calendarBackdrop: {
     flex: 1,
@@ -881,7 +896,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   surveyStripRowCompact: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   surveyStripLeft: {
     flexDirection: 'row',
@@ -921,6 +936,8 @@ const styles = StyleSheet.create({
   surveyStripCtaCompact: {
     fontSize: 11,
     letterSpacing: 0.4,
+    marginTop: 0,
+    lineHeight: 16,
   },
   surveyStripCtaComplete: {
     color: colors.accentFiber,

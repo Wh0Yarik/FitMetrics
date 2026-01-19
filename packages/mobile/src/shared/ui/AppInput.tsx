@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
+import { StyleSheet, Text, TextInput, TextInputProps, TextStyle, View, ViewStyle } from 'react-native';
 
 import { colors, fonts, radii, spacing } from './theme';
 
@@ -7,23 +7,42 @@ type AppInputProps = TextInputProps & {
   label?: string;
   error?: string | null;
   containerStyle?: ViewStyle;
+  labelStyle?: TextStyle;
+  labelAllowFontScaling?: boolean;
+  inputAllowFontScaling?: boolean;
+  errorAllowFontScaling?: boolean;
+  errorStyle?: TextStyle;
 };
 
 export const AppInput = ({
   label,
   error,
   containerStyle,
+  labelStyle,
+  labelAllowFontScaling = true,
+  inputAllowFontScaling = true,
+  errorAllowFontScaling = true,
+  errorStyle,
   style,
   ...props
 }: AppInputProps) => (
   <View style={containerStyle}>
-    {label ? <Text style={styles.label}>{label}</Text> : null}
+    {label ? (
+      <Text style={[styles.label, labelStyle]} allowFontScaling={labelAllowFontScaling}>
+        {label}
+      </Text>
+    ) : null}
     <TextInput
       placeholderTextColor={colors.textTertiary}
       style={[styles.input, style, !!error && styles.inputError]}
+      allowFontScaling={inputAllowFontScaling}
       {...props}
     />
-    {error ? <Text style={styles.error}>{error}</Text> : null}
+    {error ? (
+      <Text style={[styles.error, errorStyle]} allowFontScaling={errorAllowFontScaling}>
+        {error}
+      </Text>
+    ) : null}
   </View>
 );
 
