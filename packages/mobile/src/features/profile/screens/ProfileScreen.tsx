@@ -12,6 +12,7 @@ import {
   Modal,
   StyleSheet,
   Switch,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronRight, Crown, Dumbbell, HelpCircle, Pencil, Settings, X } from 'lucide-react-native';
@@ -39,6 +40,9 @@ try {
 }
 
 export default function ProfileScreen() {
+  const { width } = useWindowDimensions();
+  const isCompact = width <= 360;
+  const bentoIconSize = isCompact ? 36 : 44;
   const { setHidden: setTabBarHidden } = useTabBarVisibility();
   const [isEditOpen, setEditOpen] = useState(false);
   const [isTrainerSheetOpen, setTrainerSheetOpen] = useState(false);
@@ -221,25 +225,29 @@ export default function ProfileScreen() {
           />
 
           <View style={styles.bentoRow}>
-            <Card onPress={handleTrainerCellPress} style={styles.bentoCell}>
+            <Card onPress={handleTrainerCellPress} style={[styles.bentoCell, isCompact && styles.bentoCellCompact]}>
               <View style={styles.bentoCellHeader}>
-               <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentCarbs}22` }]}>
-                  <Dumbbell size={44} color={colors.accentCarbs} strokeWidth={1.5} />
+               <View style={[styles.bentoCellIcon, isCompact && styles.bentoCellIconCompact, { backgroundColor: `${colors.accentCarbs}22` }]}>
+                  <Dumbbell size={bentoIconSize} color={colors.accentCarbs} strokeWidth={1.5} />
                 </View>
               </View>
               <View style={styles.bentoCellFooter}>
-                <Text style={styles.bentoCellTitle}>Тренер</Text>
+                <Text style={[styles.bentoCellTitle, isCompact && styles.bentoCellTitleCompact]} numberOfLines={2}>
+                  Тренер
+                </Text>
                 <ChevronRight size={18} color={colors.textSecondary} strokeWidth={1.5} />
               </View>
             </Card>
-            <Card onPress={() => setEditOpen(true)} style={styles.bentoCell}>
+            <Card onPress={() => setEditOpen(true)} style={[styles.bentoCell, isCompact && styles.bentoCellCompact]}>
               <View style={styles.bentoCellHeader}>
-                <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentFiber}22` }]}>
-                  <Pencil size={44} color={colors.accentFiber} strokeWidth={1.5} />
+                <View style={[styles.bentoCellIcon, isCompact && styles.bentoCellIconCompact, { backgroundColor: `${colors.accentFiber}22` }]}>
+                  <Pencil size={bentoIconSize} color={colors.accentFiber} strokeWidth={1.5} />
                 </View>
               </View>
               <View style={styles.bentoCellFooter}>
-                <Text style={styles.bentoCellTitle}>Профиль</Text>
+                <Text style={[styles.bentoCellTitle, isCompact && styles.bentoCellTitleCompact]} numberOfLines={2}>
+                  Профиль
+                </Text>
                 <ChevronRight size={18} color={colors.textSecondary} strokeWidth={1.5} />
               </View>
             </Card>
@@ -249,39 +257,45 @@ export default function ProfileScreen() {
               onPress={() => setSettingsSheetOpen(true)}
               onLongPress={() => setShowUpdateDebug(true)}
               delayLongPress={10000}
-              style={styles.bentoCell}
+              style={[styles.bentoCell, isCompact && styles.bentoCellCompact]}
             >
               <View style={styles.bentoCellHeader}>
-                <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentProtein}22` }]}>
-                  <Settings size={44} color={colors.accentProtein} strokeWidth={1.5} />
+                <View style={[styles.bentoCellIcon, isCompact && styles.bentoCellIconCompact, { backgroundColor: `${colors.accentProtein}22` }]}>
+                  <Settings size={bentoIconSize} color={colors.accentProtein} strokeWidth={1.5} />
                 </View>
               </View>
               <View style={styles.bentoCellFooter}>
-                <Text style={styles.bentoCellTitle}>Настройки</Text>
+                <Text style={[styles.bentoCellTitle, isCompact && styles.bentoCellTitleCompact]} numberOfLines={2}>
+                  Настройки
+                </Text>
                 <ChevronRight size={18} color={colors.textSecondary} strokeWidth={1.5} />
               </View>
             </Card>
-            <Card onPress={() => Alert.alert('Скоро', 'Подписка будет доступна позже')} style={styles.bentoCell}>
+            <Card onPress={() => Alert.alert('Скоро', 'Подписка будет доступна позже')} style={[styles.bentoCell, isCompact && styles.bentoCellCompact]}>
               <View style={styles.bentoCellHeader}>
-                <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentFat}22` }]}>
-                  <Crown size={44} color={colors.accentFat} strokeWidth={1.5} />
+                <View style={[styles.bentoCellIcon, isCompact && styles.bentoCellIconCompact, { backgroundColor: `${colors.accentFat}22` }]}>
+                  <Crown size={bentoIconSize} color={colors.accentFat} strokeWidth={1.5} />
                 </View>
               </View>
               <View style={styles.bentoCellFooter}>
-                <Text style={styles.bentoCellTitle}>Подписка</Text>
+                <Text style={[styles.bentoCellTitle, isCompact && styles.bentoCellTitleCompact]} numberOfLines={2}>
+                  Подписка
+                </Text>
                 <ChevronRight size={18} color={colors.textSecondary} strokeWidth={1.5} />
               </View>
             </Card>
           </View>
           <View style={styles.bentoRowCompact}>
-            <Card onPress={() => Alert.alert('Скоро', 'Раздел поддержки будет доступен позже')} style={styles.bentoCell}>
+            <Card onPress={() => Alert.alert('Скоро', 'Раздел поддержки будет доступен позже')} style={[styles.bentoCell, isCompact && styles.bentoCellCompact]}>
               <View style={styles.bentoCellHeader}>
-                <View style={[styles.bentoCellIcon, { backgroundColor: `${colors.accentCarbs}22` }]}>
-                  <HelpCircle size={44} color={colors.accentCarbs} strokeWidth={1.5} />
+                <View style={[styles.bentoCellIcon, isCompact && styles.bentoCellIconCompact, { backgroundColor: `${colors.accentCarbs}22` }]}>
+                  <HelpCircle size={bentoIconSize} color={colors.accentCarbs} strokeWidth={1.5} />
                 </View>
               </View>
               <View style={styles.bentoCellFooter}>
-                <Text style={styles.bentoCellTitle}>Поддержка</Text>
+                <Text style={[styles.bentoCellTitle, isCompact && styles.bentoCellTitleCompact]} numberOfLines={2}>
+                  Поддержка
+                </Text>
                 <ChevronRight size={18} color={colors.textSecondary} strokeWidth={1.5} />
               </View>
             </Card>
@@ -563,6 +577,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     justifyContent: 'flex-start',
   },
+  bentoCellCompact: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+  },
   bentoCellHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -576,11 +594,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  bentoCellIconCompact: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+  },
   bentoCellTitle: {
     fontSize: 18,
     fontFamily: fonts.semibold,
     color: colors.textPrimary,
     textAlign: 'left',
+  },
+  bentoCellTitleCompact: {
+    fontSize: 15,
+    lineHeight: 18,
   },
   bentoCellFooter: {
     marginTop: 'auto',

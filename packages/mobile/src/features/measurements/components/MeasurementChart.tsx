@@ -1,8 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent, PanResponder, StyleSheet, View } from 'react-native';
-import { Canvas, Circle, Line, LinearGradient, Path, Skia, vec } from '@shopify/react-native-skia';
 
 import { colors, radii } from '../../../shared/ui';
+
+let SkiaModules: typeof import('@shopify/react-native-skia') | null = null;
+try {
+  SkiaModules = require('@shopify/react-native-skia');
+} catch {
+  SkiaModules = null;
+}
 
 type MeasurementChartProps = {
   type: 'line' | 'bars';
@@ -47,6 +53,9 @@ export const MeasurementChart = ({
   onPointHover,
   layoutOverride,
 }: MeasurementChartProps) => {
+  const skiaSupported = Boolean(
+    SkiaModules?.Skia?.Path?.MakeFromSVGString && SkiaModules?.Skia?.Recorder
+  );
   const chartStyle = size === 'full' ? styles.chartFull : styles.chartCompact;
   const [layout, setLayout] = useState({ width: 0, height: 0 });
   const [reveal, setReveal] = useState(0);
@@ -79,7 +88,9 @@ export const MeasurementChart = ({
   const effectiveLayout = layoutOverride ?? layout;
 
   const scaledPaths = useMemo(() => {
+    if (!skiaSupported) return null;
     if (!linePath || effectiveLayout.width === 0 || effectiveLayout.height === 0) return null;
+    const Skia = (SkiaModules as NonNullable<typeof SkiaModules>).Skia;
     const rawLine = Skia.Path.MakeFromSVGString(linePath);
     if (!rawLine) return null;
     const rawSecondary = secondaryLinePath ? Skia.Path.MakeFromSVGString(secondaryLinePath) : null;
@@ -203,7 +214,7 @@ export const MeasurementChart = ({
     [interactive, onPointHover, scaledPaths?.scaledPoints]
   );
 
-  if (type !== 'line' || !linePath) {
+  if (!skiaSupported || type !== 'line' || !linePath) {
     return (
       <View style={chartStyle}>
         {emptyLabel ? (
@@ -216,6 +227,15 @@ export const MeasurementChart = ({
     );
   }
 
+  const {
+    Canvas,
+    Circle,
+    Line,
+    LinearGradient,
+    Path,
+    Skia,
+    vec,
+  } = SkiaModules as NonNullable<typeof SkiaModules>;
   const strokeWidth = size === 'full' ? 3.5 : 2;
   const markerRadius = size === 'full' ? 6.5 : 3.5;
   const markerSmall = size === 'full' ? 3 : 0;

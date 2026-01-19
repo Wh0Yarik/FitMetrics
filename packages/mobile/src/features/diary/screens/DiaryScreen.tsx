@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StatusBar, Alert, BackHandler, StyleSheet, Modal, Pressable, Animated } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, Alert, BackHandler, StyleSheet, Modal, Pressable, Animated, useWindowDimensions } from 'react-native';
 import { Check, Plus, ChevronLeft } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import type { Swipeable } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddMealModal, PortionCount } from '../components/AddMealModal';
 import { DailySurveyModal } from '../components/DailySurveyModal';
@@ -33,6 +33,9 @@ import { formatDateKey, getDateObj, getWeekDates, getHeaderTitle, getRelativeLab
 // --- Основной компонент экрана ---
 
 export default function DiaryScreen() {
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const isCompact = width <= 360;
   // Инициализация текущей даты (сегодня)
   const [currentDate, setCurrentDate] = useState(() => {
     const now = new Date();
@@ -345,7 +348,10 @@ export default function DiaryScreen() {
         <ScrollView 
           // Основной скроллируемый контент
           className="flex-1"
-          contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: spacing.xl }}
+          contentContainerStyle={{
+            paddingBottom: 96 + insets.bottom,
+            paddingHorizontal: isCompact ? spacing.lg : spacing.xl,
+          }}
           onTouchStart={closeAllSwipeables}
           onScrollBeginDrag={() => {
             closeAllSwipeables();
