@@ -47,8 +47,14 @@ export const MacroCard = React.memo(({
     <View style={[styles.macroCard, isCompact && styles.macroCardCompact, isOverTarget && styles.macroCardOver]}>
       <View style={styles.topRow}>
         <View style={styles.valuesRow}>
-          <Text style={[styles.macroValue, isCompact && styles.macroValueCompact, { color: accent }]}>{current}</Text>
-          {showTarget ? <Text style={[styles.macroTarget, isCompact && styles.macroTargetCompact]}>/{target}</Text> : null}
+          <Text style={[styles.macroValue, isCompact && styles.macroValueCompact, { color: accent }]} allowFontScaling={false}>
+            {current}
+          </Text>
+          {showTarget ? (
+            <Text style={[styles.macroTarget, isCompact && styles.macroTargetCompact]} allowFontScaling={false}>
+              /{target}
+            </Text>
+          ) : null}
           {isOverTarget ? (
             <View style={styles.overBadge}>
               <Text style={styles.overBadgeText}>{overflowLabel}</Text>
@@ -62,7 +68,7 @@ export const MacroCard = React.memo(({
       <View style={[styles.progressTrack, isOverTarget && styles.progressTrackOver]}>
         <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: accent }]} />
       </View>
-      <Text style={[styles.macroLabel, isCompact && styles.macroLabelCompact]} numberOfLines={1}>
+      <Text style={[styles.macroLabel, isCompact && styles.macroLabelCompact]} numberOfLines={1} allowFontScaling={false}>
         {label}
       </Text>
     </View>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, PanResponderInstance } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, PanResponderInstance, PixelRatio, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronDown, Cloud, CloudOff, RefreshCw } from 'lucide-react-native';
 import Svg, { Defs, LinearGradient, Stop, Path } from 'react-native-svg';
@@ -134,6 +134,9 @@ export const CalendarHeader = ({
   onWeekLayout,
   useSafeArea = true,
 }: CalendarHeaderProps) => {
+  const { width } = useWindowDimensions();
+  const fontScale = PixelRatio.getFontScale();
+  const isCompact = width <= 360 || fontScale > 1.1;
   const baseOffset = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     baseOffset.setValue(-weekWidth);
@@ -146,15 +149,24 @@ export const CalendarHeader = ({
     <View style={styles.headerWrapper}>
       <View style={styles.headerCard}>
         <View style={styles.headerTopRow}>
-          <View>
-            <TouchableOpacity style={styles.dateRow} onPress={onOpenCalendar}>
+          <View style={styles.dateWrap}>
+            <TouchableOpacity style={[styles.dateRow, isCompact && styles.dateRowCompact]} onPress={onOpenCalendar}>
               <View style={styles.dateLeft}>
                 {relativeLabel ? (
-                  <View style={styles.relativePill}>
-                    <Text style={styles.relativePillText}>{relativeLabel}</Text>
+                  <View style={[styles.relativePill, isCompact && styles.relativePillCompact]}>
+                    <Text style={[styles.relativePillText, isCompact && styles.relativePillTextCompact]} allowFontScaling={false}>
+                      {relativeLabel}
+                    </Text>
                   </View>
                 ) : null}
-                <Text style={styles.dateText}>{dateLabel}</Text>
+                <Text
+                  style={[styles.dateText, isCompact && styles.dateTextCompact]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  allowFontScaling={false}
+                >
+                  {dateLabel}
+                </Text>
               </View>
               <ChevronDown size={16} color="#9CA3AF" />
             </TouchableOpacity>
@@ -181,7 +193,7 @@ export const CalendarHeader = ({
         </View>
 
         <View
-          style={styles.weekRow}
+          style={[styles.weekRow, isCompact && styles.weekRowCompact]}
           onLayout={(event) => onWeekLayout(event.nativeEvent.layout.width)}
         >
           <Animated.View
@@ -202,6 +214,7 @@ export const CalendarHeader = ({
                       onPress={() => onSelectDay(day.dateStr)}
                       style={[
                         styles.weekDayItem,
+                        isCompact && styles.weekDayItemCompact,
                         day.isSelected && styles.weekDayItemSelected,
                         day.isToday && !day.isSelected && styles.weekDayItemToday,
                       ]}
@@ -215,12 +228,20 @@ export const CalendarHeader = ({
                           />
                         </View>
                       )}
-                      <Text style={[styles.weekDayLabel, day.isSelected && styles.weekDayLabelSelected]}>
+                      <Text
+                        style={[
+                          styles.weekDayLabel,
+                          isCompact && styles.weekDayLabelCompact,
+                          day.isSelected && styles.weekDayLabelSelected,
+                        ]}
+                        allowFontScaling={false}
+                      >
                         {day.label}
                       </Text>
                       <View
                         style={[
                           styles.weekDayDot,
+                          isCompact && styles.weekDayDotCompact,
                           markerState === 'partial' && styles.weekDayDotPartial,
                           markerState === 'none' && styles.weekDayDotHidden,
                           day.isSelected && markerState === 'complete' && styles.weekDayDotSelected,
@@ -228,11 +249,18 @@ export const CalendarHeader = ({
                         ]}
                       />
                       {day.isSelected ? (
-                        <View style={styles.weekDayNumberPill}>
-                          <Text style={styles.weekDayNumberSelected}>{day.day}</Text>
+                        <View style={[styles.weekDayNumberPill, isCompact && styles.weekDayNumberPillCompact]}>
+                          <Text
+                            style={[styles.weekDayNumberSelected, isCompact && styles.weekDayNumberSelectedCompact]}
+                            allowFontScaling={false}
+                          >
+                            {day.day}
+                          </Text>
                         </View>
                       ) : (
-                        <Text style={styles.weekDayNumber}>{day.day}</Text>
+                        <Text style={[styles.weekDayNumber, isCompact && styles.weekDayNumberCompact]} allowFontScaling={false}>
+                          {day.day}
+                        </Text>
                       )}
                     </TouchableOpacity>
                   );
@@ -275,6 +303,9 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 8 },
   },
+  dateWrap: {
+    flex: 1,
+  },
   headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -286,10 +317,14 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     gap: 8,
   },
+  dateRowCompact: {
+    gap: 6,
+  },
   dateLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexShrink: 1,
   },
   relativePill: {
     backgroundColor: COLORS.primary,
@@ -297,16 +332,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
+  relativePillCompact: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
   relativePillText: {
     color: '#FFFFFF',
     fontSize: 18,
     fontFamily: fonts.semibold,
+  },
+  relativePillTextCompact: {
+    fontSize: 15,
   },
   dateText: {
     color: '#111827',
     fontSize: 18,
     fontFamily: fonts.semibold,
     paddingVertical: 4,
+    flexShrink: 1,
+  },
+  dateTextCompact: {
+    fontSize: 15,
   },
   syncStatus: {
     flexDirection: 'row',
@@ -330,6 +376,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
     overflow: 'hidden',
   },
+  weekRowCompact: {
+    marginTop: 10,
+  },
   weekTrack: {
     flexDirection: 'row',
   },
@@ -348,6 +397,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
+  },
+  weekDayItemCompact: {
+    width: 34,
+    height: 64,
+    borderRadius: 16,
   },
   weekDayProgress: {
     position: 'absolute',
@@ -369,6 +423,9 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontFamily: fonts.semibold,
   },
+  weekDayLabelCompact: {
+    fontSize: 9,
+  },
   weekDayLabelSelected: {
     color: '#FFFFFF',
   },
@@ -378,12 +435,19 @@ const styles = StyleSheet.create({
     fontFamily: fonts.light,
     color: '#111827',
   },
+  weekDayNumberCompact: {
+    fontSize: 13,
+  },
   weekDayDot: {
     width: 6,
     height: 6,
     borderRadius: 999,
     marginTop: 4,
     backgroundColor: COLORS.primary,
+  },
+  weekDayDotCompact: {
+    width: 5,
+    height: 5,
   },
   weekDayDotPartial: {
     backgroundColor: '#F97316',
@@ -406,9 +470,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  weekDayNumberPillCompact: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
   weekDayNumberSelected: {
     fontSize: 15,
     fontFamily: fonts.medium,
     color: COLORS.primary,
+  },
+  weekDayNumberSelectedCompact: {
+    fontSize: 13,
   },
 });
