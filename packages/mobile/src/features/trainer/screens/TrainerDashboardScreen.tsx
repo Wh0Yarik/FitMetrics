@@ -278,7 +278,7 @@ export default function TrainerDashboardScreen() {
               </View>
               <TouchableOpacity onPress={() => setAddOpen(true)} style={styles.addButton}>
                 <Plus size={16} color="white" />
-                <Text style={styles.addButtonText}>Добавить</Text>
+                <Text style={styles.addButtonText}>Инвайты</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.headerStats}>
@@ -393,7 +393,7 @@ export default function TrainerDashboardScreen() {
           headerSwipeHeight={56}
         >
           <View style={styles.sheetContent}>
-            <Text style={styles.modalTitle}>Новый клиент</Text>
+            <Text style={styles.modalTitle}>Мои инвайт-коды</Text>
             <Text style={styles.modalSubtitle}>
               Сгенерируйте инвайт-код и передайте его клиенту для регистрации.
             </Text>

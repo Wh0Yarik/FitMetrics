@@ -112,17 +112,17 @@ export default function ProfileScreen() {
           setUpdatesStatus('checking');
           const update = await Updates.checkForUpdateAsync();
           if (!mounted) return;
-          if (update.isAvailable) {
-            setUpdatesStatus('available');
-            await Updates.fetchUpdateAsync();
-            if (mounted) {
-              setUpdateAvailable(true);
-              setUpdateDismissed(false);
+            if (update.isAvailable) {
+              setUpdatesStatus('available');
+              await Updates.fetchUpdateAsync();
+              if (mounted) {
+                setUpdateAvailable(true);
+                setUpdateDismissed(false);
+              }
+            } else {
+              setUpdateAvailable(false);
+              setUpdatesStatus('none');
             }
-          } else {
-            setUpdateAvailable(false);
-            setUpdatesStatus('none');
-          }
         } catch (error: any) {
           const message = typeof error?.message === 'string' ? error.message : 'unknown';
           setUpdatesError(message);
