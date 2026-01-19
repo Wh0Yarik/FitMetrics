@@ -5,7 +5,7 @@
     "scheme": "Fitmetrics",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "../icons/Logo_1024x1024.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -19,8 +19,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundImage": "./assets/adaptive-icon-background.png",
+        "foregroundImage": "../icons/Logo_foreground.png",
+        "backgroundImage": "../icons/Logo_background.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.whoyarik.mobile"
@@ -30,7 +30,7 @@
       "barStyle": "dark-content"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "../icons/Logo32x32.png"
     },
     "plugins": [
       "expo-router",
