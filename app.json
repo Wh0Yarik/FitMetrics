@@ -1,21 +1,56 @@
 {
-  "plugins": [
-    "expo-secure-store",
-    "@react-native-community/datetimepicker"
-  ],
-  "android": {
-    "package": "com.whoyarik.fitmetrics"
-  },
-  "ios": {
-    "bundleIdentifier": "com.whoyarik.fitmetrics"
-  },
-  "extra": {
-    "eas": {
-      "projectId": "361273e7-5354-4631-b4be-8cf688cafc07"
+  "expo": {
+    "name": "Fitmetrics",
+    "slug": "Fitmetrics",
+    "scheme": "Fitmetrics",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./packages/mobile/assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./packages/mobile/assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.whoyarik.fitmetrics"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./packages/mobile/assets/adaptive-icon.png",
+        "backgroundImage": "./packages/mobile/assets/adaptive-icon-background.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.whoyarik.fitmetrics"
+    },
+    "androidNavigationBar": {
+      "backgroundColor": "#00000000",
+      "barStyle": "dark-content"
+    },
+    "web": {
+      "favicon": "./packages/mobile/assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      "expo-router",
+      "expo-sqlite",
+      "expo-font",
+      "expo-updates"
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "361273e7-5354-4631-b4be-8cf688cafc07"
+      }
+    },
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/361273e7-5354-4631-b4be-8cf688cafc07"
     }
-  },
-  "runtimeVersion": "1.0.0",
-  "updates": {
-    "url": "https://u.expo.dev/361273e7-5354-4631-b4be-8cf688cafc07"
   }
 }
