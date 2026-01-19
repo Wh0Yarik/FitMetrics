@@ -698,8 +698,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   listCountChipCompact: {
-    width: '100%',
-    alignSelf: 'stretch',
+    alignSelf: 'flex-start',
   },
   listCountText: {
     color: colors.textSecondary,
