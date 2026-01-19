@@ -39,6 +39,8 @@ export default function RootLayout() {
     defaultsApplied = true;
     Text.defaultProps = Text.defaultProps || {};
     TextInput.defaultProps = TextInput.defaultProps || {};
+    Text.defaultProps.allowFontScaling = false;
+    TextInput.defaultProps.allowFontScaling = false;
     Text.defaultProps.style = [Text.defaultProps.style, { fontFamily: 'Comfortaa-Regular' }];
     TextInput.defaultProps.style = [TextInput.defaultProps.style, { fontFamily: 'Comfortaa-Regular' }];
   }
