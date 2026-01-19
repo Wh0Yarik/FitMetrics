@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "y"
+      "bundleIdentifier": "com.whoyarik.fitmetrics"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +23,7 @@
         "backgroundImage": "./assets/adaptive-icon-background.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.whoyarik.mobile"
+      "package": "com.whoyarik.fitmetrics"
     },
     "androidNavigationBar": {
       "backgroundColor": "#00000000",
@@ -33,9 +33,10 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
       "expo-router",
       "expo-sqlite",
-      "@react-native-community/datetimepicker",
       "expo-font",
       "expo-updates"
     ],
@@ -47,9 +48,7 @@
         "projectId": "361273e7-5354-4631-b4be-8cf688cafc07"
       }
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/361273e7-5354-4631-b4be-8cf688cafc07"
     }
