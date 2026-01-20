@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, Text, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { Alert, View, Text, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { MeasurementEntry } from '../repositories/MeasurementsRepository';
 import { useMeasurementForm } from '../model/useMeasurementForm';
 import { usePhotoUpload } from '../model/usePhotoUpload';
@@ -43,9 +43,33 @@ export const AddMeasurementModal: React.FC<AddMeasurementModalProps> = ({ visibl
   } = useMeasurementForm({ visible, initialData });
   const { pickAndUpload } = usePhotoUpload();
 
-  const handlePickFront = useCallback(() => pickAndUpload(setPhotoFront), [pickAndUpload]);
-  const handlePickSide = useCallback(() => pickAndUpload(setPhotoSide), [pickAndUpload]);
-  const handlePickBack = useCallback(() => pickAndUpload(setPhotoBack), [pickAndUpload]);
+  const handlePickFront = useCallback(async () => {
+    try {
+      await pickAndUpload(setPhotoFront);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'FILE_TOO_LARGE') {
+        Alert.alert('Ошибка', 'Фото слишком большое. Максимум 8 МБ.');
+      }
+    }
+  }, [pickAndUpload]);
+  const handlePickSide = useCallback(async () => {
+    try {
+      await pickAndUpload(setPhotoSide);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'FILE_TOO_LARGE') {
+        Alert.alert('Ошибка', 'Фото слишком большое. Максимум 8 МБ.');
+      }
+    }
+  }, [pickAndUpload]);
+  const handlePickBack = useCallback(async () => {
+    try {
+      await pickAndUpload(setPhotoBack);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'FILE_TOO_LARGE') {
+        Alert.alert('Ошибка', 'Фото слишком большое. Максимум 8 МБ.');
+      }
+    }
+  }, [pickAndUpload]);
   const handleClearFront = useCallback(() => setPhotoFront(null), []);
   const handleClearSide = useCallback(() => setPhotoSide(null), []);
   const handleClearBack = useCallback(() => setPhotoBack(null), []);

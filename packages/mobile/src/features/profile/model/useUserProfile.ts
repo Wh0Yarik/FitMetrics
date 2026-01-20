@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 import { api } from '../../../shared/api/client';
 import { formatBirthDateDisplay, parseBirthDateDisplay } from '../../../shared/lib/date';
@@ -133,11 +134,26 @@ export const useUserProfile = ({ onTrainerLoaded }: UseUserProfileParams = {}) =
       }
 
       const asset = result.assets[0];
-      setAvatarUri(asset.uri);
+      const width = asset.width ?? 0;
+      const height = asset.height ?? 0;
+      const maxSide = Math.max(width, height);
+      let uploadUri = asset.uri;
+      if (maxSide > 512 && width && height) {
+        const scale = 512 / maxSide;
+        const targetWidth = Math.round(width * scale);
+        const targetHeight = Math.round(height * scale);
+        const resized = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [{ resize: { width: targetWidth, height: targetHeight } }],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        uploadUri = resized.uri;
+      }
+      setAvatarUri(uploadUri);
 
       setAvatarUploading(true);
       const fileName = asset.fileName ?? asset.uri.split('/').pop() ?? 'avatar.jpg';
-      const contentType = asset.mimeType ?? 'image/jpeg';
+      const contentType = 'image/jpeg';
       const presign = await api.post('/storage/presign', {
         fileName,
         contentType,
@@ -145,8 +161,11 @@ export const useUserProfile = ({ onTrainerLoaded }: UseUserProfileParams = {}) =
       });
       const uploadUrl = presign.data.uploadUrl;
       const publicUrl = presign.data.publicUrl;
-      const fileResponse = await fetch(asset.uri);
+      const fileResponse = await fetch(uploadUri);
       const blob = await fileResponse.blob();
+      if (blob.size > 4 * 1024 * 1024) {
+        throw new Error('FILE_TOO_LARGE');
+      }
       await fetch(uploadUrl, {
         method: 'PUT',
         headers: { 'Content-Type': contentType },
@@ -162,6 +181,10 @@ export const useUserProfile = ({ onTrainerLoaded }: UseUserProfileParams = {}) =
         avatarUrl: publicUrl,
       });
     } catch (error: any) {
+      if (error instanceof Error && error.message === 'FILE_TOO_LARGE') {
+        Alert.alert('Ошибка', 'Фото слишком большое. Максимум 4 МБ.');
+        return;
+      }
       const rawMessage = error.response?.data?.message || error?.message || 'Не удалось открыть галерею';
       const message = rawMessage.includes('Network request failed')
         ? 'Не удалось загрузить фото. Проверьте доступ к API и хранилищу S3.'
