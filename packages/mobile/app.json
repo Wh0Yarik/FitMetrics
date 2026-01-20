@@ -2,7 +2,7 @@
   "expo": {
     "name": "Fitmetrics",
     "slug": "fitmetrics",
-    "scheme": "Fitmetrics",
+    "scheme": "fitmetrics",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
