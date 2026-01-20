@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Camera, CheckCircle2, Archive } from 'lucide-react-native';
+import { ArrowLeft, Camera, CheckCircle2, Archive, BookOpen, ClipboardCopy, Ruler } from 'lucide-react-native';
 
 import { COLORS } from '../../../constants/Colors';
 import { trainerApi, TrainerClientDetail } from '../services/trainerApi';
@@ -141,23 +141,60 @@ export default function TrainerClientScreen() {
     loadClient();
   }, [id]);
 
-  const lastMeasurementDays = useMemo(() => {
-    const latest = client?.measurements?.[0]?.date;
-    if (!latest) return '—';
-    const parsed = new Date(latest);
-    const date = Number.isNaN(parsed.getTime())
-      ? (() => {
-          const parts = latest.split('.');
-          if (parts.length !== 3) return null;
-          const [day, month, year] = parts.map((part) => Number(part));
-          const fallback = new Date(year, month - 1, day);
-          return Number.isNaN(fallback.getTime()) ? null : fallback;
-        })()
-      : parsed;
-    if (!date) return '—';
-    const diffMs = Date.now() - date.getTime();
+  const lastMeasurementInfo = useMemo(() => {
+    const parseDate = (value: string) => {
+      if (!value) return null;
+      const iso = new Date(value);
+      if (!Number.isNaN(iso.getTime())) return iso;
+      const dotMatch = /(\d{2})\.(\d{2})\.(\d{4})/.exec(value);
+      if (dotMatch) {
+        const [, dayStr, monthStr, yearStr] = dotMatch;
+        const parsed = new Date(Number(yearStr), Number(monthStr) - 1, Number(dayStr));
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+      const dashMatch = /(\d{4})-(\d{2})-(\d{2})/.exec(value);
+      if (dashMatch) {
+        const [, yearStr, monthStr, dayStr] = dashMatch;
+        const parsed = new Date(Number(yearStr), Number(monthStr) - 1, Number(dayStr));
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+      return null;
+    };
+
+    const dates = (client?.measurements ?? [])
+      .map((measure) => ({ raw: measure.date, parsed: parseDate(measure.date) }))
+      .filter((item): item is { raw: string; parsed: Date } => Boolean(item.parsed));
+    if (dates.length === 0) {
+      const fallbackDate = client?.lastMeasurementDate ? parseDate(client.lastMeasurementDate) : null;
+      if (fallbackDate) {
+        const diffMs = Date.now() - fallbackDate.getTime();
+        const days = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+        const dateLabel = fallbackDate.toLocaleDateString('ru-RU', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        });
+        const daysLabel = days === 0 ? 'сегодня' : `${days} дн назад`;
+        return { dateLabel, daysLabel };
+      }
+      const rawLabel = client?.measurements?.[0]?.date;
+      if (rawLabel) {
+        return { dateLabel: rawLabel, daysLabel: '' };
+      }
+      return { dateLabel: '—', daysLabel: '' };
+    }
+
+    dates.sort((a, b) => b.parsed.getTime() - a.parsed.getTime());
+    const latest = dates[0].parsed;
+    const diffMs = Date.now() - latest.getTime();
     const days = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-    return `${days} дн`;
+    const dateLabel = latest.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+    const daysLabel = days === 0 ? 'сегодня' : `${days} дн назад`;
+    return { dateLabel, daysLabel };
   }, [client]);
 
   if (isLoading) {
@@ -238,7 +275,10 @@ export default function TrainerClientScreen() {
               </View>
               <View style={styles.headerStat}>
                 <Text style={styles.headerStatLabel}>Последний замер</Text>
-                <Text style={styles.headerStatValue}>{lastMeasurementDays}</Text>
+                <Text style={styles.headerStatValue}>{lastMeasurementInfo.dateLabel}</Text>
+                {lastMeasurementInfo.daysLabel ? (
+                  <Text style={styles.headerStatMeta}>{lastMeasurementInfo.daysLabel}</Text>
+                ) : null}
               </View>
             </View>
           </View>
@@ -257,16 +297,24 @@ export default function TrainerClientScreen() {
 
           {activeTab === 'nutrition' && (
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Цели по питанию</Text>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.sectionHeaderIcon}>
+                  <BookOpen size={16} color="#111827" />
+                </View>
+                <Text style={styles.sectionTitle}>Цели по питанию</Text>
+              </View>
               <View style={styles.goalGrid}>
                 {[
-                  { key: 'protein', label: 'Белки', value: goals.protein },
-                  { key: 'fat', label: 'Жиры', value: goals.fat },
-                  { key: 'carbs', label: 'Углеводы', value: goals.carbs },
-                  { key: 'fiber', label: 'Клетчатка', value: goals.fiber },
+                  { key: 'protein', label: 'Белки', value: goals.protein, color: '#F97373' },
+                  { key: 'fat', label: 'Жиры', value: goals.fat, color: '#FBBF24' },
+                  { key: 'carbs', label: 'Углеводы', value: goals.carbs, color: '#60A5FA' },
+                  { key: 'fiber', label: 'Клетчатка', value: goals.fiber, color: '#34D399' },
                 ].map((item) => (
                   <View key={item.key} style={styles.goalItem}>
-                    <Text style={styles.goalLabel}>{item.label}</Text>
+                    <View style={styles.goalLabelRow}>
+                      <View style={[styles.goalDot, { backgroundColor: item.color }]} />
+                      <Text style={styles.goalLabel}>{item.label}</Text>
+                    </View>
                     <TextInput
                       value={item.value}
                       onChangeText={(value) => setGoals((prev) => ({ ...prev, [item.key]: value }))}
@@ -285,9 +333,20 @@ export default function TrainerClientScreen() {
 
           {activeTab === 'nutrition' && (
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Приверженность за неделю</Text>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.sectionHeaderIcon}>
+                  <CheckCircle2 size={16} color="#111827" />
+                </View>
+                <Text style={styles.sectionTitle}>Приверженность за неделю</Text>
+              </View>
               {client.complianceHistory.length === 0 ? (
-                <Text style={styles.emptySectionText}>Нет данных за неделю</Text>
+                <View style={styles.emptyStateCard}>
+                  <View style={styles.emptyIconWrap}>
+                    <BookOpen size={18} color="#6B7280" />
+                  </View>
+                  <Text style={styles.emptyStateTitle}>Нет данных за неделю</Text>
+                  <Text style={styles.emptyStateSubtitle}>Дневник питания еще не заполнен</Text>
+                </View>
               ) : (
                 <View style={styles.complianceRow}>
                   {client.complianceHistory.map((point) => (
@@ -311,9 +370,20 @@ export default function TrainerClientScreen() {
 
           {activeTab === 'surveys' && (
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Анкеты за 30 дней</Text>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.sectionHeaderIcon}>
+                  <ClipboardCopy size={16} color="#111827" />
+                </View>
+                <Text style={styles.sectionTitle}>Анкеты за 30 дней</Text>
+              </View>
               {client.surveys.length === 0 && (
-                <Text style={styles.emptySectionText}>Анкеты пока не заполнены</Text>
+                <View style={styles.emptyStateCard}>
+                  <View style={styles.emptyIconWrap}>
+                    <ClipboardCopy size={18} color="#6B7280" />
+                  </View>
+                  <Text style={styles.emptyStateTitle}>Анкет пока нет</Text>
+                  <Text style={styles.emptyStateSubtitle}>Клиент еще не заполнял анкеты</Text>
+                </View>
               )}
               {client.surveys.map((survey) => {
                 const isExpanded = expandedSurveyId === survey.id;
@@ -359,9 +429,20 @@ export default function TrainerClientScreen() {
 
           {activeTab === 'measurements' && (
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Еженедельные замеры</Text>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.sectionHeaderIcon}>
+                  <Ruler size={16} color="#111827" />
+                </View>
+                <Text style={styles.sectionTitle}>Еженедельные замеры</Text>
+              </View>
               {client.measurements.length === 0 && (
-                <Text style={styles.emptySectionText}>Замеры пока отсутствуют</Text>
+                <View style={styles.emptyStateCard}>
+                  <View style={styles.emptyIconWrap}>
+                    <Ruler size={18} color="#6B7280" />
+                  </View>
+                  <Text style={styles.emptyStateTitle}>Замеры еще не добавлены</Text>
+                  <Text style={styles.emptyStateSubtitle}>После первого замера появится история</Text>
+                </View>
               )}
               {client.measurements.map((measure) => (
                 <View key={measure.id} style={styles.measureRow}>
@@ -564,6 +645,11 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginTop: 6,
   },
+  headerStatMeta: {
+    marginTop: 4,
+    fontSize: 10,
+    color: '#9CA3AF',
+  },
   tabRow: {
     marginTop: 16,
     flexDirection: 'row',
@@ -594,15 +680,33 @@ const styles = StyleSheet.create({
     marginTop: 16,
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
     padding: 16,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(15, 23, 42, 0.08)',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  sectionHeaderIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 12,
   },
   emptySectionText: {
     fontSize: 12,
@@ -622,10 +726,19 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: '#F9FAFB',
   },
+  goalLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  goalDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   goalLabel: {
     fontSize: 11,
     color: '#6B7280',
-    marginBottom: 6,
   },
   goalInput: {
     borderWidth: 1,
@@ -636,6 +749,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     backgroundColor: '#FFFFFF',
     color: '#111827',
+    marginTop: 6,
   },
   goalUnit: {
     fontSize: 10,
@@ -686,9 +800,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   surveyRow: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
     borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    marginBottom: 10,
   },
   surveyHeader: {
     flexDirection: 'row',
@@ -735,6 +852,34 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 6,
   },
+  emptyStateCard: {
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+  },
+  emptyIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  emptyStateTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  emptyStateSubtitle: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
   surveyDetailLabel: {
     fontSize: 11,
     color: '#6B7280',
@@ -745,13 +890,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   measureRow: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
     borderColor: '#E5E7EB',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 10,
   },
   measureDate: {
     fontSize: 13,

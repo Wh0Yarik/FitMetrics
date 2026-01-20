@@ -334,12 +334,15 @@ export class TrainerService {
       photos: measurement.photos.map((photo) => photo.url),
     }));
 
+    const latestMeasurementDate = measurements.length ? measurements[0].weekStartDate : null;
+
     return {
       id: client.id,
       name: client.name,
       avatarUrl: client.avatarUrl ?? null,
       createdAt: client.createdAt,
       archived: client.archivedAt !== null,
+      lastMeasurementDate: latestMeasurementDate ? latestMeasurementDate.toISOString() : null,
       goals: goal
         ? {
           protein: goal.dailyProtein,

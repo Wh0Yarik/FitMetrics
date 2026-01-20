@@ -48,6 +48,7 @@ export default function ProfileScreen() {
   const [isTrainerSheetOpen, setTrainerSheetOpen] = useState(false);
   const [isPasswordSheetOpen, setPasswordSheetOpen] = useState(false);
   const [isSettingsSheetOpen, setSettingsSheetOpen] = useState(false);
+  const [isSupportSheetOpen, setSupportSheetOpen] = useState(false);
   const [showUpdateDebug, setShowUpdateDebug] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [remindersEnabled, setRemindersEnabled] = useState(true);
@@ -102,8 +103,21 @@ export default function ProfileScreen() {
   }, []);
 
   useEffect(() => {
-    setTabBarHidden(isEditOpen || isTrainerSheetOpen || isPasswordSheetOpen || isSettingsSheetOpen);
-  }, [isEditOpen, isPasswordSheetOpen, isSettingsSheetOpen, isTrainerSheetOpen, setTabBarHidden]);
+    setTabBarHidden(
+      isEditOpen
+      || isTrainerSheetOpen
+      || isPasswordSheetOpen
+      || isSettingsSheetOpen
+      || isSupportSheetOpen
+    );
+  }, [
+    isEditOpen,
+    isPasswordSheetOpen,
+    isSettingsSheetOpen,
+    isTrainerSheetOpen,
+    isSupportSheetOpen,
+    setTabBarHidden,
+  ]);
 
   useFocusEffect(
     useCallback(() => {
@@ -271,22 +285,7 @@ export default function ProfileScreen() {
                 <ChevronRight size={18} color={colors.textSecondary} strokeWidth={1.5} />
               </View>
             </Card>
-            <Card onPress={() => Alert.alert('Скоро', 'Подписка будет доступна позже')} style={[styles.bentoCell, isCompact && styles.bentoCellCompact]}>
-              <View style={styles.bentoCellHeader}>
-                <View style={[styles.bentoCellIcon, isCompact && styles.bentoCellIconCompact, { backgroundColor: `${colors.accentFat}22` }]}>
-                  <Crown size={bentoIconSize} color={colors.accentFat} strokeWidth={1.5} />
-                </View>
-              </View>
-              <View style={styles.bentoCellFooter}>
-                <Text style={[styles.bentoCellTitle, isCompact && styles.bentoCellTitleCompact]} numberOfLines={2}>
-                  Подписка
-                </Text>
-                <ChevronRight size={18} color={colors.textSecondary} strokeWidth={1.5} />
-              </View>
-            </Card>
-          </View>
-          <View style={styles.bentoRowCompact}>
-            <Card onPress={() => Alert.alert('Скоро', 'Раздел поддержки будет доступен позже')} style={[styles.bentoCell, isCompact && styles.bentoCellCompact]}>
+            <Card onPress={() => setSupportSheetOpen(true)} style={[styles.bentoCell, isCompact && styles.bentoCellCompact]}>
               <View style={styles.bentoCellHeader}>
                 <View style={[styles.bentoCellIcon, isCompact && styles.bentoCellIconCompact, { backgroundColor: `${colors.accentCarbs}22` }]}>
                   <HelpCircle size={bentoIconSize} color={colors.accentCarbs} strokeWidth={1.5} />
@@ -299,20 +298,34 @@ export default function ProfileScreen() {
                 <ChevronRight size={18} color={colors.textSecondary} strokeWidth={1.5} />
               </View>
             </Card>
+          </View>
+          <View style={styles.bentoRowCompact}>
             {isDevUser ? (
-              <Card style={[styles.bentoCell, styles.bentoDevSquare]}>
-                <TouchableOpacity onPress={() => auth.handleQuickSwitch('client')} style={styles.bentoDevSquareFull}>
-                  <Text style={styles.bentoDevTitle}>Клиент</Text>
-                </TouchableOpacity>
-                <View style={styles.bentoDevRow}>
-                  <TouchableOpacity onPress={() => auth.handleQuickSwitch('admin')} style={styles.bentoDevSquareHalf}>
-                    <Text style={styles.bentoDevTitle}>Админ</Text>
+              <>
+                <Card style={[styles.bentoCell, isCompact && styles.bentoCellCompact, styles.bentoDevSquare, styles.bentoDevSquareCompact]}>
+                  <TouchableOpacity
+                    onPress={() => auth.handleQuickSwitch('client')}
+                    style={[styles.bentoDevSquareFull, isCompact && styles.bentoDevSquareFullCompact]}
+                  >
+                    <Text style={[styles.bentoDevTitle, isCompact && styles.bentoDevTitleCompact]}>Клиент</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => auth.handleQuickSwitch('trainer')} style={styles.bentoDevSquareHalf}>
-                    <Text style={styles.bentoDevTitle}>Тренер</Text>
-                  </TouchableOpacity>
-                </View>
-              </Card>
+                  <View style={[styles.bentoDevRow, isCompact && styles.bentoDevRowCompact]}>
+                    <TouchableOpacity
+                      onPress={() => auth.handleQuickSwitch('admin')}
+                      style={[styles.bentoDevSquareHalf, isCompact && styles.bentoDevSquareHalfCompact]}
+                    >
+                      <Text style={[styles.bentoDevTitle, isCompact && styles.bentoDevTitleCompact]}>Админ</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => auth.handleQuickSwitch('trainer')}
+                      style={[styles.bentoDevSquareHalf, isCompact && styles.bentoDevSquareHalfCompact]}
+                    >
+                      <Text style={[styles.bentoDevTitle, isCompact && styles.bentoDevTitleCompact]}>Тренер</Text>
+                    </TouchableOpacity>
+                  </View>
+                </Card>
+                <View style={[styles.bentoCell, styles.bentoCellPlaceholder]} />
+              </>
             ) : (
               <View style={[styles.bentoCell, styles.bentoCellPlaceholder]} />
             )}
@@ -532,6 +545,31 @@ export default function ProfileScreen() {
             onRemoveTrainer={handleRemoveTrainer}
           />
         ) : null}
+        <SharedBottomSheet
+          visible={isSupportSheetOpen}
+          onClose={() => setSupportSheetOpen(false)}
+          headerSwipeHeight={56}
+        >
+          <View style={styles.supportHeader}>
+            <Text style={styles.modalTitle}>Поддержка</Text>
+          </View>
+          <View style={styles.supportBody}>
+            <TouchableOpacity
+              style={styles.supportCard}
+              onPress={() => handleExternalLink('mailto:lelyavin-yaroslav@yandex.ru')}
+            >
+              <Text style={styles.supportLabel}>Почта</Text>
+              <Text style={styles.supportValue}>lelyavin-yaroslav@yandex.ru</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.supportCard}
+              onPress={() => handleExternalLink('https://t.me/whoyarik')}
+            >
+              <Text style={styles.supportLabel}>Telegram</Text>
+              <Text style={styles.supportValue}>@whoyarik</Text>
+            </TouchableOpacity>
+          </View>
+        </SharedBottomSheet>
       </SafeAreaView>
 
     </View>
@@ -666,10 +704,16 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     width: '100%',
   },
+  bentoDevRowCompact: {
+    gap: spacing.xs,
+  },
   bentoDevSquare: {
     justifyContent: 'space-between',
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
+  },
+  bentoDevSquareCompact: {
+    paddingVertical: spacing.xs,
   },
   bentoDevSquareFull: {
     paddingVertical: spacing.sm,
@@ -680,6 +724,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
+  bentoDevSquareFullCompact: {
+    paddingVertical: spacing.xs,
+  },
   bentoDevSquareHalf: {
     flex: 1,
     paddingVertical: spacing.sm,
@@ -689,10 +736,16 @@ const styles = StyleSheet.create({
     borderColor: colors.divider,
     alignItems: 'center',
   },
+  bentoDevSquareHalfCompact: {
+    paddingVertical: spacing.xs,
+  },
   bentoDevTitle: {
     fontSize: 14,
     fontFamily: fonts.semibold,
     color: colors.textPrimary,
+  },
+  bentoDevTitleCompact: {
+    fontSize: 12,
   },
   modalBackdrop: {
     flex: 1,
@@ -715,6 +768,34 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.md,
+  },
+  supportHeader: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  supportBody: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  supportCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.divider,
+  },
+  supportLabel: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  supportValue: {
+    fontSize: 14,
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
   },
   modalTitle: {
     fontSize: 16,

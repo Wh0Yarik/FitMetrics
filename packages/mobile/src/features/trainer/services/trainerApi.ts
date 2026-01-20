@@ -58,6 +58,7 @@ export type TrainerClientDetail = {
   complianceHistory: { day: string; value: number }[];
   surveys: TrainerSurvey[];
   measurements: TrainerMeasurement[];
+  lastMeasurementDate: string | null;
 };
 
 export type TrainerInvite = {

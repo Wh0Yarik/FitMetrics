@@ -12,7 +12,7 @@ import {
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Plus, UserRound, ClipboardCopy, Filter, Ban } from 'lucide-react-native';
+import { Search, Plus, UserRound, ClipboardCopy, Filter, Ban, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 
@@ -32,6 +32,9 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'no-measurements', label: 'Без замеров' },
   { key: 'archived', label: 'Архив' },
 ];
+const INVITES_PAGE_SIZE = 8;
+const INVITE_NAME_MIN = 2;
+const INVITE_NAME_MAX = 32;
 
 const ClientCard = ({ client, onPress }: { client: TrainerClientSummary; onPress: () => void }) => {
   const attention = client.unreviewedSurveys > 0 || client.lastMeasurementDays === null || client.lastMeasurementDays > 7;
@@ -114,6 +117,9 @@ export default function TrainerDashboardScreen() {
   const [clients, setClients] = useState<TrainerClientSummary[]>([]);
   const [invites, setInvites] = useState<TrainerInvite[]>([]);
   const [invitesLoading, setInvitesLoading] = useState(false);
+  const [visibleArchivedCount, setVisibleArchivedCount] = useState(INVITES_PAGE_SIZE);
+  const [activeInvitesExpanded, setActiveInvitesExpanded] = useState(true);
+  const [archivedInvitesExpanded, setArchivedInvitesExpanded] = useState(false);
 
   const activeClientsCount = clients.filter((client) => !client.archived).length;
   const attentionClientsCount = clients.filter((client) => !client.archived && client.unreviewedSurveys > 0).length;
@@ -221,7 +227,7 @@ export default function TrainerDashboardScreen() {
     setInvitesLoading(true);
     try {
       const data = await trainerApi.getInvites();
-      setInvites(data.filter((invite) => invite.isActive));
+      setInvites(data);
     } catch (error: any) {
       const message = error.response?.data?.message || 'Не удалось загрузить инвайты';
       Alert.alert('Ошибка', message);
@@ -231,9 +237,18 @@ export default function TrainerDashboardScreen() {
   }, []);
 
   const handleGenerateInvite = async () => {
+    const trimmedName = inviteClientName.trim();
+    if (trimmedName.length > 0 && trimmedName.length < INVITE_NAME_MIN) {
+      Alert.alert('Ошибка', `Имя клиента должно быть не короче ${INVITE_NAME_MIN} символов`);
+      return;
+    }
+    if (trimmedName.length > INVITE_NAME_MAX) {
+      Alert.alert('Ошибка', `Имя клиента должно быть не длиннее ${INVITE_NAME_MAX} символов`);
+      return;
+    }
     setGenerating(true);
     try {
-      const payload = inviteClientName.trim() ? { clientName: inviteClientName.trim() } : undefined;
+      const payload = trimmedName ? { clientName: trimmedName } : undefined;
       const response = await api.post('/invites', payload);
       setInviteCode(response.data.code);
       await loadInvites();
@@ -260,6 +275,31 @@ export default function TrainerDashboardScreen() {
       Alert.alert('Ошибка', message);
     }
   };
+
+  const inviteNameTrimmed = inviteClientName.trim();
+  const inviteNameError =
+    inviteNameTrimmed.length === 0
+      ? ''
+      : inviteNameTrimmed.length < INVITE_NAME_MIN
+        ? `Минимум ${INVITE_NAME_MIN} символа`
+        : inviteNameTrimmed.length > INVITE_NAME_MAX
+          ? `Максимум ${INVITE_NAME_MAX} символов`
+          : '';
+
+  const activeInvites = useMemo(
+    () => invites.filter((invite) => invite.isActive).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [invites]
+  );
+  const archivedInvites = useMemo(
+    () => invites.filter((invite) => !invite.isActive).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [invites]
+  );
+
+  useEffect(() => {
+    if (isAddOpen) {
+      setVisibleArchivedCount(INVITES_PAGE_SIZE);
+    }
+  }, [isAddOpen, invites.length]);
 
   return (
     <View style={styles.screen}>
@@ -395,24 +435,27 @@ export default function TrainerDashboardScreen() {
           <View style={styles.sheetContent}>
             <Text style={styles.modalTitle}>Мои инвайт-коды</Text>
             <Text style={styles.modalSubtitle}>
-              Сгенерируйте инвайт-код и передайте его клиенту для регистрации.
+              Сгенерируйте код и передайте его клиенту для регистрации.
             </Text>
 
             <View style={styles.inviteInputWrap}>
-              <Text style={styles.inviteInputLabel}>Имя клиента</Text>
               <TextInput
                 value={inviteClientName}
                 onChangeText={setInviteClientName}
-                placeholder="Например: Мария К."
+                placeholder="Имя клиента. Например: Мария К."
                 placeholderTextColor="#9CA3AF"
                 style={styles.inviteInput}
               />
+              {inviteNameError ? <Text style={styles.inviteInputError}>{inviteNameError}</Text> : null}
             </View>
 
             <TouchableOpacity
               onPress={handleGenerateInvite}
-              style={[styles.primaryButton, isGenerating && styles.primaryButtonDisabled]}
-              disabled={isGenerating}
+              style={[
+                styles.primaryButton,
+                (isGenerating || !!inviteNameError) && styles.primaryButtonDisabled,
+              ]}
+              disabled={isGenerating || !!inviteNameError}
             >
               {isGenerating ? (
                 <ActivityIndicator color="#fff" />
@@ -435,40 +478,114 @@ export default function TrainerDashboardScreen() {
             ) : null}
 
             <View style={styles.activeInvites}>
-              <Text style={styles.activeInvitesTitle}>Активные инвайты</Text>
-              {invitesLoading ? (
-                <View style={styles.invitesLoading}>
-                  <ActivityIndicator size="small" color={COLORS.primary} />
-                  <Text style={styles.invitesLoadingText}>Загружаем...</Text>
+              <TouchableOpacity
+                onPress={() => setActiveInvitesExpanded((prev) => !prev)}
+                style={styles.invitesSectionHeader}
+              >
+                <View style={styles.invitesHeaderLeft}>
+                  <Text style={styles.activeInvitesTitle}>Активные инвайты</Text>
+                  <Text style={styles.invitesCount}>{activeInvites.length}</Text>
                 </View>
-              ) : invites.length === 0 ? (
-                <Text style={styles.activeInvitesEmpty}>Активных инвайтов нет</Text>
-              ) : (
-                <ScrollView style={styles.activeInvitesList} showsVerticalScrollIndicator={false}>
-                  {invites.map((invite) => (
-                    <View key={invite.id} style={styles.activeInviteRow}>
-                      <View style={styles.activeInviteInfo}>
-                        <Text style={styles.activeInviteName}>{invite.clientName || 'Без имени'}</Text>
-                        <Text style={styles.activeInviteCode}>{invite.code}</Text>
+                {activeInvitesExpanded ? (
+                  <ChevronUp size={16} color="#6B7280" />
+                ) : (
+                  <ChevronDown size={16} color="#6B7280" />
+                )}
+              </TouchableOpacity>
+              {activeInvitesExpanded ? (
+                invitesLoading ? (
+                  <View style={styles.invitesLoading}>
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                    <Text style={styles.invitesLoadingText}>Загружаем...</Text>
+                  </View>
+                ) : activeInvites.length === 0 ? (
+                  <Text style={styles.activeInvitesEmpty}>Активных инвайтов нет</Text>
+                ) : (
+                  <ScrollView style={styles.activeInvitesList} showsVerticalScrollIndicator={false}>
+                    {activeInvites.map((invite) => (
+                      <View key={invite.id} style={styles.activeInviteRow}>
+                        <View style={styles.activeInviteInfo}>
+                          <Text style={styles.activeInviteName} numberOfLines={1}>
+                            {invite.clientName || 'Без имени'}
+                          </Text>
+                          <Text style={styles.activeInviteCode}>{invite.code}</Text>
+                        </View>
+                        <View style={styles.activeInviteActions}>
+                          <TouchableOpacity
+                            onPress={() => Clipboard.setStringAsync(invite.code)}
+                            style={styles.inviteActionButton}
+                          >
+                            <ClipboardCopy size={16} color="#111827" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleDeactivateInvite(invite.id)}
+                            style={[styles.inviteActionButton, styles.inviteActionDanger]}
+                          >
+                            <Ban size={16} color="#DC2626" />
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                      <View style={styles.activeInviteActions}>
-                        <TouchableOpacity
-                          onPress={() => Clipboard.setStringAsync(invite.code)}
-                          style={styles.inviteActionButton}
-                        >
-                          <ClipboardCopy size={16} color="#111827" />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleDeactivateInvite(invite.id)}
-                          style={[styles.inviteActionButton, styles.inviteActionDanger]}
-                        >
-                          <Ban size={16} color="#DC2626" />
-                        </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )
+              ) : null}
+            </View>
+
+            <View style={styles.archivedInvites}>
+              <TouchableOpacity
+                onPress={() => setArchivedInvitesExpanded((prev) => !prev)}
+                style={styles.invitesSectionHeader}
+              >
+                <View style={styles.invitesHeaderLeft}>
+                  <Text style={styles.archivedInvitesTitle}>Использованные инвайты</Text>
+                  <Text style={styles.invitesCount}>{archivedInvites.length}</Text>
+                </View>
+                {archivedInvitesExpanded ? (
+                  <ChevronUp size={16} color="#6B7280" />
+                ) : (
+                  <ChevronDown size={16} color="#6B7280" />
+                )}
+              </TouchableOpacity>
+              {archivedInvitesExpanded ? (
+                invitesLoading ? (
+                  <View style={styles.invitesLoading}>
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                    <Text style={styles.invitesLoadingText}>Загружаем...</Text>
+                  </View>
+                ) : archivedInvites.length === 0 ? (
+                  <Text style={styles.activeInvitesEmpty}>Архив пока пуст</Text>
+                ) : (
+                  <ScrollView style={styles.activeInvitesList} showsVerticalScrollIndicator={false}>
+                    {archivedInvites.slice(0, visibleArchivedCount).map((invite) => (
+                      <View key={invite.id} style={styles.archivedInviteRow}>
+                        <View style={styles.activeInviteInfo}>
+                          <Text style={styles.activeInviteName} numberOfLines={1}>
+                            {invite.clientName || 'Без имени'}
+                          </Text>
+                          <Text style={styles.archivedInviteMeta}>
+                            {invite.usedAt ? 'Использован' : 'Истек'}
+                          </Text>
+                        </View>
+                        <View style={styles.archivedInviteCodeWrap}>
+                          <Text style={styles.archivedInviteCode}>{invite.code}</Text>
+                        </View>
                       </View>
-                    </View>
-                  ))}
-                </ScrollView>
-              )}
+                    ))}
+                    {archivedInvites.length > visibleArchivedCount ? (
+                      <TouchableOpacity
+                        style={styles.loadMoreButton}
+                        onPress={() =>
+                          setVisibleArchivedCount((count) =>
+                            Math.min(count + INVITES_PAGE_SIZE, archivedInvites.length)
+                          )
+                        }
+                      >
+                        <Text style={styles.loadMoreText}>Показать ещё</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </ScrollView>
+                )
+              ) : null}
             </View>
 
           </View>
@@ -908,6 +1025,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111827',
   },
+  inviteInputError: {
+    marginTop: 6,
+    fontSize: 12,
+    color: '#DC2626',
+  },
   primaryButton: {
     backgroundColor: COLORS.primary,
     borderRadius: 16,
@@ -966,11 +1088,36 @@ const styles = StyleSheet.create({
   activeInvites: {
     marginTop: 16,
   },
+  archivedInvites: {
+    marginTop: 18,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  invitesSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  invitesHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   activeInvitesTitle: {
     fontSize: 12,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 8,
+  },
+  archivedInvitesTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  invitesCount: {
+    fontSize: 12,
+    color: '#9CA3AF',
   },
   activeInvitesList: {
     maxHeight: 220,
@@ -981,9 +1128,10 @@ const styles = StyleSheet.create({
   },
   activeInviteRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     shadowColor: '#0F172A',
@@ -1000,18 +1148,19 @@ const styles = StyleSheet.create({
   activeInviteName: {
     fontSize: 13,
     color: '#9CA3AF',
-    marginBottom: 4,
+    marginBottom: 2,
     fontWeight: '600',
   },
   activeInviteCode: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#111827',
     letterSpacing: 1.4,
   },
   activeInviteActions: {
-    alignItems: 'flex-end',
-    gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   inviteActionButton: {
     width: 36,
@@ -1023,6 +1172,44 @@ const styles = StyleSheet.create({
   },
   inviteActionDanger: {
     backgroundColor: '#FEF2F2',
+  },
+  archivedInviteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  archivedInviteMeta: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  archivedInviteCodeWrap: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  archivedInviteCode: {
+    fontSize: 12,
+    color: '#374151',
+  },
+  loadMoreButton: {
+    alignSelf: 'center',
+    marginTop: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  loadMoreText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
   },
   invitesLoading: {
     flexDirection: 'row',
