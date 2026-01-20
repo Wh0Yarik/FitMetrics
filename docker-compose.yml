@@ -47,6 +47,8 @@ services:
       - minio
     expose:
       - "3001"
+    ports:
+      - "3001:3001"
   caddy:
     image: caddy:2
     container_name: fitmetrics_caddy
