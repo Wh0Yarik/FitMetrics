@@ -570,17 +570,17 @@ export default function TrainerClientScreen() {
           <View style={styles.sheetContent}>
             <Text style={styles.modalTitle}>Цели по питанию</Text>
             <Text style={styles.modalSubtitle}>Обновите цели для клиента.</Text>
-            <View style={styles.goalGrid}>
+            <View style={styles.goalGridCompactForm}>
               {[
                 { key: 'protein', label: 'Белки', value: draftGoals.protein, color: '#F97373' },
                 { key: 'fat', label: 'Жиры', value: draftGoals.fat, color: '#FBBF24' },
                 { key: 'carbs', label: 'Углеводы', value: draftGoals.carbs, color: '#60A5FA' },
                 { key: 'fiber', label: 'Клетчатка', value: draftGoals.fiber, color: '#34D399' },
               ].map((item) => (
-                <View key={item.key} style={styles.goalItem}>
-                  <View style={styles.goalLabelRow}>
+                <View key={item.key} style={styles.goalItemCompact}>
+                  <View style={styles.goalLabelRowCompact}>
                     <View style={[styles.goalDot, { backgroundColor: item.color }]} />
-                    <Text style={styles.goalLabel}>{item.label}</Text>
+                    <Text style={styles.goalLabelCompact}>{item.label}</Text>
                   </View>
                   <TextInput
                     value={item.value}
@@ -588,7 +588,7 @@ export default function TrainerClientScreen() {
                     keyboardType="number-pad"
                     placeholder="Количество"
                     placeholderTextColor="#9CA3AF"
-                    style={[styles.goalInput, { borderColor: `${item.color}66` }]}
+                    style={[styles.goalInputCompact, { borderColor: `${item.color}66` }]}
                   />
                 </View>
               ))}
@@ -608,7 +608,7 @@ export default function TrainerClientScreen() {
                 <Text style={styles.emptyStateSubtitle}>Появится после первых изменений</Text>
               </View>
             ) : (
-              <View>
+              <ScrollView style={styles.goalHistoryList} showsVerticalScrollIndicator={false}>
                 {goalsHistory.slice(0, visibleGoalsCount).map((item) => (
                   <View key={item.id} style={styles.goalHistoryRow}>
                     <View style={styles.goalHistoryHeader}>
@@ -650,7 +650,7 @@ export default function TrainerClientScreen() {
                     <Text style={styles.loadMoreText}>Показать ещё</Text>
                   </TouchableOpacity>
                 ) : null}
-              </View>
+              </ScrollView>
             )}
           </View>
         </SharedBottomSheet>
@@ -916,6 +916,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 12,
   },
+  goalGridCompactForm: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   goalGridCompact: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -930,6 +935,16 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     padding: 12,
     backgroundColor: '#F9FAFB',
+  },
+  goalItemCompact: {
+    flex: 1,
+    minWidth: 140,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
   },
   goalCompactItem: {
     flex: 1,
@@ -962,6 +977,12 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 6,
   },
+  goalLabelRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
   goalDot: {
     width: 8,
     height: 8,
@@ -969,6 +990,10 @@ const styles = StyleSheet.create({
   },
   goalLabel: {
     fontSize: 11,
+    color: '#6B7280',
+  },
+  goalLabelCompact: {
+    fontSize: 10,
     color: '#6B7280',
   },
   goalValueText: {
@@ -1035,6 +1060,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     color: '#111827',
     marginTop: 6,
+  },
+  goalInputCompact: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 12,
+    backgroundColor: '#FFFFFF',
+    color: '#111827',
   },
   primaryButton: {
     marginTop: 12,
@@ -1301,7 +1336,7 @@ const styles = StyleSheet.create({
   modalSubtitle: {
     fontSize: 12,
     color: '#6B7280',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   photoGrid: {
     flexDirection: 'row',
@@ -1342,6 +1377,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
     marginBottom: 12,
+  },
+  goalHistoryList: {
+    maxHeight: 240,
   },
   emptyTitle: {
     fontSize: 16,
