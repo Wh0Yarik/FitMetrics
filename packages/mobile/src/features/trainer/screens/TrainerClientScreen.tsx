@@ -18,6 +18,8 @@ import { ArrowLeft, Camera, CheckCircle2, Archive, BookOpen, ClipboardCopy, Rule
 import { COLORS } from '../../../constants/Colors';
 import { trainerApi, TrainerClientDetail } from '../services/trainerApi';
 import { emitClientsUpdated } from '../services/trainerEvents';
+import { SharedBottomSheet } from '../../profile/components/SharedBottomSheet';
+import { useTabBarVisibility } from '../../../shared/ui';
 
 type TabKey = 'nutrition' | 'surveys' | 'measurements';
 
@@ -26,8 +28,10 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'surveys', label: 'Анкеты' },
   { key: 'measurements', label: 'Замеры' },
 ];
+const GOALS_PAGE_SIZE = 4;
 
 export default function TrainerClientScreen() {
+  const { setHidden: setTabBarHidden } = useTabBarVisibility();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [client, setClient] = useState<TrainerClientDetail | null>(null);
   const [isLoading, setLoading] = useState(true);
@@ -37,12 +41,15 @@ export default function TrainerClientScreen() {
   const [showPhotos, setShowPhotos] = useState(false);
   const [activePhotos, setActivePhotos] = useState<string[]>([]);
   const [goals, setGoals] = useState({ protein: '', fat: '', carbs: '', fiber: '' });
+  const [draftGoals, setDraftGoals] = useState({ protein: '', fat: '', carbs: '', fiber: '' });
+  const [isGoalsOpen, setGoalsOpen] = useState(false);
+  const [visibleGoalsCount, setVisibleGoalsCount] = useState(GOALS_PAGE_SIZE);
 
   const handleSaveGoals = async () => {
-    const protein = Number(goals.protein);
-    const fat = Number(goals.fat);
-    const carbs = Number(goals.carbs);
-    const fiber = goals.fiber === '' ? null : Number(goals.fiber);
+    const protein = Number(draftGoals.protein);
+    const fat = Number(draftGoals.fat);
+    const carbs = Number(draftGoals.carbs);
+    const fiber = draftGoals.fiber === '' ? null : Number(draftGoals.fiber);
 
     if ([protein, fat, carbs].some((value) => Number.isNaN(value))) {
       Alert.alert('Ошибка', 'Введите корректные значения целей');
@@ -56,6 +63,14 @@ export default function TrainerClientScreen() {
     try {
       await trainerApi.updateGoals(client.id, { protein, fat, carbs, fiber });
       Alert.alert('Готово', 'Цели обновлены');
+      const updatedGoals = {
+        protein: protein.toString(),
+        fat: fat.toString(),
+        carbs: carbs.toString(),
+        fiber: fiber === null ? '' : fiber.toString(),
+      };
+      setGoals(updatedGoals);
+      setDraftGoals(updatedGoals);
       setClient((prev) =>
         prev
           ? {
@@ -69,6 +84,7 @@ export default function TrainerClientScreen() {
             }
           : prev
       );
+      setGoalsOpen(false);
     } catch (error: any) {
       const message = error.response?.data?.message || 'Не удалось обновить цели';
       Alert.alert('Ошибка', message);
@@ -130,6 +146,12 @@ export default function TrainerClientScreen() {
           carbs: data.goals?.carbs?.toString() ?? '',
           fiber: data.goals?.fiber?.toString() ?? '',
         });
+        setDraftGoals({
+          protein: data.goals?.protein?.toString() ?? '',
+          fat: data.goals?.fat?.toString() ?? '',
+          carbs: data.goals?.carbs?.toString() ?? '',
+          fiber: data.goals?.fiber?.toString() ?? '',
+        });
       } catch (error: any) {
         const message = error.response?.data?.message || 'Не удалось загрузить клиента';
         Alert.alert('Ошибка', message);
@@ -140,6 +162,18 @@ export default function TrainerClientScreen() {
 
     loadClient();
   }, [id]);
+
+  const goalsHistory = client?.goalsHistory ?? [];
+
+  useEffect(() => {
+    if (goalsHistory.length) {
+      setVisibleGoalsCount(GOALS_PAGE_SIZE);
+    }
+  }, [goalsHistory.length]);
+
+  useEffect(() => {
+    setTabBarHidden(isGoalsOpen);
+  }, [isGoalsOpen, setTabBarHidden]);
 
   const lastMeasurementInfo = useMemo(() => {
     const parseDate = (value: string) => {
@@ -174,7 +208,7 @@ export default function TrainerClientScreen() {
           month: 'short',
           year: 'numeric',
         });
-        const daysLabel = days === 0 ? 'сегодня' : `${days} дн назад`;
+        const daysLabel = days === 0 ? 'сегодня' : `${days} дн.`;
         return { dateLabel, daysLabel };
       }
       const rawLabel = client?.measurements?.[0]?.date;
@@ -196,6 +230,34 @@ export default function TrainerClientScreen() {
     const daysLabel = days === 0 ? 'сегодня' : `${days} дн назад`;
     return { dateLabel, daysLabel };
   }, [client]);
+
+  const nutritionStatus = useMemo(() => {
+    const score = client?.complianceScore ?? 0;
+    if (score >= 5.5) return 'Good';
+    if (score >= 3.5) return 'Warn';
+    return 'Bad';
+  }, [client]);
+
+  const surveysStatus = useMemo(() => {
+    const total = client?.surveyAdherenceDays ?? 0;
+    if (total === 0) return 'Bad';
+    const ratio = (client?.surveyAdherenceCount ?? 0) / total;
+    if (ratio >= 0.8) return 'Good';
+    if (ratio >= 0.5) return 'Warn';
+    return 'Bad';
+  }, [client]);
+
+  const measurementsStatus = useMemo(() => {
+    const daysLabel = lastMeasurementInfo.daysLabel;
+    if (!daysLabel) return 'Bad';
+    if (daysLabel === 'сегодня') return 'Good';
+    const daysMatch = /(\d+)/.exec(daysLabel);
+    const days = daysMatch ? Number(daysMatch[1]) : null;
+    if (days === null) return 'Bad';
+    if (days <= 7) return 'Good';
+    if (days <= 14) return 'Warn';
+    return 'Bad';
+  }, [lastMeasurementInfo.daysLabel]);
 
   if (isLoading) {
     return (
@@ -263,22 +325,29 @@ export default function TrainerClientScreen() {
               )}
             </View>
             <View style={styles.headerStatsRow}>
-              <View style={styles.headerStat}>
-                <Text style={styles.headerStatLabel}>Питание</Text>
-                <Text style={styles.headerStatValue}>{client.complianceScore.toFixed(1)}/7</Text>
+              <View style={[styles.headerStat, styles[`headerStat${nutritionStatus}` as keyof typeof styles]]}>
+                <Text style={[styles.headerStatLabel, styles[`headerStatLabel${nutritionStatus}` as keyof typeof styles]]}>
+                  Питание
+                </Text>
+                <Text style={[styles.headerStatValue, styles[`headerStatValue${nutritionStatus}` as keyof typeof styles]]}>
+                  {client.complianceScore.toFixed(1)}/7
+                </Text>
               </View>
-              <View style={styles.headerStat}>
-                <Text style={styles.headerStatLabel}>Анкеты</Text>
-                <Text style={styles.headerStatValue}>
+              <View style={[styles.headerStat, styles[`headerStat${surveysStatus}` as keyof typeof styles]]}>
+                <Text style={[styles.headerStatLabel, styles[`headerStatLabel${surveysStatus}` as keyof typeof styles]]}>
+                  Анкеты
+                </Text>
+                <Text style={[styles.headerStatValue, styles[`headerStatValue${surveysStatus}` as keyof typeof styles]]}>
                   {client.surveyAdherenceCount}/{client.surveyAdherenceDays}
                 </Text>
               </View>
-              <View style={styles.headerStat}>
-                <Text style={styles.headerStatLabel}>Последний замер</Text>
-                <Text style={styles.headerStatValue}>{lastMeasurementInfo.dateLabel}</Text>
-                {lastMeasurementInfo.daysLabel ? (
-                  <Text style={styles.headerStatMeta}>{lastMeasurementInfo.daysLabel}</Text>
-                ) : null}
+              <View style={[styles.headerStat, styles[`headerStat${measurementsStatus}` as keyof typeof styles]]}>
+                <Text style={[styles.headerStatLabel, styles[`headerStatLabel${measurementsStatus}` as keyof typeof styles]]}>
+                  Замер
+                </Text>
+                <Text style={[styles.headerStatValue, styles[`headerStatValue${measurementsStatus}` as keyof typeof styles]]}>
+                  {lastMeasurementInfo.daysLabel || '—'}
+                </Text>
               </View>
             </View>
           </View>
@@ -303,30 +372,31 @@ export default function TrainerClientScreen() {
                 </View>
                 <Text style={styles.sectionTitle}>Цели по питанию</Text>
               </View>
-              <View style={styles.goalGrid}>
+              <View style={styles.goalGridCompact}>
                 {[
-                  { key: 'protein', label: 'Белки', value: goals.protein, color: '#F97373' },
-                  { key: 'fat', label: 'Жиры', value: goals.fat, color: '#FBBF24' },
-                  { key: 'carbs', label: 'Углеводы', value: goals.carbs, color: '#60A5FA' },
-                  { key: 'fiber', label: 'Клетчатка', value: goals.fiber, color: '#34D399' },
+                  { key: 'protein', label: 'Б', value: goals.protein, color: '#F97373' },
+                  { key: 'fat', label: 'Ж', value: goals.fat, color: '#FBBF24' },
+                  { key: 'carbs', label: 'У', value: goals.carbs, color: '#60A5FA' },
+                  { key: 'fiber', label: 'К', value: goals.fiber, color: '#34D399' },
                 ].map((item) => (
-                  <View key={item.key} style={styles.goalItem}>
-                    <View style={styles.goalLabelRow}>
-                      <View style={[styles.goalDot, { backgroundColor: item.color }]} />
-                      <Text style={styles.goalLabel}>{item.label}</Text>
+                  <View key={item.key} style={styles.goalCompactItem}>
+                    <View style={[styles.goalBadge, { backgroundColor: `${item.color}22` }]}>
+                      <Text style={[styles.goalBadgeText, { color: item.color }]}>{item.label}</Text>
                     </View>
-                    <TextInput
-                      value={item.value}
-                      onChangeText={(value) => setGoals((prev) => ({ ...prev, [item.key]: value }))}
-                      keyboardType="number-pad"
-                      style={styles.goalInput}
-                    />
-                    <Text style={styles.goalUnit}>порций</Text>
+                    <Text style={styles.goalValueText}>
+                      {item.value ? item.value : '—'}
+                    </Text>
                   </View>
                 ))}
               </View>
-              <TouchableOpacity onPress={handleSaveGoals} style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>Установить цели</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setDraftGoals(goals);
+                  setGoalsOpen(true);
+                }}
+                style={styles.secondaryButton}
+              >
+                <Text style={styles.secondaryButtonText}>Изменить цели</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -488,6 +558,103 @@ export default function TrainerClientScreen() {
           )}
         </ScrollView>
 
+        <SharedBottomSheet
+          visible={isGoalsOpen}
+          onClose={() => {
+            setDraftGoals(goals);
+            setGoalsOpen(false);
+          }}
+          enableSwipeToDismiss
+          headerSwipeHeight={56}
+        >
+          <View style={styles.sheetContent}>
+            <Text style={styles.modalTitle}>Цели по питанию</Text>
+            <Text style={styles.modalSubtitle}>Обновите цели для клиента.</Text>
+            <View style={styles.goalGrid}>
+              {[
+                { key: 'protein', label: 'Белки', value: draftGoals.protein, color: '#F97373' },
+                { key: 'fat', label: 'Жиры', value: draftGoals.fat, color: '#FBBF24' },
+                { key: 'carbs', label: 'Углеводы', value: draftGoals.carbs, color: '#60A5FA' },
+                { key: 'fiber', label: 'Клетчатка', value: draftGoals.fiber, color: '#34D399' },
+              ].map((item) => (
+                <View key={item.key} style={styles.goalItem}>
+                  <View style={styles.goalLabelRow}>
+                    <View style={[styles.goalDot, { backgroundColor: item.color }]} />
+                    <Text style={styles.goalLabel}>{item.label}</Text>
+                  </View>
+                  <TextInput
+                    value={item.value}
+                    onChangeText={(value) => setDraftGoals((prev) => ({ ...prev, [item.key]: value }))}
+                    keyboardType="number-pad"
+                    placeholder="Количество"
+                    placeholderTextColor="#9CA3AF"
+                    style={[styles.goalInput, { borderColor: `${item.color}66` }]}
+                  />
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity onPress={handleSaveGoals} style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>Сохранить</Text>
+            </TouchableOpacity>
+
+            <View style={styles.sheetDivider} />
+            <Text style={styles.sheetSectionTitle}>История целей</Text>
+            {goalsHistory.length === 0 ? (
+              <View style={styles.emptyStateCard}>
+                <View style={styles.emptyIconWrap}>
+                  <BookOpen size={18} color="#6B7280" />
+                </View>
+                <Text style={styles.emptyStateTitle}>История пока пуста</Text>
+                <Text style={styles.emptyStateSubtitle}>Появится после первых изменений</Text>
+              </View>
+            ) : (
+              <View>
+                {goalsHistory.slice(0, visibleGoalsCount).map((item) => (
+                  <View key={item.id} style={styles.goalHistoryRow}>
+                    <View style={styles.goalHistoryHeader}>
+                      <Text style={styles.goalHistoryDate}>
+                        {new Date(item.startDate).toLocaleDateString('ru-RU', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </Text>
+                      <Text style={styles.goalHistoryRange}>
+                        {item.endDate ? 'завершено' : 'активно'}
+                      </Text>
+                    </View>
+                    <View style={styles.goalHistoryChips}>
+                      {[
+                        { label: 'Б', value: item.protein, color: '#F97373' },
+                        { label: 'Ж', value: item.fat, color: '#FBBF24' },
+                        { label: 'У', value: item.carbs, color: '#60A5FA' },
+                        { label: 'К', value: item.fiber, color: '#34D399' },
+                      ].map((chip) => (
+                        <View key={chip.label} style={[styles.goalHistoryChip, { borderColor: `${chip.color}55` }]}>
+                          <Text style={[styles.goalHistoryChipLabel, { color: chip.color }]}>{chip.label}</Text>
+                          <Text style={styles.goalHistoryChipValue}>{chip.value}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                ))}
+                {goalsHistory.length > visibleGoalsCount ? (
+                  <TouchableOpacity
+                    style={styles.loadMoreButton}
+                    onPress={() =>
+                      setVisibleGoalsCount((count) =>
+                        Math.min(count + GOALS_PAGE_SIZE, goalsHistory.length)
+                      )
+                    }
+                  >
+                    <Text style={styles.loadMoreText}>Показать ещё</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            )}
+          </View>
+        </SharedBottomSheet>
+
         <Modal
           visible={showPhotos}
           transparent
@@ -633,17 +800,49 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: '#F9FAFB',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  headerStatGood: {
+    backgroundColor: '#ECFDF3',
+    borderColor: '#6EE7B7',
+  },
+  headerStatWarn: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FCD34D',
+  },
+  headerStatBad: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FCA5A5',
   },
   headerStatLabel: {
     fontSize: 11,
     color: '#6B7280',
     textAlign: 'center',
   },
+  headerStatLabelGood: {
+    color: '#047857',
+  },
+  headerStatLabelWarn: {
+    color: '#92400E',
+  },
+  headerStatLabelBad: {
+    color: '#B91C1C',
+  },
   headerStatValue: {
     fontSize: 14,
     fontWeight: '700',
     color: '#111827',
     marginTop: 6,
+  },
+  headerStatValueGood: {
+    color: '#047857',
+  },
+  headerStatValueWarn: {
+    color: '#92400E',
+  },
+  headerStatValueBad: {
+    color: '#B91C1C',
   },
   headerStatMeta: {
     marginTop: 4,
@@ -717,6 +916,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 12,
   },
+  goalGridCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
   goalItem: {
     flex: 1,
     minWidth: 120,
@@ -726,10 +931,36 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: '#F9FAFB',
   },
+  goalCompactItem: {
+    flex: 1,
+    minWidth: 64,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  goalBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goalBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
   goalLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginBottom: 6,
   },
   goalDot: {
     width: 8,
@@ -740,6 +971,60 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#6B7280',
   },
+  goalValueText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+    fontVariant: ['tabular-nums'],
+  },
+  goalHistoryRow: {
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    marginBottom: 10,
+  },
+  goalHistoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  goalHistoryDate: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  goalHistoryRange: {
+    fontSize: 11,
+    color: '#6B7280',
+  },
+  goalHistoryChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  goalHistoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  goalHistoryChipLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  goalHistoryChipValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#111827',
+    fontVariant: ['tabular-nums'],
+  },
   goalInput: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -749,11 +1034,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     backgroundColor: '#FFFFFF',
     color: '#111827',
-    marginTop: 6,
-  },
-  goalUnit: {
-    fontSize: 10,
-    color: '#6B7280',
     marginTop: 6,
   },
   primaryButton: {
@@ -880,6 +1160,21 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
   },
+  loadMoreButton: {
+    alignSelf: 'center',
+    marginTop: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  loadMoreText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
   surveyDetailLabel: {
     fontSize: 11,
     color: '#6B7280',
@@ -1003,6 +1298,11 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginBottom: 12,
   },
+  modalSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 12,
+  },
   photoGrid: {
     flexDirection: 'row',
     gap: 12,
@@ -1027,6 +1327,21 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sheetContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  sheetDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 16,
+  },
+  sheetSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
   },
   emptyTitle: {
     fontSize: 16,

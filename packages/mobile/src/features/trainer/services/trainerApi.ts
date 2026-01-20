@@ -59,6 +59,15 @@ export type TrainerClientDetail = {
   surveys: TrainerSurvey[];
   measurements: TrainerMeasurement[];
   lastMeasurementDate: string | null;
+  goalsHistory: {
+    id: string;
+    startDate: string;
+    endDate: string | null;
+    protein: number;
+    fat: number;
+    carbs: number;
+    fiber: number;
+  }[];
 };
 
 export type TrainerInvite = {

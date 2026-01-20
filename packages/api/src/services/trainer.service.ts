@@ -241,6 +241,11 @@ export class TrainerService {
       orderBy: { startDate: 'desc' },
     });
 
+    const goalsHistory = await prisma.nutritionGoal.findMany({
+      where: { clientId: client.id },
+      orderBy: { startDate: 'desc' },
+    });
+
     const diaryEntries = await prisma.diaryEntry.findMany({
       where: { clientId: client.id, date: { gte: weekStart, lte: today } },
       orderBy: { date: 'asc' },
@@ -343,6 +348,15 @@ export class TrainerService {
       createdAt: client.createdAt,
       archived: client.archivedAt !== null,
       lastMeasurementDate: latestMeasurementDate ? latestMeasurementDate.toISOString() : null,
+      goalsHistory: goalsHistory.map((item) => ({
+        id: item.id,
+        startDate: item.startDate.toISOString(),
+        endDate: item.endDate ? item.endDate.toISOString() : null,
+        protein: item.dailyProtein,
+        fat: item.dailyFat,
+        carbs: item.dailyCarbs,
+        fiber: item.dailyFiber ?? 0,
+      })),
       goals: goal
         ? {
           protein: goal.dailyProtein,
