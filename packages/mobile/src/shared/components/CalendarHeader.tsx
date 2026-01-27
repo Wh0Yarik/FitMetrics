@@ -93,13 +93,13 @@ const WeekProgressBorder = ({
         d={path}
         fill="none"
         stroke={baseColor}
-        strokeWidth="2"
+        strokeWidth="0.5"
       />
       <Path
         d={path}
         fill="none"
         stroke={`url(#${gradientId})`}
-        strokeWidth="2"
+        strokeWidth="1.5"
         strokeDasharray={`${filled} ${remaining}`}
         strokeDashoffset="0"
         strokeLinecap="round"
@@ -110,7 +110,7 @@ const WeekProgressBorder = ({
           d={path}
           fill="none"
           stroke={overflowColor}
-          strokeWidth="2"
+          strokeWidth="1.5"
           strokeDasharray={`${overflowFilled} ${overflowRemaining}`}
           strokeDashoffset="0"
           strokeLinecap="round"
@@ -152,23 +152,17 @@ export const CalendarHeader = ({
           <View style={styles.dateWrap}>
             <TouchableOpacity style={[styles.dateRow, isCompact && styles.dateRowCompact]} onPress={onOpenCalendar}>
               <View style={styles.dateLeft}>
-                {relativeLabel ? (
-                  <View style={[styles.relativePill, isCompact && styles.relativePillCompact]}>
-                    <Text style={[styles.relativePillText, isCompact && styles.relativePillTextCompact]} allowFontScaling={false}>
-                      {relativeLabel}
-                    </Text>
-                  </View>
-                ) : null}
-                <Text
-                  style={[styles.dateText, isCompact && styles.dateTextCompact]}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                  allowFontScaling={false}
-                >
-                  {dateLabel}
-                </Text>
+                <View style={[styles.relativePill, isCompact && styles.relativePillCompact]}>
+                  <Text
+                    style={[styles.relativePillText, isCompact && styles.relativePillTextCompact]}
+                    numberOfLines={1}
+                    allowFontScaling={false}
+                  >
+                    {relativeLabel ?? dateLabel}
+                    <ChevronDown size={14} color={COLORS.primary} />
+                  </Text>
+                </View>
               </View>
-              <ChevronDown size={16} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
           {syncStatus ? (
@@ -176,16 +170,14 @@ export const CalendarHeader = ({
               <View
                 style={[
                   styles.syncBadge,
-                  syncStatus === 'synced' && styles.syncBadgeSuccess,
-                  syncStatus === 'local' && styles.syncBadgeLocal,
                 ]}
               >
                 {syncStatus === 'syncing' ? (
-                  <RefreshCw size={14} color="#6B7280" />
+                  <RefreshCw size={14} color="#9CA3AF" />
                 ) : syncStatus === 'synced' ? (
-                  <Cloud size={14} color="#10B981" />
+                  <Cloud size={14} color="#9CA3AF" />
                 ) : (
-                  <CloudOff size={14} color="#F97316" />
+                  <CloudOff size={14} color="#9CA3AF" />
                 )}
               </View>
             </View>
@@ -248,20 +240,16 @@ export const CalendarHeader = ({
                           day.isSelected && markerState === 'partial' && styles.weekDayDotPartialSelected,
                         ]}
                       />
-                      {day.isSelected ? (
-                        <View style={[styles.weekDayNumberPill, isCompact && styles.weekDayNumberPillCompact]}>
-                          <Text
-                            style={[styles.weekDayNumberSelected, isCompact && styles.weekDayNumberSelectedCompact]}
-                            allowFontScaling={false}
-                          >
-                            {day.day}
-                          </Text>
-                        </View>
-                      ) : (
-                        <Text style={[styles.weekDayNumber, isCompact && styles.weekDayNumberCompact]} allowFontScaling={false}>
-                          {day.day}
-                        </Text>
-                      )}
+                      <Text
+                        style={[
+                          styles.weekDayNumber,
+                          isCompact && styles.weekDayNumberCompact,
+                          day.isSelected && styles.weekDayNumberSelected,
+                        ]}
+                        allowFontScaling={false}
+                      >
+                        {day.day}
+                      </Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -288,20 +276,20 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   headerWrapper: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 0,
     paddingTop: 8,
     paddingBottom: 0,
   },
   headerCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
     borderRadius: 24,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
+    padding: 0,
+    borderWidth: 0,
+    borderColor: 'transparent',
+    shadowColor: 'transparent',
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
   },
   dateWrap: {
     flex: 1,
@@ -310,12 +298,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 0,
   },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 4,
-    gap: 8,
+    justifyContent: 'space-between',
   },
   dateRowCompact: {
     gap: 6,
@@ -324,35 +313,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flexShrink: 1,
+    flex: 1,
+    marginRight: 8,
   },
   relativePill: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: 'rgba(80, 202, 100, 0.12)',
     borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  relativePillCompact: {
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  relativePillCompact: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
   relativePillText: {
-    color: '#FFFFFF',
-    fontSize: 18,
+    color: COLORS.primary,
+    fontSize: 16,
     fontFamily: fonts.semibold,
   },
   relativePillTextCompact: {
-    fontSize: 15,
+    fontSize: 13,
+    fontFamily: fonts.semibold,
   },
   dateText: {
-    color: '#111827',
-    fontSize: 18,
+    color: '#6B7280',
+    fontSize: 16,
     fontFamily: fonts.semibold,
-    paddingVertical: 4,
-    flexShrink: 1,
   },
   dateTextCompact: {
     fontSize: 15,
+    fontFamily: fonts.semibold,
   },
   syncStatus: {
     flexDirection: 'row',
@@ -361,23 +351,27 @@ const styles = StyleSheet.create({
   syncBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-  },
-  syncBadgeSuccess: {
-    backgroundColor: '#ECFDF3',
-  },
-  syncBadgeLocal: {
-    backgroundColor: '#FFF7ED',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   weekRow: {
     marginTop: 12,
     overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 0,
+    paddingVertical: 12,
+    borderWidth: 0,
+    borderColor: 'transparent',
   },
   weekRowCompact: {
     marginTop: 10,
+    paddingHorizontal: 2,
+    paddingVertical: 6,
   },
   weekTrack: {
     flexDirection: 'row',
@@ -385,8 +379,8 @@ const styles = StyleSheet.create({
   weekDays: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 6,
-    paddingRight: 6,
+    gap: 5,
+    paddingHorizontal: 6,
   },
   weekDayItem: {
     width: 38,
@@ -394,8 +388,8 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderWidth: 0,
+    borderColor: 'transparent',
     backgroundColor: '#FFFFFF',
   },
   weekDayItemCompact: {
@@ -421,10 +415,11 @@ const styles = StyleSheet.create({
   weekDayLabel: {
     fontSize: 10,
     color: '#9CA3AF',
-    fontFamily: fonts.semibold,
+    fontFamily: fonts.bold,
   },
   weekDayLabelCompact: {
     fontSize: 9,
+    fontFamily: fonts.bold,
   },
   weekDayLabelSelected: {
     color: '#FFFFFF',
@@ -437,17 +432,18 @@ const styles = StyleSheet.create({
   },
   weekDayNumberCompact: {
     fontSize: 13,
+    fontFamily: fonts.light,
   },
   weekDayDot: {
-    width: 6,
-    height: 6,
+    width: 5,
+    height: 5,
     borderRadius: 999,
     marginTop: 4,
     backgroundColor: COLORS.primary,
   },
   weekDayDotCompact: {
-    width: 5,
-    height: 5,
+    width: 4,
+    height: 4,
   },
   weekDayDotPartial: {
     backgroundColor: '#F97316',
@@ -461,26 +457,13 @@ const styles = StyleSheet.create({
   weekDayDotPartialSelected: {
     backgroundColor: '#FDBA74',
   },
-  weekDayNumberPill: {
-    marginTop: 4,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  weekDayNumberPillCompact: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-  },
   weekDayNumberSelected: {
     fontSize: 15,
     fontFamily: fonts.medium,
-    color: COLORS.primary,
+    color: '#FFFFFF',
   },
   weekDayNumberSelectedCompact: {
     fontSize: 13,
+    fontFamily: fonts.medium,
   },
 });

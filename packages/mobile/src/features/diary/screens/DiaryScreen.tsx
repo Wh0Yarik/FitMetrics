@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StatusBar, Alert, BackHandler, StyleSheet, Modal, Pressable, Animated, useWindowDimensions } from 'react-native';
-import { Check, Plus, ChevronLeft } from 'lucide-react-native';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, Alert, BackHandler, StyleSheet, Modal, Pressable, Animated, useWindowDimensions, Image } from 'react-native';
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import type { Swipeable } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 
 import { AddMealModal, PortionCount } from '../components/AddMealModal';
 import { DailySurveyModal } from '../components/DailySurveyModal';
@@ -20,6 +21,11 @@ import { colors, fonts, radii, shadows, spacing, useTabBarVisibility } from '../
 import { api } from '../../../shared/api/client';
 import { CalendarHeader, CalendarWeekDay } from '../../../shared/components/CalendarHeader';
 import { formatDateKey, getDateObj, getWeekDates, getHeaderTitle, getRelativeLabel, shiftDate, WEEKDAY_LABELS } from '../../../shared/lib/date';
+import { SharedBottomSheet } from '../../profile/components/SharedBottomSheet';
+import proteinImage from '../../../../assets/portion_protein.png';
+import fatImage from '../../../../assets/portion_fat.png';
+import fiberImage from '../../../../assets/portion_fiber.png';
+import carbsImage from '../../../../assets/portion_carbs.png';
 
 // --- Конфигурация и константы ---
 
@@ -47,6 +53,7 @@ export default function DiaryScreen() {
   const [editingMeal, setEditingMeal] = useState<MealEntry | null>(null);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const openSwipeRefs = useRef<Set<Swipeable>>(new Set());
+  const [activeMacroSheet, setActiveMacroSheet] = useState<'protein' | 'fat' | 'fiber' | 'carbs' | null>(null);
   const [nutritionTargets, setNutritionTargets] = useState<{
     dailyProtein: number;
     dailyFat: number;
@@ -65,6 +72,8 @@ export default function DiaryScreen() {
   >([]);
   const [hasTrainer, setHasTrainer] = useState(false);
   const { setHidden: setTabBarHidden } = useTabBarVisibility();
+  const surveyPressAnim = useRef(new Animated.Value(1)).current;
+  const addMealPressAnim = useRef(new Animated.Value(1)).current;
 
   // Подключение хуков логики
   const { meals, surveyStatus, dailySurvey, syncStatus, setSyncStatus, refreshData } = useDiaryData(currentDate);
@@ -113,6 +122,42 @@ export default function DiaryScreen() {
     () => resolveNutritionGoalForDate(currentDate),
     [currentDate, resolveNutritionGoalForDate]
   );
+
+  const handleSurveyPressIn = useCallback(() => {
+    Animated.spring(surveyPressAnim, {
+      toValue: 0.98,
+      speed: 14,
+      bounciness: 4,
+      useNativeDriver: true,
+    }).start();
+  }, [surveyPressAnim]);
+
+  const handleSurveyPressOut = useCallback(() => {
+    Animated.spring(surveyPressAnim, {
+      toValue: 1,
+      speed: 14,
+      bounciness: 4,
+      useNativeDriver: true,
+    }).start();
+  }, [surveyPressAnim]);
+
+  const handleAddMealPressIn = useCallback(() => {
+    Animated.spring(addMealPressAnim, {
+      toValue: 0.98,
+      speed: 16,
+      bounciness: 4,
+      useNativeDriver: true,
+    }).start();
+  }, [addMealPressAnim]);
+
+  const handleAddMealPressOut = useCallback(() => {
+    Animated.spring(addMealPressAnim, {
+      toValue: 1,
+      speed: 16,
+      bounciness: 4,
+      useNativeDriver: true,
+    }).start();
+  }, [addMealPressAnim]);
 
 
   const buildWeekDays = useCallback((baseDate: string) => {
@@ -323,8 +368,8 @@ export default function DiaryScreen() {
     );
 
   useEffect(() => {
-    setTabBarHidden(isMealModalOpen || isSurveyModalOpen);
-  }, [isMealModalOpen, isSurveyModalOpen, setTabBarHidden]);
+    setTabBarHidden(isMealModalOpen || isSurveyModalOpen || activeMacroSheet !== null);
+  }, [isMealModalOpen, isSurveyModalOpen, activeMacroSheet, setTabBarHidden]);
 
   return (
     <GestureHandlerRootView style={styles.screen}>
@@ -332,19 +377,6 @@ export default function DiaryScreen() {
       <View pointerEvents="none" style={styles.bgAccentSecondary} />
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <StatusBar barStyle="dark-content" />
-        <CalendarHeader
-          dateLabel={getHeaderTitle(currentDate)}
-          relativeLabel={relativeLabel}
-          syncStatus={syncStatus}
-          weekSets={calendarWeekSets}
-          onOpenCalendar={openCalendar}
-          onSelectDay={selectDate}
-          weekSwipeAnim={weekSwipeAnim}
-          weekPanHandlers={weekPanResponder.panHandlers}
-          weekWidth={weekWidth}
-          onWeekLayout={setWeekWidth}
-          useSafeArea={false}
-        />
         <ScrollView 
           // Основной скроллируемый контент
           className="flex-1"
@@ -358,6 +390,19 @@ export default function DiaryScreen() {
           }}
           scrollEventThrottle={16}
         >
+          <CalendarHeader
+            dateLabel={getHeaderTitle(currentDate)}
+            relativeLabel={relativeLabel}
+            syncStatus={syncStatus}
+            weekSets={calendarWeekSets}
+            onOpenCalendar={openCalendar}
+            onSelectDay={selectDate}
+            weekSwipeAnim={weekSwipeAnim}
+            weekPanHandlers={weekPanResponder.panHandlers}
+            weekWidth={weekWidth}
+            onWeekLayout={setWeekWidth}
+            useSafeArea={false}
+          />
           {/* Сетка целей (План/Факт по нутриентам) */}
 
           <View style={styles.macroGrid}>
@@ -367,6 +412,7 @@ export default function DiaryScreen() {
               target={activeGoal?.dailyProtein ?? 0}
               accent={colors.accentProtein}
               showTarget={hasNutritionTargets}
+              onPress={() => setActiveMacroSheet('protein')}
             />
             <MacroCard
               label="Жиры"
@@ -374,6 +420,7 @@ export default function DiaryScreen() {
               target={activeGoal?.dailyFat ?? 0}
               accent={colors.accentFat}
               showTarget={hasNutritionTargets}
+              onPress={() => setActiveMacroSheet('fat')}
             />
             <MacroCard
               label="Углеводы"
@@ -381,6 +428,7 @@ export default function DiaryScreen() {
               target={activeGoal?.dailyCarbs ?? 0}
               accent={colors.accentCarbs}
               showTarget={hasNutritionTargets}
+              onPress={() => setActiveMacroSheet('carbs')}
             />
             <MacroCard
               label="Клетчатка"
@@ -388,62 +436,67 @@ export default function DiaryScreen() {
               target={activeGoal?.dailyFiber ?? 0}
               accent={colors.accentFiber}
               showTarget={hasNutritionTargets}
+              onPress={() => setActiveMacroSheet('fiber')}
             />
           </View>
-          <TouchableOpacity
-            onPress={() => setSurveyModalOpen(true)}
-            activeOpacity={0.85}
-            style={[
-              styles.surveyStrip,
-              isCompact && styles.surveyStripCompact,
-              surveyStatus === 'complete' ? styles.surveyStripComplete : styles.surveyStripPending,
-            ]}
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              setSurveyModalOpen(true);
+            }}
+            onPressIn={handleSurveyPressIn}
+            onPressOut={handleSurveyPressOut}
           >
-            <View style={[styles.surveyStripRow, isCompact && styles.surveyStripRowCompact]}>
-              <View style={[styles.surveyStripLeft, isCompact && styles.surveyStripLeftCompact]}>
+            <Animated.View
+              style={[
+                styles.surveyStrip,
+                isCompact && styles.surveyStripCompact,
+                surveyStatus === 'complete' ? styles.surveyStripComplete : styles.surveyStripPending,
+                { transform: [{ scale: surveyPressAnim }] },
+              ]}
+            >
+              <View style={[styles.surveyStripRow, isCompact && styles.surveyStripRowCompact]}>
+                <View style={[styles.surveyStripLeft, isCompact && styles.surveyStripLeftCompact]}>
+                  <View
+                    style={[
+                      styles.surveyStatusDot,
+                      isCompact && styles.surveyStatusDotCompact,
+                      surveyStatus === 'complete'
+                        ? styles.surveyStatusComplete
+                        : surveyStatus === 'partial'
+                          ? styles.surveyStatusPartial
+                          : styles.surveyStatusEmpty,
+                    ]}
+                  />
+                  <View>
+                    <Text
+                      style={[
+                        styles.surveyStripCta,
+                        isCompact && styles.surveyStripCtaCompact,
+                        surveyStatus === 'complete' ? styles.surveyStripCtaComplete : styles.surveyStripCtaPending,
+                      ]}
+                      allowFontScaling={false}
+                      numberOfLines={1}
+                    >
+                      {surveyStatus === 'complete' ? 'Анкета заполнена' : 'Заполни ежедневную анкету'}
+                    </Text>
+                  </View>
+                </View>
                 <View
                   style={[
-                    styles.surveyStatusDot,
-                    isCompact && styles.surveyStatusDotCompact,
-                    surveyStatus === 'complete'
-                      ? styles.surveyStatusComplete
-                      : surveyStatus === 'partial'
-                        ? styles.surveyStatusPartial
-                        : styles.surveyStatusEmpty,
+                    styles.surveyAddButton,
+                    styles.surveyAddButtonIconOnly,
+                    isCompact && styles.surveyAddButtonCompact,
                   ]}
-                />
-                <View>
-                  <Text
-                    style={[
-                      styles.surveyStripCta,
-                      isCompact && styles.surveyStripCtaCompact,
-                      surveyStatus === 'complete' ? styles.surveyStripCtaComplete : styles.surveyStripCtaPending,
-                    ]}
-                    allowFontScaling={false}
-                    numberOfLines={1}
-                  >
-                    {surveyStatus === 'complete'
-                      ? `Заполнено • ${relativeLabel ?? 'сегодня'}`
-                      : 'Заполнить'}
-                  </Text>
+                >
+                  <ChevronRight
+                    size={18}
+                    color={surveyStatus === 'complete' ? colors.accentFiber : '#9A5B00'}
+                  />
                 </View>
               </View>
-              <View
-                style={[
-                  styles.surveyAddButton,
-                  surveyStatus === 'complete' ? styles.surveyAddButtonCheck : styles.surveyAddButtonIconOnly,
-                  isCompact && styles.surveyAddButtonCompact,
-                ]}
-              >
-                {surveyStatus === 'complete' ? (
-                  <Check size={16} color={colors.primary} />
-                ) : (
-                  <Plus size={16} color={colors.primary} />
-                )}
-              </View>
-            </View>
-          </TouchableOpacity>
-          <View style={styles.sectionDivider} />
+            </Animated.View>
+          </Pressable>
 
         {/* Список приемов пищи */}
         <View style={{  paddingVertical: spacing.lg }}>
@@ -453,33 +506,43 @@ export default function DiaryScreen() {
                 Дневник питания
               </Text>
               {isCompact ? (
-                <TouchableOpacity
-                  onPress={handleOpenAddMeal}
-                  style={styles.listAddCircle}
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    handleOpenAddMeal();
+                  }}
+                  onPressIn={handleAddMealPressIn}
+                  onPressOut={handleAddMealPressOut}
+                  android_ripple={{ color: 'transparent' }}
                 >
-                  <Plus size={16} color={colors.primary} />
-                </TouchableOpacity>
+                  <Animated.View style={[styles.listAddCircle, { transform: [{ scale: addMealPressAnim }] }]}>
+                    <Plus size={16} color={colors.primary} />
+                  </Animated.View>
+                </Pressable>
               ) : null}
-              <View style={[styles.listCountChip, isCompact && styles.listCountChipCompact]}>
-                <Text style={[styles.listCountText, isCompact && styles.listCountTextCompact]} allowFontScaling={false}>
-                  {meals.length} приемов
-                </Text>
-              </View>
+              
             </View>
             {!isCompact ? (
-              <TouchableOpacity
-                onPress={handleOpenAddMeal}
-                style={styles.primaryButton}
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  handleOpenAddMeal();
+                }}
+                onPressIn={handleAddMealPressIn}
+                onPressOut={handleAddMealPressOut}
+                android_ripple={{ color: 'transparent' }}
               >
-                <Plus size={16} color={colors.surface} />
-                <Text style={styles.primaryButtonText} allowFontScaling={false}>
-                  Добавить
-                </Text>
-              </TouchableOpacity>
+                <Animated.View style={[styles.primaryButton, { transform: [{ scale: addMealPressAnim }] }]}>
+                  <Plus size={16} color={colors.surface} />
+                  <Text style={styles.primaryButtonText} allowFontScaling={false}>
+                    Добавить
+                  </Text>
+                </Animated.View>
+              </Pressable>
             ) : null}
           </View>
 
-          <View className="gap-2">
+          <View style={styles.mealsList}>
             {meals.map((meal, index) => (
               <MealItem
                 key={meal.id}
@@ -491,20 +554,27 @@ export default function DiaryScreen() {
                 onSwipeableOpen={handleSwipeableOpen}
                 onSwipeableClose={handleSwipeableClose}
               />
-              ))}
+            ))}
 
-            {/* Кнопка добавления в конце списка */}
-            <TouchableOpacity 
-              onPress={handleOpenAddMeal}
-              style={styles.addCard}
-            >
-              <View style={styles.addIcon}>
-                <Plus size={20} color={colors.primary} />
-              </View>
-              <Text style={[styles.addText, isCompact && styles.addTextCompact]} allowFontScaling={false}>
-                Добавить прием пищи
-              </Text>
-            </TouchableOpacity>
+            {meals.length === 0 ? (
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  handleOpenAddMeal();
+                }}
+                onPressIn={handleAddMealPressIn}
+                onPressOut={handleAddMealPressOut}
+              >
+                <Animated.View style={[styles.addCard, { transform: [{ scale: addMealPressAnim }] }]}>
+                  <View style={styles.addIcon}>
+                    <Plus size={24} color={colors.primary} />
+                  </View>
+                  <Text style={[styles.addText, isCompact && styles.addTextCompact]} allowFontScaling={false}>
+                    Добавь свой первый прием пищи
+                  </Text>
+                </Animated.View>
+              </Pressable>
+            ) : null}
           </View>
         </View>
         </ScrollView>
@@ -590,6 +660,136 @@ export default function DiaryScreen() {
             </Pressable>
           </Pressable>
         </Modal>
+
+        <SharedBottomSheet
+          visible={activeMacroSheet === 'protein'}
+          onClose={() => setActiveMacroSheet(null)}
+          enableSwipeToDismiss
+          headerSwipeHeight={56}
+        >
+          <View style={styles.macroSheetContent}>
+            <View style={styles.macroSheetImageWrap}>
+              <Image source={proteinImage} style={styles.macroSheetImage} />
+            </View>
+            <Text style={styles.macroSheetTitle}>Белки</Text>
+            <Text style={styles.macroSheetText}>
+              Белки удобнее всего считать по размеру ладони.
+            </Text>
+            <Text style={styles.macroSheetText}>
+              1 порция белка ≈ кусок размером с ладонь (без пальцев).
+            </Text>
+            <Text style={styles.macroSheetSubtitle}>Примеры продуктов:</Text>
+            {[
+              'Курица, индейка',
+              'Рыба, морепродукты',
+              'Яйца',
+              'Творог, греческий йогурт',
+              'Тофу, чечевица, нут',
+            ].map((item) => (
+              <Text key={item} style={styles.macroSheetListItem}>
+                • {item}
+              </Text>
+            ))}
+          </View>
+        </SharedBottomSheet>
+
+        <SharedBottomSheet
+          visible={activeMacroSheet === 'fat'}
+          onClose={() => setActiveMacroSheet(null)}
+          enableSwipeToDismiss
+          headerSwipeHeight={56}
+        >
+          <View style={styles.macroSheetContent}>
+            <View style={styles.macroSheetImageWrap}>
+              <Image source={fatImage} style={styles.macroSheetImage} />
+            </View>
+            <Text style={styles.macroSheetTitle}>Жиры</Text>
+            <Text style={styles.macroSheetText}>
+              Жиры считаются очень маленькими порциями.
+            </Text>
+            <Text style={styles.macroSheetText}>
+              1 порция жиров ≈ размер большого пальца.
+            </Text>
+            <Text style={styles.macroSheetSubtitle}>Примеры продуктов:</Text>
+            {[
+              'Оливковое, растительное масло',
+              'Орехи, семечки',
+              'Авокадо',
+              'Жирная рыба',
+              'Сыр',
+              'Масло при готовке тоже считается 😉',
+            ].map((item) => (
+              <Text key={item} style={styles.macroSheetListItem}>
+                • {item}
+              </Text>
+            ))}
+          </View>
+        </SharedBottomSheet>
+
+        <SharedBottomSheet
+          visible={activeMacroSheet === 'fiber'}
+          onClose={() => setActiveMacroSheet(null)}
+          enableSwipeToDismiss
+          headerSwipeHeight={56}
+        >
+          <View style={styles.macroSheetContent}>
+            <View style={styles.macroSheetImageWrap}>
+              <Image source={fiberImage} style={styles.macroSheetImage} />
+            </View>
+            <Text style={styles.macroSheetTitle}>Клетчатка</Text>
+            <Text style={styles.macroSheetText}>
+              Клетчатку проще считать по объёму овощей и фруктов.
+            </Text>
+            <Text style={styles.macroSheetText}>
+              1 порция клетчатки ≈ 1 кулак.
+            </Text>
+            <Text style={styles.macroSheetSubtitle}>Примеры продуктов:</Text>
+            {[
+              'Овощи и зелень',
+              'Бобовые',
+              'Ягоды',
+              'Фрукты с кожурой',
+              'Цельнозерновые продукты',
+              'Чем больше цветов на тарелке — тем лучше 👌',
+            ].map((item) => (
+              <Text key={item} style={styles.macroSheetListItem}>
+                • {item}
+              </Text>
+            ))}
+          </View>
+        </SharedBottomSheet>
+
+        <SharedBottomSheet
+          visible={activeMacroSheet === 'carbs'}
+          onClose={() => setActiveMacroSheet(null)}
+          enableSwipeToDismiss
+          headerSwipeHeight={56}
+        >
+          <View style={styles.macroSheetContent}>
+            <View style={styles.macroSheetImageWrap}>
+              <Image source={carbsImage} style={styles.macroSheetImage} />
+            </View>
+            <Text style={styles.macroSheetTitle}>Углеводы</Text>
+            <Text style={styles.macroSheetText}>
+              Углеводы удобно считать горстью.
+            </Text>
+            <Text style={styles.macroSheetText}>
+              1 порция углеводов ≈ 1 горсть.
+            </Text>
+            <Text style={styles.macroSheetSubtitle}>Примеры продуктов:</Text>
+            {[
+              'Крупы (рис, гречка, овсянка)',
+              'Паста',
+              'Хлеб',
+              'Фрукты',
+              'Картофель',
+            ].map((item) => (
+              <Text key={item} style={styles.macroSheetListItem}>
+                • {item}
+              </Text>
+            ))}
+          </View>
+        </SharedBottomSheet>
 
         <AddMealModal
           visible={isMealModalOpen}
@@ -748,7 +948,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   calendarTitle: {
     fontSize: 16,
@@ -783,7 +983,7 @@ const styles = StyleSheet.create({
     width: '14.285%',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
+    paddingVertical: 4,
   },
   calendarCellInner: {
     width: 34,
@@ -820,8 +1020,8 @@ const styles = StyleSheet.create({
   calendarDot: {
     position: 'absolute',
     top: 2,
-    width: 6,
-    height: 6,
+    width: 4,
+    height: 4,
     borderRadius: 999,
     backgroundColor: colors.accentFiber,
   },
@@ -834,38 +1034,41 @@ const styles = StyleSheet.create({
   calendarDotPartialSelected: {
     backgroundColor: `${colors.accentFat}88`,
   },
+  mealsList: {
+    gap: spacing.sm,
+  },
   addCard: {
-    flexDirection: 'row',
+    marginTop: spacing.xs,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.xl,
     borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.06)',
-    ...shadows.card,
+    borderWidth: 2,
+    borderColor: `${colors.primary}22`,
+    borderStyle: 'dashed',
+    backgroundColor: `${colors.primary}06`,
   },
   addIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: `${colors.primary}33`,
     backgroundColor: `${colors.primary}14`,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: spacing.sm,
   },
   addText: {
     color: colors.textPrimary,
     fontSize: 15,
-    fontFamily: fonts.medium,
-    marginLeft: spacing.sm,
+    fontFamily: fonts.semibold,
   },
   addTextCompact: {
     fontSize: 13,
   },
   surveyStrip: {
-    marginTop: spacing.md,
+    marginTop: 0,
     marginHorizontal: 0,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
@@ -882,12 +1085,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   surveyStripComplete: {
-    backgroundColor: `${colors.accentFiber}14`,
-    borderColor: `${colors.accentFiber}40`,
+    backgroundColor: `${colors.accentFiber}12`,
+    borderColor: `${colors.accentFiber}50`,
   },
   surveyStripPending: {
     backgroundColor: `${colors.accentFat}12`,
-    borderColor: `${colors.accentFat}40`,
+    borderColor: `${colors.accentFat}50`,
   },
   surveyStripRow: {
     flexDirection: 'row',
@@ -925,16 +1128,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentFat,
   },
   surveyStripCta: {
-    marginTop: 2,
     fontSize: 12,
-    fontFamily: fonts.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    
+    fontFamily: fonts.bold,
+    letterSpacing: 0,
   },
   surveyStripCtaCompact: {
     fontSize: 11,
-    letterSpacing: 0.4,
+    letterSpacing: 0,
     marginTop: 0,
     lineHeight: 16,
   },
@@ -951,7 +1151,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
     borderRadius: radii.pill,
-    backgroundColor: colors.surface ,
+    backgroundColor: '#ffffff66',
   },
   surveyAddButtonCompact: {
     width: 34,
@@ -973,5 +1173,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     paddingVertical: 0,
     justifyContent: 'center',
+  },
+  macroSheetContent: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  macroSheetImageWrap: {
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  macroSheetImage: {
+    width: 160,
+    height: 160,
+    resizeMode: 'contain',
+  },
+  macroSheetTitle: {
+    fontSize: 20,
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  macroSheetText: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  macroSheetSubtitle: {
+    fontSize: 14,
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  macroSheetListItem: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
 });

@@ -1,9 +1,10 @@
 import React, { useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, PixelRatio, useWindowDimensions } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, TouchableOpacity, PixelRatio, useWindowDimensions, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { ChevronLeft, Pencil, Trash2 } from 'lucide-react-native';
 
 import { MealEntry } from '../repositories/DiaryRepository';
+import { colors, fonts } from '../../../shared/ui';
 
 type MealItemProps = {
   meal: MealEntry;
@@ -40,6 +41,7 @@ export const MealItem = React.memo(({
   const isCompact = width <= 360 || fontScale > 1.1;
   const swipeRef = useRef<Swipeable>(null);
   const isOpenRef = useRef(false);
+  const pressAnim = useRef(new Animated.Value(0)).current;
 
   const handleEdit = () => {
     swipeRef.current?.close();
@@ -79,44 +81,67 @@ export const MealItem = React.memo(({
         </View>
       )}
     >
-      <View
-        style={[styles.mealCard, isCompact && styles.mealCardCompact]}
+      <Pressable
+        onPressIn={() => {
+          Animated.spring(pressAnim, {
+            toValue: -8,
+            speed: 14,
+            bounciness: 4,
+            useNativeDriver: true,
+          }).start();
+        }}
+        onPressOut={() => {
+          Animated.spring(pressAnim, {
+            toValue: 0,
+            speed: 14,
+            bounciness: 4,
+            useNativeDriver: true,
+          }).start();
+        }}
         onTouchStart={() => {
           if (isOpenRef.current) {
             swipeRef.current?.close();
           }
         }}
       >
-        <View style={styles.mealHeader}>
-          <View style={[styles.mealTimePill, isCompact && styles.mealTimePillCompact]}>
-            <Text style={[styles.mealTimeText, isCompact && styles.mealTimeTextCompact]} allowFontScaling={false}>
-              {new Date(meal.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-          </View>
-          <Text style={[styles.mealName, isCompact && styles.mealNameCompact]} numberOfLines={1} ellipsizeMode="tail" allowFontScaling={false}>
-            {meal.name}
-          </Text>
-        </View>
-
-        <View style={styles.mealChipsRow}>
-          <MealPortionChip label="Б" value={meal.portions.protein} color="#06B6D4" isCompact={isCompact} />
-          <MealPortionChip label="Ж" value={meal.portions.fat} color="#F59E0B" isCompact={isCompact} />
-          <MealPortionChip label="У" value={meal.portions.carbs} color="#3B82F6" isCompact={isCompact} />
-          <MealPortionChip label="К" value={meal.portions.fiber} color="#50CA64" isCompact={isCompact} />
-        </View>
-
-        {showSwipeHint && (
-          <View style={styles.swipeHint}>
-            <Text style={[styles.swipeHintText, isCompact && styles.swipeHintTextCompact]} allowFontScaling={false}>
-              Свайпните
-            </Text>
-            <View style={styles.swipeHintChevrons}>
-              <ChevronLeft size={14} color="#9CA3AF" />
-              <ChevronLeft size={14} color="#9CA3AF" style={styles.swipeHintChevron} />
+        <Animated.View
+          style={[
+            styles.mealCard,
+            isCompact && styles.mealCardCompact,
+            { transform: [{ translateX: pressAnim }] },
+          ]}
+        >
+          <View style={styles.mealHeader}>
+            <View style={[styles.mealTimePill, isCompact && styles.mealTimePillCompact]}>
+              <Text style={[styles.mealTimeText, isCompact && styles.mealTimeTextCompact]} allowFontScaling={false}>
+                {new Date(meal.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
             </View>
+            <Text style={[styles.mealName, isCompact && styles.mealNameCompact]} numberOfLines={1} ellipsizeMode="tail" allowFontScaling={false}>
+              {meal.name}
+            </Text>
           </View>
-        )}
-      </View>
+
+          <View style={styles.mealChipsRow}>
+            <MealPortionChip label="Б" value={meal.portions.protein} color={colors.accentProtein} isCompact={isCompact} />
+            <MealPortionChip label="Ж" value={meal.portions.fat} color={colors.accentFat} isCompact={isCompact} />
+            <MealPortionChip label="У" value={meal.portions.carbs} color={colors.accentCarbs} isCompact={isCompact} />
+            <MealPortionChip label="К" value={meal.portions.fiber} color={colors.accentFiber} isCompact={isCompact} />
+          </View>
+
+          {showSwipeHint && (
+            <View style={styles.swipeHint}>
+              <Text style={[styles.swipeHintText, isCompact && styles.swipeHintTextCompact]} allowFontScaling={false}>
+                Свайпните
+              </Text>
+              <View style={styles.swipeHintChevrons}>
+                <ChevronLeft size={14} color="#9CA3AF" />
+                <ChevronLeft size={14} color="#9CA3AF" style={styles.swipeHintChevron} />
+              </View>
+            </View>
+          )}
+        </Animated.View>
+      </Pressable>
     </Swipeable>
   );
 });
@@ -160,21 +185,23 @@ const styles = StyleSheet.create({
   mealTimeText: {
     color: '#6B7280',
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   mealTimeTextCompact: {
     fontSize: 11,
+    fontFamily: fonts.medium,
   },
   mealName: {
     flex: 1,
     color: '#111827',
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
     lineHeight: 20,
   },
   mealNameCompact: {
     fontSize: 14,
     lineHeight: 18,
+    fontFamily: fonts.medium,
   },
   mealChipsRow: {
     flexDirection: 'row',
@@ -209,10 +236,11 @@ const styles = StyleSheet.create({
   mealChipText: {
     color: '#374151',
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   mealChipTextCompact: {
     fontSize: 11,
+    fontFamily: fonts.medium,
   },
   swipeHint: {
     marginTop: 0,
@@ -223,11 +251,12 @@ const styles = StyleSheet.create({
   swipeHintText: {
     marginRight: 2,
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
     color: '#9CA3AF',
   },
   swipeHintTextCompact: {
     fontSize: 10,
+    fontFamily: fonts.semibold,
   },
   swipeHintChevrons: {
     flexDirection: 'row',

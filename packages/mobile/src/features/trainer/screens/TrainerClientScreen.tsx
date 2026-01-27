@@ -13,13 +13,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Camera, CheckCircle2, Archive, BookOpen, ClipboardCopy, Ruler } from 'lucide-react-native';
+import { ArrowLeft, Camera, CheckCircle2, Archive, BookOpen, ClipboardCopy, Ruler, Activity } from 'lucide-react-native';
 
 import { COLORS } from '../../../constants/Colors';
 import { trainerApi, TrainerClientDetail } from '../services/trainerApi';
 import { emitClientsUpdated } from '../services/trainerEvents';
 import { SharedBottomSheet } from '../../profile/components/SharedBottomSheet';
 import { useTabBarVisibility } from '../../../shared/ui';
+import { buildLinePath } from '../../measurements/lib/buildLinePath';
+import { MeasurementChart } from '../../measurements/components/MeasurementChart';
 
 type TabKey = 'nutrition' | 'surveys' | 'measurements';
 
@@ -44,6 +46,10 @@ export default function TrainerClientScreen() {
   const [draftGoals, setDraftGoals] = useState({ protein: '', fat: '', carbs: '', fiber: '' });
   const [isGoalsOpen, setGoalsOpen] = useState(false);
   const [visibleGoalsCount, setVisibleGoalsCount] = useState(GOALS_PAGE_SIZE);
+  const [surveyRange, setSurveyRange] = useState<'7' | '30'>('7');
+  const [activeSurveyMetric, setActiveSurveyMetric] = useState<
+    'sleep' | 'stress' | 'motivation' | 'water' | 'hunger' | 'libido' | 'digestion' | null
+  >(null);
 
   const handleSaveGoals = async () => {
     const protein = Number(draftGoals.protein);
@@ -172,8 +178,8 @@ export default function TrainerClientScreen() {
   }, [goalsHistory.length]);
 
   useEffect(() => {
-    setTabBarHidden(isGoalsOpen);
-  }, [isGoalsOpen, setTabBarHidden]);
+    setTabBarHidden(isGoalsOpen || activeSurveyMetric !== null);
+  }, [isGoalsOpen, activeSurveyMetric, setTabBarHidden]);
 
   const lastMeasurementInfo = useMemo(() => {
     const parseDate = (value: string) => {
@@ -258,6 +264,168 @@ export default function TrainerClientScreen() {
     if (days <= 14) return 'Warn';
     return 'Bad';
   }, [lastMeasurementInfo.daysLabel]);
+
+  const complianceValues = useMemo(
+    () => client?.complianceHistory?.map((point) => point.value) ?? [],
+    [client?.complianceHistory]
+  );
+  const complianceLine = useMemo(() => buildLinePath(complianceValues), [complianceValues]);
+
+  const surveysRaw = useMemo(() => {
+    return (client?.surveys ?? []).map((survey) => ({
+      ...survey,
+      dateObj: new Date(survey.dateISO),
+    }));
+  }, [client?.surveys]);
+
+  const filteredSurveys = useMemo(() => {
+    const days = surveyRange === '7' ? 7 : 30;
+    const cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setDate(cutoff.getDate() - (days - 1));
+    return surveysRaw.filter((survey) => survey.dateObj >= cutoff);
+  }, [surveyRange, surveysRaw]);
+
+  const surveyMetricDefs = useMemo(
+    () => [
+      {
+        key: 'sleep',
+        label: 'Сон, ч',
+        color: '#06B6D4',
+        getValue: (survey: TrainerClientDetail['surveys'][number]) => survey.raw.sleepHours,
+        format: (value: number | null) => (value == null ? '—' : value.toFixed(1)),
+        status: (value: number | null) => {
+          if (value == null) return 'neutral';
+          if (value >= 7) return 'good';
+          if (value >= 6) return 'warn';
+          return 'bad';
+        },
+      },
+      {
+        key: 'stress',
+        label: 'Стресс',
+        color: '#F59E0B',
+        getValue: (survey: TrainerClientDetail['surveys'][number]) => survey.raw.stress,
+        format: (value: number | null) => (value == null ? '—' : `${value.toFixed(1)}/10`),
+        status: (value: number | null) => {
+          if (value == null) return 'neutral';
+          if (value <= 3) return 'good';
+          if (value <= 6) return 'warn';
+          return 'bad';
+        },
+      },
+      {
+        key: 'motivation',
+        label: 'Мотивация',
+        color: '#10B981',
+        getValue: (survey: TrainerClientDetail['surveys'][number]) => survey.raw.motivation,
+        format: (value: number | null) => (value == null ? '—' : `${value.toFixed(1)}/10`),
+        status: (value: number | null) => {
+          if (value == null) return 'neutral';
+          if (value >= 7) return 'good';
+          if (value >= 5) return 'warn';
+          return 'bad';
+        },
+      },
+      {
+        key: 'water',
+        label: 'Вода, л',
+        color: '#60A5FA',
+        getValue: (survey: TrainerClientDetail['surveys'][number]) => survey.raw.water,
+        format: (value: number | null) => (value == null ? '—' : value.toFixed(1)),
+        status: (value: number | null) => {
+          if (value == null) return 'neutral';
+          if (value >= 2) return 'good';
+          if (value >= 1.5) return 'warn';
+          return 'bad';
+        },
+      },
+      {
+        key: 'hunger',
+        label: 'Голод',
+        color: '#F97316',
+        getValue: (survey: TrainerClientDetail['surveys'][number]) => {
+          const value = survey.raw.hunger;
+          if (typeof value === 'number') return value;
+          if (value === 'no_appetite') return 0;
+          if (value === 'moderate') return 1;
+          if (value === 'constant') return 2;
+          return null;
+        },
+        format: (value: number | null) => (value == null ? '—' : value.toFixed(1)),
+        status: (value: number | null) => {
+          if (value == null) return 'neutral';
+          if (value <= 3) return 'good';
+          if (value <= 6) return 'warn';
+          return 'bad';
+        },
+      },
+      {
+        key: 'libido',
+        label: 'Либидо',
+        color: '#A855F7',
+        getValue: (survey: TrainerClientDetail['surveys'][number]) => survey.raw.libido,
+        format: (value: number | null) => (value == null ? '—' : `${value.toFixed(1)}/10`),
+        status: (value: number | null) => {
+          if (value == null) return 'neutral';
+          if (value >= 7) return 'good';
+          if (value >= 5) return 'warn';
+          return 'bad';
+        },
+      },
+      {
+        key: 'digestion',
+        label: 'Пищевар.',
+        color: '#22C55E',
+        getValue: (survey: TrainerClientDetail['surveys'][number]) => {
+          const value = survey.raw.digestion;
+          if (value == null) return null;
+          if (value === 'excellent') return 3;
+          if (value === 'good') return 2;
+          if (value === 'bad') return 1;
+          if (value === '0') return 0;
+          if (value === '1') return 1;
+          if (value === '2+') return 2;
+          return null;
+        },
+        format: (value: number | null) => (value == null ? '—' : value.toFixed(1)),
+        status: (value: number | null) => {
+          if (value == null) return 'neutral';
+          if (value >= 2.5) return 'good';
+          if (value >= 1.5) return 'warn';
+          return 'bad';
+        },
+      },
+    ],
+    []
+  );
+
+  const surveySummary = useMemo(() => {
+    return surveyMetricDefs.map((def) => {
+      const values = filteredSurveys
+        .map((survey) => def.getValue(survey))
+        .filter((value): value is number => typeof value === 'number');
+      const avg = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+      return {
+        ...def,
+        avg,
+      };
+    });
+  }, [filteredSurveys, surveyMetricDefs]);
+
+  const activeSurveySeries = useMemo(() => {
+    if (!activeSurveyMetric) return null;
+    const def = surveyMetricDefs.find((item) => item.key === activeSurveyMetric);
+    if (!def) return null;
+    const sorted = [...filteredSurveys].sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+    const values = sorted.map((survey) => def.getValue(survey));
+    return {
+      def,
+      values,
+      line: buildLinePath(values),
+      dates: sorted.map((survey) => survey.dateObj),
+    };
+  }, [activeSurveyMetric, filteredSurveys, surveyMetricDefs]);
 
   if (isLoading) {
     return (
@@ -418,21 +586,25 @@ export default function TrainerClientScreen() {
                   <Text style={styles.emptyStateSubtitle}>Дневник питания еще не заполнен</Text>
                 </View>
               ) : (
-                <View style={styles.complianceRow}>
-                  {client.complianceHistory.map((point) => (
-                    <View key={point.day} style={styles.complianceItem}>
-                      <View style={styles.complianceBar}>
-                        <View
-                          style={[
-                            styles.complianceBarFill,
-                            { height: `${Math.min(100, (point.value / 7) * 100)}%` },
-                          ]}
-                        />
+                <View>
+                  <View style={styles.complianceChartWrap}>
+                    <MeasurementChart
+                      type="line"
+                      color={COLORS.primary}
+                      linePath={complianceLine.path}
+                      points={complianceLine.points}
+                      size="full"
+                      verticalScale={1.2}
+                    />
+                  </View>
+                  <View style={styles.complianceLabelsRow}>
+                    {client.complianceHistory.map((point) => (
+                      <View key={point.day} style={styles.complianceLabelItem}>
+                        <Text style={styles.complianceDay}>{point.day}</Text>
+                        <Text style={styles.complianceValue}>{point.value.toFixed(1)}</Text>
                       </View>
-                      <Text style={styles.complianceDay}>{point.day}</Text>
-                      <Text style={styles.complianceValue}>{point.value.toFixed(1)}</Text>
-                    </View>
-                  ))}
+                    ))}
+                  </View>
                 </View>
               )}
             </View>
@@ -445,6 +617,49 @@ export default function TrainerClientScreen() {
                   <ClipboardCopy size={16} color="#111827" />
                 </View>
                 <Text style={styles.sectionTitle}>Анкеты за 30 дней</Text>
+              </View>
+              <View style={styles.surveyRangeRow}>
+                {[
+                  { key: '7', label: '7 дней' },
+                  { key: '30', label: '30 дней' },
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.key}
+                    onPress={() => setSurveyRange(option.key as '7' | '30')}
+                    style={[
+                      styles.surveyRangeChip,
+                      surveyRange === option.key && styles.surveyRangeChipActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.surveyRangeText,
+                        surveyRange === option.key && styles.surveyRangeTextActive,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={styles.surveySummaryGrid}>
+                {surveySummary.map((item) => (
+                  <TouchableOpacity
+                    key={item.key}
+                    onPress={() => setActiveSurveyMetric(item.key as any)}
+                    style={[
+                      styles.surveySummaryCard,
+                      item.status(item.avg) === 'good' && styles.surveySummaryGood,
+                      item.status(item.avg) === 'warn' && styles.surveySummaryWarn,
+                      item.status(item.avg) === 'bad' && styles.surveySummaryBad,
+                    ]}
+                  >
+                    <Text style={styles.surveySummaryLabel}>{item.label}</Text>
+                    <Text style={[styles.surveySummaryValue, { color: item.color }]}>
+                      {item.format(item.avg)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
               {client.surveys.length === 0 && (
                 <View style={styles.emptyStateCard}>
@@ -652,6 +867,34 @@ export default function TrainerClientScreen() {
                 ) : null}
               </ScrollView>
             )}
+          </View>
+        </SharedBottomSheet>
+
+        <SharedBottomSheet
+          visible={activeSurveyMetric !== null}
+          onClose={() => setActiveSurveyMetric(null)}
+          enableSwipeToDismiss
+          headerSwipeHeight={56}
+        >
+          <View style={styles.sheetContent}>
+            <Text style={styles.modalTitle}>
+              {activeSurveySeries?.def.label ?? 'Динамика'}
+            </Text>
+            <Text style={styles.modalSubtitle}>
+              Последние {surveyRange} дней
+            </Text>
+            <View style={styles.surveyChartWrap}>
+              {activeSurveySeries ? (
+                <MeasurementChart
+                  type="line"
+                  color={activeSurveySeries.def.color}
+                  linePath={activeSurveySeries.line.path}
+                  points={activeSurveySeries.line.points}
+                  size="full"
+                  verticalScale={1.2}
+                />
+              ) : null}
+            </View>
           </View>
         </SharedBottomSheet>
 
@@ -1083,29 +1326,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-  complianceRow: {
+  complianceChartWrap: {
+    height: 140,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  complianceLabelsRow: {
+    marginTop: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  complianceItem: {
-    alignItems: 'center',
+  complianceLabelItem: {
     flex: 1,
-  },
-  complianceBar: {
-    width: 20,
-    height: 72,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 10,
-    justifyContent: 'flex-end',
-    overflow: 'hidden',
-  },
-  complianceBarFill: {
-    width: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
+    alignItems: 'center',
   },
   complianceDay: {
-    marginTop: 6,
     fontSize: 10,
     color: '#6B7280',
   },
@@ -1161,6 +1396,72 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
+  },
+  surveyRangeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  surveyRangeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  surveyRangeChipActive: {
+    borderColor: '#BBF7D0',
+    backgroundColor: '#ECFDF3',
+  },
+  surveyRangeText: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  surveyRangeTextActive: {
+    color: '#047857',
+  },
+  surveySummaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 12,
+  },
+  surveySummaryCard: {
+    flexBasis: '48%',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  surveySummaryGood: {
+    borderColor: '#6EE7B7',
+    backgroundColor: '#ECFDF3',
+  },
+  surveySummaryWarn: {
+    borderColor: '#FCD34D',
+    backgroundColor: '#FFFBEB',
+  },
+  surveySummaryBad: {
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FEF2F2',
+  },
+  surveySummaryLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginBottom: 6,
+  },
+  surveySummaryValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  surveyChartWrap: {
+    height: 160,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
   },
   surveyDetailRow: {
     flexDirection: 'row',

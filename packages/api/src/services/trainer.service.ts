@@ -304,10 +304,20 @@ export class TrainerService {
     const surveyItems = surveys.map((survey) => ({
       id: survey.id,
       date: survey.date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
+      dateISO: survey.date.toISOString(),
       sleep: survey.sleepHours ? `${survey.sleepHours}ч` : '—',
       stress: survey.stress != null ? `${survey.stress}/10` : '—',
       motivation: survey.motivation != null ? `${survey.motivation}/10` : '—',
       status: survey.viewedByTrainer ? 'reviewed' : 'pending',
+      raw: {
+        sleepHours: survey.sleepHours ?? null,
+        stress: survey.stress ?? null,
+        motivation: survey.motivation ?? null,
+        water: survey.water ?? null,
+        hunger: survey.hunger ?? null,
+        libido: survey.libido ?? null,
+        digestion: survey.digestion ?? null,
+      },
       details: {
         Сон: survey.sleepHours ? `${survey.sleepHours} часов` : '—',
         Качество: survey.sleepQuality != null ? `${survey.sleepQuality}/5` : '—',

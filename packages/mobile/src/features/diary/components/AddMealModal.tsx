@@ -199,10 +199,12 @@ const styles = StyleSheet.create({
   },
   inputLabelCompact: {
     fontSize: 11,
+    fontFamily: fonts.medium,
   },
   inputFieldCompact: {
     height: 46,
     fontSize: 14,
+    fontFamily: fonts.regular,
   },
   sectionBlock: {
     marginBottom: spacing.lg,
@@ -215,6 +217,7 @@ const styles = StyleSheet.create({
   },
   sectionTitleCompact: {
     fontSize: 11,
+    fontFamily: fonts.medium,
   },
   portionList: {
     gap: spacing.sm,
@@ -250,6 +253,7 @@ const styles = StyleSheet.create({
   },
   portionLabelTextCompact: {
     fontSize: 12,
+    fontFamily: fonts.medium,
   },
   stepperControls: {
     flexDirection: 'row',
@@ -294,6 +298,7 @@ const styles = StyleSheet.create({
   stepperCountCompact: {
     fontSize: 14,
     minWidth: 20,
+    fontFamily: fonts.semibold,
   },
   actions: {
     marginTop: spacing.lg,

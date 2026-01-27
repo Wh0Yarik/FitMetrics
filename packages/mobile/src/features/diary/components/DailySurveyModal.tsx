@@ -322,10 +322,12 @@ const styles = StyleSheet.create({
   },
   inputLabelCompact: {
     fontSize: 11,
+    fontFamily: fonts.medium,
   },
   inputFieldCompact: {
     height: 46,
     fontSize: 14,
+    fontFamily: fonts.regular,
   },
   sectionLabel: {
     fontSize: 12,
@@ -335,6 +337,7 @@ const styles = StyleSheet.create({
   },
   sectionLabelCompact: {
     fontSize: 11,
+    fontFamily: fonts.medium,
   },
   selectionRow: {
     flexDirection: 'row',
@@ -368,6 +371,7 @@ const styles = StyleSheet.create({
   },
   selectionTextCompact: {
     fontSize: 12,
+    fontFamily: fonts.medium,
   },
   selectionTextActive: {
     color: colors.textPrimary,

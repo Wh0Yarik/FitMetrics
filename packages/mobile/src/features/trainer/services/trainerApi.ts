@@ -18,10 +18,20 @@ export type TrainerClientSummary = {
 export type TrainerSurvey = {
   id: string;
   date: string;
+  dateISO: string;
   sleep: string;
   stress: string;
   motivation: string;
   status: 'reviewed' | 'pending';
+  raw: {
+    sleepHours: number | null;
+    stress: number | null;
+    motivation: number | null;
+    water: number | null;
+    hunger: number | null;
+    libido: number | null;
+    digestion: string | null;
+  };
   details: Record<string, string>;
 };
 
