@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
 
 import { api } from '../../../shared/api/client';
 import { formatBirthDateDisplay, parseBirthDateDisplay } from '../../../shared/lib/date';
@@ -139,15 +138,22 @@ export const useUserProfile = ({ onTrainerLoaded }: UseUserProfileParams = {}) =
       const maxSide = Math.max(width, height);
       let uploadUri = asset.uri;
       if (maxSide > 512 && width && height) {
-        const scale = 512 / maxSide;
-        const targetWidth = Math.round(width * scale);
-        const targetHeight = Math.round(height * scale);
-        const resized = await ImageManipulator.manipulateAsync(
-          asset.uri,
-          [{ resize: { width: targetWidth, height: targetHeight } }],
-          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
-        );
-        uploadUri = resized.uri;
+        try {
+          // Lazy require to avoid crashing if the native module is missing in OTA builds
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const ImageManipulator = require('expo-image-manipulator');
+          const scale = 512 / maxSide;
+          const targetWidth = Math.round(width * scale);
+          const targetHeight = Math.round(height * scale);
+          const resized = await ImageManipulator.manipulateAsync(
+            asset.uri,
+            [{ resize: { width: targetWidth, height: targetHeight } }],
+            { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+          );
+          uploadUri = resized.uri;
+        } catch (manipulatorError) {
+          console.warn('ImageManipulator is unavailable, using original image', manipulatorError);
+        }
       }
       setAvatarUri(uploadUri);
 

@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
 
 import { api } from '../../../shared/api/client';
 
@@ -20,6 +19,14 @@ const resizeImageIfNeeded = async (asset: ImagePicker.ImagePickerAsset) => {
   }
   const maxSide = Math.max(width, height);
   if (maxSide <= MAX_DIMENSION) {
+    return asset.uri;
+  }
+  let ImageManipulator: typeof import('expo-image-manipulator') | null = null;
+  try {
+    // Lazy-load to avoid runtime crash if the native module isn't present in the OTA build.
+    ImageManipulator = require('expo-image-manipulator');
+  } catch (error) {
+    console.warn('[measurements] expo-image-manipulator not available, skipping resize', error);
     return asset.uri;
   }
   const scale = MAX_DIMENSION / maxSide;
