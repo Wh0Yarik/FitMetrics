@@ -101,3 +101,15 @@ export const unarchiveClient = async (req: Request, res: Response, next: NextFun
     next(error);
   }
 };
+
+export const markSurveyReviewed = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const clientId = getParamId(req.params.id);
+    const surveyId = getParamId(req.params.surveyId);
+    const result = await trainerService.markSurveyReviewed(userId, clientId, surveyId);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};

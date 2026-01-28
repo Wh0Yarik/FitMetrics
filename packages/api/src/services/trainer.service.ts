@@ -385,6 +385,48 @@ export class TrainerService {
     };
   }
 
+  async markSurveyReviewed(userId: string, clientId: string, surveyId: string) {
+    const trainer = await this.getTrainerByUser(userId);
+    const client = await prisma.client.findFirst({
+      where: {
+        id: clientId,
+        OR: [
+          { currentTrainerId: trainer.id },
+          { archivedByTrainerId: trainer.id },
+          {
+            archivedAt: { not: null },
+            archivedByTrainerId: null,
+            inviteCodes: { some: { trainerId: trainer.id } },
+          },
+        ],
+      },
+    });
+
+    if (!client) {
+      throw new AppError('Client not found', 404);
+    }
+
+    const survey = await prisma.dailySurvey.findFirst({
+      where: { id: surveyId, clientId: client.id },
+    });
+
+    if (!survey) {
+      throw new AppError('Survey not found', 404);
+    }
+
+    if (!survey.viewedByTrainer) {
+      await prisma.dailySurvey.update({
+        where: { id: survey.id },
+        data: {
+          viewedByTrainer: true,
+          viewedAt: new Date(),
+        },
+      });
+    }
+
+    return { success: true };
+  }
+
   async archiveClient(userId: string, clientId: string) {
     const trainer = await this.getTrainerByUser(userId);
     const client = await prisma.client.findFirst({

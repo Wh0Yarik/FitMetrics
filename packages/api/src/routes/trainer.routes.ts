@@ -7,6 +7,7 @@ const router = Router();
 router.get('/clients', authenticate, TrainerController.listClients);
 router.get('/clients/:id', authenticate, TrainerController.getClient);
 router.put('/clients/:id/goals', authenticate, TrainerController.updateGoals);
+router.post('/clients/:id/surveys/:surveyId/reviewed', authenticate, TrainerController.markSurveyReviewed);
 router.get('/invites', authenticate, TrainerController.listInvites);
 router.post('/clients/:id/archive', authenticate, TrainerController.archiveClient);
 router.post('/clients/:id/unarchive', authenticate, TrainerController.unarchiveClient);

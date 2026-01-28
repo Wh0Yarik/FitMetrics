@@ -113,6 +113,11 @@ export const trainerApi = {
     return response.data;
   },
 
+  async markSurveyReviewed(clientId: string, surveyId: string) {
+    const response = await api.post(`/trainer/clients/${clientId}/surveys/${surveyId}/reviewed`);
+    return response.data;
+  },
+
   async getInvites(): Promise<TrainerInvite[]> {
     const response = await api.get('/trainer/invites');
     return response.data.invites;

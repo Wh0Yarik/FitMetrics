@@ -30,7 +30,7 @@ type MeasurementChartProps = {
 
 const withAlpha = (hexColor: string, alpha: number) => {
   const normalized = hexColor.replace('#', '');
-  if (normalized.length !== 6) return hexColor;
+  if (normalized.length !== 6 && normalized.length !== 8) return hexColor;
   const r = parseInt(normalized.slice(0, 2), 16);
   const g = parseInt(normalized.slice(2, 4), 16);
   const b = parseInt(normalized.slice(4, 6), 16);

@@ -13,7 +13,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Camera, CheckCircle2, Archive, BookOpen, ClipboardCopy, Ruler, Activity } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Camera,
+  CheckCircle2,
+  Archive,
+  BookOpen,
+  ClipboardCopy,
+  Ruler,
+  Activity,
+  ChevronDown,
+} from 'lucide-react-native';
 
 import { COLORS } from '../../../constants/Colors';
 import { trainerApi, TrainerClientDetail } from '../services/trainerApi';
@@ -50,6 +60,30 @@ export default function TrainerClientScreen() {
   const [activeSurveyMetric, setActiveSurveyMetric] = useState<
     'sleep' | 'stress' | 'motivation' | 'water' | 'hunger' | 'libido' | 'digestion' | null
   >(null);
+  const [isSurveySummaryCollapsed, setSurveySummaryCollapsed] = useState(true);
+
+  const handleSurveyPress = async (survey: TrainerClientDetail['surveys'][number]) => {
+    const isExpanded = expandedSurveyId === survey.id;
+    setExpandedSurveyId(isExpanded ? null : survey.id);
+    if (!client || survey.status !== 'pending') {
+      return;
+    }
+
+    try {
+      await trainerApi.markSurveyReviewed(client.id, survey.id);
+      setClient((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          surveys: prev.surveys.map((item) =>
+            item.id === survey.id ? { ...item, status: 'reviewed' } : item
+          ),
+        };
+      });
+    } catch (error) {
+      console.warn('Failed to mark survey reviewed', error);
+    }
+  };
 
   const handleSaveGoals = async () => {
     const protein = Number(draftGoals.protein);
@@ -611,105 +645,134 @@ export default function TrainerClientScreen() {
           )}
 
           {activeTab === 'surveys' && (
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionHeaderRow}>
-                <View style={styles.sectionHeaderIcon}>
-                  <ClipboardCopy size={16} color="#111827" />
-                </View>
-                <Text style={styles.sectionTitle}>Анкеты за 30 дней</Text>
-              </View>
-              <View style={styles.surveyRangeRow}>
-                {[
-                  { key: '7', label: '7 дней' },
-                  { key: '30', label: '30 дней' },
-                ].map((option) => (
-                  <TouchableOpacity
-                    key={option.key}
-                    onPress={() => setSurveyRange(option.key as '7' | '30')}
-                    style={[
-                      styles.surveyRangeChip,
-                      surveyRange === option.key && styles.surveyRangeChipActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.surveyRangeText,
-                        surveyRange === option.key && styles.surveyRangeTextActive,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <View style={styles.surveySummaryGrid}>
-                {surveySummary.map((item) => (
-                  <TouchableOpacity
-                    key={item.key}
-                    onPress={() => setActiveSurveyMetric(item.key as any)}
-                    style={[
-                      styles.surveySummaryCard,
-                      item.status(item.avg) === 'good' && styles.surveySummaryGood,
-                      item.status(item.avg) === 'warn' && styles.surveySummaryWarn,
-                      item.status(item.avg) === 'bad' && styles.surveySummaryBad,
-                    ]}
-                  >
-                    <Text style={styles.surveySummaryLabel}>{item.label}</Text>
-                    <Text style={[styles.surveySummaryValue, { color: item.color }]}>
-                      {item.format(item.avg)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              {client.surveys.length === 0 && (
-                <View style={styles.emptyStateCard}>
-                  <View style={styles.emptyIconWrap}>
-                    <ClipboardCopy size={18} color="#6B7280" />
+            <>
+              <View style={styles.sectionCard}>
+                <TouchableOpacity
+                  style={styles.sectionHeaderRow}
+                  onPress={() => setSurveySummaryCollapsed((prev) => !prev)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.sectionHeaderIcon}>
+                    <ClipboardCopy size={16} color="#111827" />
                   </View>
-                  <Text style={styles.emptyStateTitle}>Анкет пока нет</Text>
-                  <Text style={styles.emptyStateSubtitle}>Клиент еще не заполнял анкеты</Text>
-                </View>
-              )}
-              {client.surveys.map((survey) => {
-                const isExpanded = expandedSurveyId === survey.id;
-                return (
-                  <TouchableOpacity
-                    key={survey.id}
-                    onPress={() => setExpandedSurveyId(isExpanded ? null : survey.id)}
-                    style={styles.surveyRow}
-                  >
-                    <View style={styles.surveyHeader}>
-                      <View>
-                        <Text style={styles.surveyDate}>{survey.date}</Text>
-                        <Text style={styles.surveyMeta}>
-                          Сон: {survey.sleep} · Стресс: {survey.stress} · Мотивация: {survey.motivation}
-                        </Text>
-                      </View>
-                      <View style={[styles.surveyStatus, survey.status === 'pending' && styles.surveyStatusPending]}>
-                        <Text
+                  <Text style={styles.sectionTitle}>
+                    Сводка за {surveyRange} дней
+                  </Text>
+                  <ChevronDown
+                    size={16}
+                    color="#9CA3AF"
+                    style={[
+                      styles.sectionHeaderChevron,
+                      !isSurveySummaryCollapsed && styles.sectionHeaderChevronExpanded,
+                    ]}
+                  />
+                </TouchableOpacity>
+                {!isSurveySummaryCollapsed && (
+                  <>
+                    <View style={styles.surveyRangeRow}>
+                      {[
+                        { key: '7', label: '7 дней' },
+                        { key: '30', label: '30 дней' },
+                      ].map((option) => (
+                        <TouchableOpacity
+                          key={option.key}
+                          onPress={() => setSurveyRange(option.key as '7' | '30')}
                           style={[
-                            styles.surveyStatusText,
-                            survey.status === 'pending' && styles.surveyStatusTextPending,
+                            styles.surveyRangeChip,
+                            surveyRange === option.key && styles.surveyRangeChipActive,
                           ]}
                         >
-                          {survey.status === 'pending' ? 'Не просмотрено' : 'Просмотрено'}
-                        </Text>
-                      </View>
+                          <Text
+                            style={[
+                              styles.surveyRangeText,
+                              surveyRange === option.key && styles.surveyRangeTextActive,
+                            ]}
+                          >
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
-                    {isExpanded && (
-                      <View style={styles.surveyDetails}>
-                        {Object.entries(survey.details).map(([label, value]) => (
-                          <View key={label} style={styles.surveyDetailRow}>
-                            <Text style={styles.surveyDetailLabel}>{label}</Text>
-                            <Text style={styles.surveyDetailValue}>{value}</Text>
-                          </View>
-                        ))}
+                    <View style={styles.surveySummaryGrid}>
+                      {surveySummary.map((item) => (
+                        <TouchableOpacity
+                          key={item.key}
+                          onPress={() => setActiveSurveyMetric(item.key as any)}
+                          style={[
+                            styles.surveySummaryCard,
+                            item.status(item.avg) === 'good' && styles.surveySummaryGood,
+                            item.status(item.avg) === 'warn' && styles.surveySummaryWarn,
+                            item.status(item.avg) === 'bad' && styles.surveySummaryBad,
+                          ]}
+                        >
+                          <Text style={styles.surveySummaryLabel}>{item.label}</Text>
+                          <Text style={[styles.surveySummaryValue, { color: item.color }]}>
+                            {item.format(item.avg)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+              </View>
+
+              <View style={styles.sectionCard}>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={styles.sectionHeaderIcon}>
+                    <ClipboardCopy size={16} color="#111827" />
+                  </View>
+                  <Text style={styles.sectionTitle}>Анкеты по дням</Text>
+                </View>
+                {client.surveys.length === 0 && (
+                  <View style={styles.emptyStateCard}>
+                    <View style={styles.emptyIconWrap}>
+                      <ClipboardCopy size={18} color="#6B7280" />
+                    </View>
+                    <Text style={styles.emptyStateTitle}>Анкет пока нет</Text>
+                    <Text style={styles.emptyStateSubtitle}>Клиент еще не заполнял анкеты</Text>
+                  </View>
+                )}
+                {client.surveys.map((survey) => {
+                  const isExpanded = expandedSurveyId === survey.id;
+                  return (
+                    <TouchableOpacity
+                      key={survey.id}
+                      onPress={() => handleSurveyPress(survey)}
+                      style={styles.surveyRow}
+                    >
+                      <View style={styles.surveyHeader}>
+                        <View>
+                          <Text style={styles.surveyDate}>{survey.date}</Text>
+                          <Text style={styles.surveyMeta}>
+                            Сон: {survey.sleep} · Стресс: {survey.stress} · Мотивация: {survey.motivation}
+                          </Text>
+                        </View>
+                        <View style={[styles.surveyStatus, survey.status === 'pending' && styles.surveyStatusPending]}>
+                          <Text
+                            style={[
+                              styles.surveyStatusText,
+                              survey.status === 'pending' && styles.surveyStatusTextPending,
+                            ]}
+                          >
+                            {survey.status === 'pending' ? 'Не просмотрено' : 'Просмотрено'}
+                          </Text>
+                        </View>
                       </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                      {isExpanded && (
+                        <View style={styles.surveyDetails}>
+                          {Object.entries(survey.details).map(([label, value]) => (
+                            <View key={label} style={styles.surveyDetailRow}>
+                              <Text style={styles.surveyDetailLabel}>{label}</Text>
+                              <Text style={styles.surveyDetailValue}>{value}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
           )}
 
           {activeTab === 'measurements' && (
@@ -1519,6 +1582,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#111827',
     fontWeight: '600',
+  },
+  sectionHeaderChevron: {
+    marginLeft: 'auto',
+    transform: [{ rotate: '0deg' }],
+  },
+  sectionHeaderChevronExpanded: {
+    transform: [{ rotate: '180deg' }],
   },
   measureRow: {
     padding: 12,
